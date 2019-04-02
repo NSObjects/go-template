@@ -3,8 +3,8 @@ push:
 
 build:
 	#docker build -f ./cmd/api/Dockerfile -t '$(tag)' .
-	docker build -t registry.gitlab.com/mrqter/go-template:$(tag) -f cmd/api/Dockerfile .
-	docker push registry.gitlab.com/mrqter/go-template:$(tag)
+	docker build -t registry.pyl.com/backend/go-template:$(tag) -f cmd/api/Dockerfile .
+	docker push registry.pyl.com/backend/go-template:$(tag)
 
 test:
 	export RUN_ENVIRONMENT=test
