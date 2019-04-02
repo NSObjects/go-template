@@ -1,0 +1,37 @@
+[system]
+prot = ":9322"
+#1 = debug , 2 = online
+level = 1
+
+[mysql]
+# 容器运行时host修改为 数据库服务名称 mysql
+# links:
+#      - mysql
+host = "127.0.0.1"
+docker_host = "db"
+prot = "3306"
+database = ["go_template"]
+user = "root"
+password = "123456"
+max_idle_conns = 20
+max_open_conns = 20
+
+[log]
+#1 = debug , 2 = error
+level = 1 
+#mac ./
+path = "/var/log/go-template"
+# MaxSize is the maximum size in megabytes of the log file before it gets
+# rotated. It defaults to 100 megabytes.
+max_size = 10
+# MaxBackups is the maximum number of old log files to retain.  The default
+# is to retain all old log files (though MaxAge may still cause them to get
+# deleted.)
+max_backups = 10
+# MaxAge is the maximum number of days to retain old log files based on the
+# timestamp encoded in their filename.  Note that a day is defined as 24
+# hours and may not exactly correspond to calendar days due to daylight
+# savings, leap seconds, etc. The default is not to remove old log files
+# based on age.
+max_age = 10
+

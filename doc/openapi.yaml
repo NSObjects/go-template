@@ -1,0 +1,297 @@
+openapi: 3.0.0
+# Added by API Auto Mocking Plugin
+servers:
+  - description: Go-templat Api 模板
+    url: https://virtserver.swaggerhub.com/NSObjects/aassdd/1.0.0
+info:
+  description: |
+    .
+  version: "1.0.0"
+  title: Go-templat Api 模板
+
+tags:
+  - name: user
+    description: 用户操作相关接口
+paths:
+  /users:
+    post:
+      tags:
+        - user
+      summary: 创建用户
+      description: 此接口只能用于已经登陆的用户
+      operationId: createUser
+      responses:
+        "200":
+          $ref: "#/components/responses/SuccessFulOperation"
+        "405":
+            $ref: "#/components/responses/ParamError"
+        "402":
+            $ref: "#/components/responses/DBError"
+        "500":
+            $ref: "#/components/responses/ReLogin"
+        "201":
+            $ref: "#/components/responses/AlertMsg"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+        description: 用户数据
+        required: true
+    get:
+      tags:
+        - user
+      summary: 查询用户
+      operationId: find users
+      parameters:
+        - $ref: "#/components/parameters/pageParam"
+        - $ref: "#/components/parameters/countParam"
+        - name: name
+          in: query
+          description: 用户名称
+          schema:
+            type: string
+        - name: email
+          in: query
+          description: 用户邮箱
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int64
+                    default: 200
+                  msg:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        format: int64
+                      datas:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/User"
+
+        "405":
+            $ref: "#/components/responses/ParamError"
+        "402":
+            $ref: "#/components/responses/DBError"
+        "201":
+            $ref: "#/components/responses/AlertMsg"
+
+
+  /user/{id}:
+    get:
+      tags:
+        - user
+      summary: 根据id查询某个用户
+      operationId: getUserById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/UserDetail'
+        "405":
+          $ref: "#/components/responses/ParamError"
+        "402":
+          $ref: "#/components/responses/DBError"
+        "201":
+          $ref: "#/components/responses/AlertMsg"
+    put:
+      tags:
+        - user
+      summary: 更新用户数据
+      description: 这个接口只能被已经登陆用户调用
+      operationId: updateUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+           $ref: "#/components/responses/SuccessFulOperation"
+        "405":
+           $ref: "#/components/responses/ParamError"
+        "402":
+           $ref: "#/components/responses/DBError"
+        "201":
+           $ref: "#/components/responses/AlertMsg"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+        description: 需要更新的用户信息
+        required: true
+    delete:
+      tags:
+        - user
+      summary: 删除用户
+      description: 这个接口只能被已经登陆用户调用
+      operationId: deleteUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          $ref: "#/components/responses/SuccessFulOperation"
+        "405":
+          $ref: "#/components/responses/ParamError"
+        "402":
+          $ref: "#/components/responses/DBError"
+        "201":
+          $ref: "#/components/responses/AlertMsg"
+
+
+components:
+  schemas:
+    operatorResponse:
+      type: object
+      properties:
+        code:
+          type: number
+          format: int64
+          description: 状态码
+        msg:
+          type: string
+          description: 操作信息
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        account:
+          type: string
+        password:
+          type: string
+        status:
+          type: integer
+          description: 用户状态 1=启用 其他禁用
+  parameters:
+    pageParam:
+      name: page
+      in: query
+      description: 页码
+      schema:
+        type: integer
+    countParam:
+      name: count
+      in: query
+      description: 一页的数量
+      schema:
+        type: integer
+  responses:
+    UserDetail:
+      description: 用户详情
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int64
+                default: 201
+              msg:
+                type: string
+              data:
+                $ref: '#/components/schemas/User'
+    AlertMsg:
+      description: 用户操作错误，例如重复创建，将弹窗提示
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int64
+                default: 201
+              msg:
+                type: string
+    SuccessFulOperation:
+      description: 操作成功
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int64
+                default: 200
+              msg:
+                type: string
+    ReLogin:
+      description: 用户登陆失效，重新登陆
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int64
+                default: 500
+              msg:
+                type: string
+    DBError:
+      description: 数据库错误，此错误不显示到用户界面，只做调试用
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int64
+                default: 402
+              msg:
+                type: string
+    ParamError:
+      description: 参数错误
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int64
+                default: 405
+              msg:
+                type: string
+  requestBodies:
+    UserBody:
+      description: 用户信息
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/User'

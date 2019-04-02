@@ -1,0 +1,63 @@
+version: "3"
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./cmd/api/Dockerfile
+    #  先将api镜像发布到私有仓库，当前配置只是测试使用
+    # api:
+    #    image: xxx/api
+    #    container_name: go-template-api
+    #    volumes:
+    #      - ./config.toml:/config.toml
+    #    ports:
+    #      - "9328:9322"
+    #    links:
+    #      - mysql
+    #      - redis
+    #image: registry.pyl.com/backend/go-template:v0.0.3
+    container_name: go-template-api
+    environment:
+      RUN_ENVIRONMENT: docker
+    volumes:
+      - ./config.toml:/config.toml
+    depends_on:
+      - "db"
+#      - "redis"
+    ports:
+      - "9328:9322"
+    networks:
+      - api-net
+  db:
+    image: mysql:8.0.14
+    container_name: go-template-mysql
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - ./mysql/conf/conf.d:/etc/mysql/conf.d
+      - ./mysql/conf/init.d:/docker-entrypoint-initdb.d
+      - ./mysql/logs:/logs
+      - ./mysql/data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: go_template
+      TZ: Asia/Shanghai
+      MYSQL_USER: root
+      MYSQL_PASSWORD: 123456
+    networks:
+      - api-net
+#  redis:
+#    image: redis:4.0.12
+#    container_name: redis
+#    command: redis-server /usr/local/etc/redis/redis.conf
+#    volumes:
+#      - ./redis/data:/data
+#      - ./redis/conf/redis.conf:/usr/local/etc/redis/redis.conf
+#    restart: always
+#    networks:
+#      - api-net
+networks:
+  api-net:
+    driver: bridge
+
+
