@@ -3,7 +3,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: ./cmd/api/Dockerfile
+      dockerfile: Dockerfile
     #  先将api镜像发布到私有仓库，当前配置只是测试使用
     # api:
     #    image: xxx/api

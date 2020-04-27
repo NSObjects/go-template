@@ -6,7 +6,7 @@ package mock_repository
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	models "go-template/models"
+	models "go-template/domain"
 	reflect "reflect"
 )
 

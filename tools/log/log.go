@@ -12,18 +12,13 @@ package log
 
 import (
 	"fmt"
-	"go-template/configs"
+	"go-template/tools/configs"
 	"net/http"
 	"os"
-
 	"gopkg.in/natefinch/lumberjack.v2"
-
 	"go.uber.org/zap/zapcore"
-
-	"time"
-
-	"github.com/go-xorm/core"
 	"go.uber.org/zap"
+	"time"
 )
 
 var logger *Log
@@ -242,59 +237,59 @@ func DebugResponse(response *http.Response) {
 	logger.DebugResponse(response)
 }
 
-type Xormlog struct {
-	showSQL bool
-	level   core.LogLevel
-}
-
-func (c *Xormlog) Debug(v ...interface{}) {
-	logger.Debug(fmt.Sprint(v...))
-}
-
-func (Xormlog) Debugf(format string, v ...interface{}) {
-	logger.Debug(fmt.Sprint(v...))
-}
-
-func (c *Xormlog) Error(v ...interface{}) {
-	logger.Error(fmt.Sprint(v...))
-}
-
-func (c *Xormlog) Errorf(format string, v ...interface{}) {
-	logger.Error(fmt.Sprintf(format, v...))
-}
-
-func (c *Xormlog) Info(v ...interface{}) {
-	logger.Info(fmt.Sprint(v...))
-}
-
-func (c *Xormlog) Infof(format string, v ...interface{}) {
-	logger.Info(fmt.Sprintf(format, v...))
-}
-
-func (c *Xormlog) Warn(v ...interface{}) {
-	logger.Warn(fmt.Sprint(v...))
-}
-
-func (c *Xormlog) Warnf(format string, v ...interface{}) {
-	logger.Warn(fmt.Sprintf(format, v...))
-}
-
-func (c *Xormlog) Level() core.LogLevel {
-	return c.level
-}
-
-func (c *Xormlog) SetLevel(l core.LogLevel) {
-	c.level = l
-}
-
-func (c *Xormlog) ShowSQL(show ...bool) {
-	if len(show) == 0 {
-		c.showSQL = true
-	} else {
-		c.showSQL = show[0]
-	}
-}
-
-func (c *Xormlog) IsShowSQL() bool {
-	return c.showSQL
-}
+//type Xormlog struct {
+//	showSQL bool
+//	level   core
+//}
+//
+//func (c *Xormlog) Debug(v ...interface{}) {
+//	logger.Debug(fmt.Sprint(v...))
+//}
+//
+//func (Xormlog) Debugf(format string, v ...interface{}) {
+//	logger.Debug(fmt.Sprint(v...))
+//}
+//
+//func (c *Xormlog) Error(v ...interface{}) {
+//	logger.Error(fmt.Sprint(v...))
+//}
+//
+//func (c *Xormlog) Errorf(format string, v ...interface{}) {
+//	logger.Error(fmt.Sprintf(format, v...))
+//}
+//
+//func (c *Xormlog) Info(v ...interface{}) {
+//	logger.Info(fmt.Sprint(v...))
+//}
+//
+//func (c *Xormlog) Infof(format string, v ...interface{}) {
+//	logger.Info(fmt.Sprintf(format, v...))
+//}
+//
+//func (c *Xormlog) Warn(v ...interface{}) {
+//	logger.Warn(fmt.Sprint(v...))
+//}
+//
+//func (c *Xormlog) Warnf(format string, v ...interface{}) {
+//	logger.Warn(fmt.Sprintf(format, v...))
+//}
+//
+//func (c *Xormlog) Level() core.LogLevel {
+//	return c.level
+//}
+//
+//func (c *Xormlog) SetLevel(l core.LogLevel) {
+//	c.level = l
+//}
+//
+//func (c *Xormlog) ShowSQL(show ...bool) {
+//	if len(show) == 0 {
+//		c.showSQL = true
+//	} else {
+//		c.showSQL = show[0]
+//	}
+//}
+//
+//func (c *Xormlog) IsShowSQL() bool {
+//	return c.showSQL
+//}

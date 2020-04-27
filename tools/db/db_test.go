@@ -15,8 +15,8 @@ import (
 	"reflect"
 	"testing"
 
+	"xorm.io/xorm"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/go-xorm/xorm"
 )
 
 func TestNewDataSource(t *testing.T) {

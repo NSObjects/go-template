@@ -16,10 +16,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-xorm/core"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
+	"xorm.io/xorm/core"
 )
 
 func TestLumberJackLogger(t *testing.T) {

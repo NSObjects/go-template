@@ -14,11 +14,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"go-template/configs"
-	"time"
-
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/go-xorm/xorm"
+	"go-template/tools/configs"
+	"time"
+	"xorm.io/xorm"
 )
 
 type DataBase int
@@ -71,7 +70,6 @@ func createEngin(db DataBase, db2 ...*sql.DB) (engine *xorm.EngineGroup, err err
 
 	if configs.System.Level == 1 {
 		engine.ShowSQL(true)
-		engine.ShowExecTime(true)
 	}
 
 	if len(db2) > 0 {

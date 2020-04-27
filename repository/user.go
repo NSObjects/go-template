@@ -11,18 +11,18 @@
 package repository
 
 import (
-	"go-template/models"
+	"go-template/domain"
 	"go-template/tools/db"
 
 	"github.com/pkg/errors"
 )
 
 type UserRepository interface {
-	GetUserById(id int64) (user models.User, err error)
-	FindUser(param models.UserParam) (user []models.User, total int64, err error)
+	GetUserById(id int64) (user domain.User, err error)
+	FindUser(param domain.UserParam) (user []domain.User, total int64, err error)
 	DeleteUserById(id int64) (err error)
-	UpdateUser(param models.UserParam, id int64) (err error)
-	CreateUser(param models.UserParam) (id int64, err error)
+	UpdateUser(param domain.UserParam, id int64) (err error)
+	CreateUser(param domain.UserParam) (id int64, err error)
 }
 
 type UserDataSource struct {
@@ -33,8 +33,8 @@ func NewUserDataSource(dataSource *db.DataSource) *UserDataSource {
 	return &UserDataSource{dataSource: dataSource}
 }
 
-func (this *UserDataSource) CreateUser(param models.UserParam) (id int64, err error) {
-	var user models.User
+func (this *UserDataSource) CreateUser(param domain.UserParam) (id int64, err error) {
+	var user domain.User
 	user.Account = param.Account
 	user.Password = param.Password
 	user.Phone = param.Phone
@@ -49,9 +49,9 @@ func (this *UserDataSource) CreateUser(param models.UserParam) (id int64, err er
 	return
 }
 
-func (this *UserDataSource) GetUserById(id int64) (user models.User, err error) {
+func (this *UserDataSource) GetUserById(id int64) (user domain.User, err error) {
 
-	if _, err = this.dataSource.Engine.Id(id).Get(&user); err != nil {
+	if _, err = this.dataSource.Engine.ID(id).Get(&user); err != nil {
 		return user, errors.Wrap(err, "查询用户失败")
 	}
 
@@ -59,9 +59,9 @@ func (this *UserDataSource) GetUserById(id int64) (user models.User, err error) 
 
 }
 
-func (this *UserDataSource) FindUser(param models.UserParam) (user []models.User, total int64, err error) {
+func (this *UserDataSource) FindUser(param domain.UserParam) (user []domain.User, total int64, err error) {
 
-	session := this.dataSource.Engine.Table(new(models.User))
+	session := this.dataSource.Engine.Table(new(domain.User))
 
 	if param.Phone != "" {
 		session = session.Where("phone = ?", param.Phone)
@@ -92,16 +92,16 @@ func (this *UserDataSource) FindUser(param models.UserParam) (user []models.User
 
 func (this *UserDataSource) DeleteUserById(id int64) (err error) {
 
-	if _, err = this.dataSource.Engine.Id(id).Delete(new(models.User)); err != nil {
+	if _, err = this.dataSource.Engine.ID(id).Delete(new(domain.User)); err != nil {
 		return errors.Wrap(err, "删除用户失败")
 	}
 
 	return
 }
 
-func (u *UserDataSource) UpdateUser(param models.UserParam, id int64) (err error) {
+func (u *UserDataSource) UpdateUser(param domain.UserParam, id int64) (err error) {
 
-	if _, err = u.dataSource.Engine.Id(id).Update(&param.User); err != nil {
+	if _, err = u.dataSource.Engine.ID(id).Update(&param.User); err != nil {
 		return errors.Wrap(err, "更新用户失败")
 	}
 	//error = 更新用户失败: ExecQuery

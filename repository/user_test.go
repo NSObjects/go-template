@@ -13,7 +13,7 @@ package repository
 import (
 	"fmt"
 	_ "go-template/init"
-	"go-template/models"
+	"go-template/domain"
 	"go-template/tools/db"
 	"reflect"
 	"regexp"
@@ -86,7 +86,7 @@ func TestUserDataSource_CreateUser(t *testing.T) {
 		dataSource *db.DataSource
 	}
 	type args struct {
-		param models.UserParam
+		param domain.UserParam
 	}
 	tests := []struct {
 		name    string
@@ -98,9 +98,9 @@ func TestUserDataSource_CreateUser(t *testing.T) {
 		{
 			fields: fields{dataSource: database},
 			args: args{param: struct {
-				models.ApiQuery
-				models.User
-			}{User: models.User{
+				domain.ApiQuery
+				domain.User
+			}{User: domain.User{
 				Name:     "string",
 				Account:  "string",
 				Password: "string",
@@ -158,13 +158,13 @@ func TestUserDataSource_GetUserById(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
-		wantUser models.User
+		wantUser domain.User
 		wantErr  bool
 	}{
 		{
 			fields:   fields{dataSource: database},
 			args:     args{id: 1},
-			wantUser: models.User{Id: 1, Name: "string", Account: "string", Password: "string", Phone: "string", Status: 0},
+			wantUser: domain.User{Id: 1, Name: "string", Account: "string", Password: "string", Phone: "string", Status: 0},
 			wantErr:  false,
 		},
 	}
@@ -215,21 +215,21 @@ func TestUserDataSource_FindUser(t *testing.T) {
 		dataSource *db.DataSource
 	}
 	type args struct {
-		param models.UserParam
+		param domain.UserParam
 	}
 	tests := []struct {
 		name      string
 		fields    fields
 		args      args
-		wantUser  []models.User
+		wantUser  []domain.User
 		wantTotal int64
 		wantErr   bool
 	}{
 		{
 			fields:    fields{dataSource: database},
-			args:      args{param: models.UserParam{}},
+			args:      args{param: domain.UserParam{}},
 			wantErr:   false,
-			wantUser:  []models.User{{Id: 1, Name: "string", Account: "string", Password: "string", Phone: "string", Status: 0}},
+			wantUser:  []domain.User{{Id: 1, Name: "string", Account: "string", Password: "string", Phone: "string", Status: 0}},
 			wantTotal: 20,
 		},
 	}
@@ -333,7 +333,7 @@ func TestUserDataSource_UpdateUser(t *testing.T) {
 		dataSource *db.DataSource
 	}
 	type args struct {
-		param models.UserParam
+		param domain.UserParam
 		id    int64
 	}
 	tests := []struct {
@@ -344,7 +344,7 @@ func TestUserDataSource_UpdateUser(t *testing.T) {
 	}{
 		{
 			fields:  fields{dataSource: dataSource},
-			args:    args{param: models.UserParam{User: models.User{Name: "lin"}}, id: 1},
+			args:    args{param: domain.UserParam{User: domain.User{Name: "lin"}}, id: 1},
 			wantErr: false,
 		},
 	}
