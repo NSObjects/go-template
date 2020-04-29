@@ -53,12 +53,14 @@ var (
 	Mysql  MysqlConfig
 	System SystemConfig
 	Log    LogConfig
+	Mgo    Mongodb
 )
 
 type Config struct {
-	Mysql  MysqlConfig  `mapstructure:"mysql"`
-	System SystemConfig `mapstructure:"system"`
-	Log    LogConfig    `mapstructure:"log"`
+	Mysql   MysqlConfig  `mapstructure:"mysql"`
+	System  SystemConfig `mapstructure:"system"`
+	Log     LogConfig    `mapstructure:"log"`
+	Mongodb Mongodb      `mapstructure:"mongodb"`
 }
 
 type SystemConfig struct {
@@ -77,7 +79,7 @@ type LogConfig struct {
 type MysqlConfig struct {
 	DockerHost   string   `mapstructure:"docker_host"`
 	Host         string   `mapstructure:"host"`
-	Port         string   `mapstructure:"prot"`
+	Port         string   `mapstructure:"port"`
 	User         string   `mapstructure:"user"`
 	Password     string   `mapstructure:"password"`
 	MaxOpenConns int      `mapstructure:"max_open_conns"`
@@ -85,9 +87,16 @@ type MysqlConfig struct {
 	Database     []string `mapstructure:"database"`
 }
 
-func InitConfig(configPath string, configType string) (err error) {
+type Mongodb struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+}
 
-	if err = viperInit(configPath, configType); err != nil {
+func InitConfig(configPath string) (err error) {
+
+	if err = viperInit(configPath); err != nil {
 		return
 	}
 
@@ -99,12 +108,12 @@ func InitConfig(configPath string, configType string) (err error) {
 	Mysql = c.Mysql
 	System = c.System
 	Log = c.Log
-
+	Mgo = c.Mongodb
 	return
 }
 
-func viperInit(configPath string, configType string) (err error) {
-	viper.SetConfigType(configType)
+func viperInit(configPath string) (err error) {
+	viper.SetConfigType("toml")
 	if configPath != "" {
 		content, err := ioutil.ReadFile(configPath)
 		if err != nil {
@@ -113,7 +122,7 @@ func viperInit(configPath string, configType string) (err error) {
 		err = viper.ReadConfig(bytes.NewBuffer(content))
 	} else {
 		viper.AddConfigPath(".")
-		viper.AddConfigPath("./configs")
+		viper.AddConfigPath("../../")
 		viper.AddConfigPath("../")
 		//viper.AddConfigPath("/etc/xxx/config")
 		if err = viper.ReadInConfig(); err != nil {

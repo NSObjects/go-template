@@ -56,7 +56,6 @@ func NewTestDataSource(db2 *sql.DB) (datasouce *DataSource, err error) {
 }
 
 func createEngin(db DataBase, db2 ...*sql.DB) (engine *xorm.EngineGroup, err error) {
-
 	conn, err := dataSource(db)
 	if err != nil {
 		return nil, err

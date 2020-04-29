@@ -5,9 +5,10 @@
 package mock_ucase
 
 import (
-	gomock "github.com/golang/mock/gomock"
-	echo "github.com/labstack/echo"
 	reflect "reflect"
+
+	gomock "github.com/golang/mock/gomock"
+	echo "github.com/labstack/echo/v4"
 )
 
 // MockUserUsecase is a mock of UserUsecase interface

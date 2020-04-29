@@ -10,45 +10,60 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"go-template/delivery/server"
+	"go-template/delivery"
 	"go-template/tools/configs"
 	"go-template/tools/db"
 	"go-template/tools/log"
+	"os"
+
+	"github.com/urfave/cli/v2"
 )
 
 func main() {
-
-	//database := db.NewDataSource()
-	//err := database.Engine.Sync2(new(models.User))
-	//if err != nil {
-	//	panic(err)
-	//}
-	database, err := db.NewDataSource()
+	app := cli.NewApp()
+	app.Name = "go-template"
+	app.Commands = []*cli.Command{
+		newWebCmd(),
+	}
+	err := app.Run(os.Args)
 	if err != nil {
-		panic(err)
+		log.Panic(err)
 	}
-	api := server.NewEchoServer(database)
 
-	api.LoadMiddleware()
-	api.RegisterRouter()
-
-	api.Run(configs.System.Prot)
 }
 
-func init() {
-	initConfig()
-	log.Init()
+func newWebCmd() *cli.Command {
+	return &cli.Command{
+		Name:  "web",
+		Usage: "run api server",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     "conf",
+				Aliases:  []string{"c"},
+				Usage:    "配置文件(.json,.yaml,.toml)",
+				Required: false,
+			},
+		},
+		Action: func(c *cli.Context) error {
+			if err := configs.InitConfig(c.String("conf")); err != nil {
+				return err
+			}
+			log.Init()
+			api, err := InitializeEchoServer()
+			if err != nil {
+				panic(err)
+			}
+			api.Run(configs.System.Prot)
+			return nil
+		},
+	}
 }
 
-func initConfig() {
-
-	configPath := flag.String("config", "", "config path")
-	if flag.Parsed() == false {
-		flag.Parse()
+func InitializeEchoServer() (*delivery.EchoServer, error) {
+	dataSource, err := db.NewDataSource()
+	if err != nil {
+		return nil, err
 	}
-	if err := configs.InitConfig(*configPath, "toml"); err != nil {
-		fmt.Println(err)
-	}
+	echoServer := delivery.NewEchoServer(dataSource)
+	return echoServer, nil
 }

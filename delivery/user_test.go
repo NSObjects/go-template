@@ -11,7 +11,6 @@
 package delivery
 
 import (
-	"go-template/delivery/server"
 	"net/http"
 	"testing"
 
@@ -20,26 +19,26 @@ import (
 )
 
 func TestUserController_getUser(t *testing.T) {
-	c, _ := server.request(echo.GET, "/api/users", server.e)
+	c, _ := Request(echo.GET, "/api/users")
 	assert.Equal(t, http.StatusOK, c)
 }
 
 func TestUserController_createUser(t *testing.T) {
-	c, _ := server.request(echo.POST, "/api/users", server.e)
+	c, _ := Request(echo.POST, "/api/users")
 	assert.Equal(t, http.StatusOK, c)
 }
 
 func TestUserController_updateUser(t *testing.T) {
-	c, _ := server.request(echo.PUT, "/api/users/:id", server.e)
+	c, _ := Request(echo.PUT, "/api/users/:id")
 	assert.Equal(t, http.StatusOK, c)
 }
 
 func TestUserController_deleteUser(t *testing.T) {
-	c, _ := server.request(echo.DELETE, "/api/users/:id", server.e)
+	c, _ := Request(echo.DELETE, "/api/users/:id")
 	assert.Equal(t, http.StatusOK, c)
 }
 
 func TestUserController_getUserDetail(t *testing.T) {
-	c, _ := server.request(echo.GET, "/api/users/:id", server.e)
+	c, _ := Request(echo.GET, "/api/users/:id")
 	assert.Equal(t, http.StatusOK, c)
 }

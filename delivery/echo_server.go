@@ -8,42 +8,45 @@
  *
  */
 
-package server
+package delivery
 
 import (
 	"context"
-
-	"go-template/delivery"
-	"go-template/delivery/middlewares"
 	"go-template/repository"
+	"go-template/usecase"
+
+	"go-template/delivery/middlewares"
 	"go-template/tools/db"
 	"go-template/tools/log"
-	"go-template/usecase"
 	"os"
 	"os/signal"
 	"time"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"gopkg.in/go-playground/validator.v9"
 )
-
-type RegisterRouter interface {
-	RegisterRouter(s *echo.Group, middlewareFunc ...echo.MiddlewareFunc)
-}
 
 type EchoServer struct {
 	server     *echo.Echo
 	dataSource *db.DataSource
 }
 
+func (s *EchoServer) Server() *echo.Echo {
+	return s.server
+}
+
 func NewEchoServer(db *db.DataSource) *EchoServer {
-	return &EchoServer{
+	s := &EchoServer{
 		server:     echo.New(),
 		dataSource: db,
 	}
+	s.loadMiddleware()
+	s.registerRouter()
+	return s
 }
 
-func (s *EchoServer) LoadMiddleware() {
+func (s *EchoServer) loadMiddleware() {
 	s.server.Validator = &middlewares.Validator{Validator: validator.New()}
 	s.server.Use(middleware.Gzip())
 	s.server.Use(middleware.Recover())
@@ -58,14 +61,16 @@ func (s *EchoServer) LoadMiddleware() {
 	}))
 }
 
-func (s *EchoServer) RegisterRouter() {
-	dataSource, err := db.NewDataSource()
-	if err != nil {
-		panic(err)
-	}
+func InitializeController(d *db.DataSource) *UserController {
+	userDataSource := repository.NewUserDataSource(d)
+	userHandler := usecase.NewUserHandler(userDataSource)
+	userController := NewUserController(userHandler)
+	return userController
+}
 
+func (s *EchoServer) registerRouter() {
 	routers := []RegisterRouter{
-		delivery.NewUserController(usecase.NewUserHandler(repository.NewUserDataSource(dataSource))),
+		InitializeController(s.dataSource),
 	}
 
 	g := s.server.Group("api")

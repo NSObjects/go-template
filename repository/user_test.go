@@ -12,7 +12,6 @@ package repository
 
 import (
 	"fmt"
-	_ "go-template/init"
 	"go-template/domain"
 	"go-template/tools/db"
 	"reflect"
