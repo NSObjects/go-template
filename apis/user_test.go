@@ -11,6 +11,7 @@
 package apis
 
 import (
+	_ "go-template/init"
 	"net/http"
 	"testing"
 
