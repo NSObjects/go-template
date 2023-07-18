@@ -8,8 +8,8 @@ package data
 
 import (
 	"fmt"
+	"github.com/NSObjects/go-template/internal/api/data/db"
 	"github.com/NSObjects/go-template/internal/api/data/model"
-	"github.com/NSObjects/go-template/tools/db"
 	"reflect"
 	"regexp"
 	"testing"
@@ -68,7 +68,7 @@ func TestUserDataSource_CreateUser(t *testing.T) {
 	}()
 
 	mock.ExpectExec(
-		"INSERT INTO `user`").
+		"INSERT INTO user").
 		WithArgs("string", "string", 1, "string", "string", nil).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 

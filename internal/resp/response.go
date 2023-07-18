@@ -4,31 +4,32 @@
  *
  */
 
-package tools
+package resp
 
 import (
 	"errors"
-	"github.com/NSObjects/go-template/tools/log"
-	"github.com/labstack/echo/v4"
 	"net/http"
 	"reflect"
+
+	"github.com/NSObjects/go-template/internal/log"
+	"github.com/labstack/echo/v4"
 )
 
 type ListResponse struct {
-	Code ResponetsCode `json:"code"`
-	Msg  string        `json:"msg"`
-	Data ListData      `json:"data"`
+	Code StatusCode `json:"code"`
+	Msg  string     `json:"msg"`
+	Data ListData   `json:"data"`
 }
 
 type ListData struct {
 	Total int64       `json:"total"`
-	Datas interface{} `json:"datas"`
+	List  interface{} `json:"list" `
 }
 
 type DataResponse struct {
-	Code ResponetsCode `json:"code"`
-	Msg  string        `json:"msg"`
-	Data interface{}   `json:"data"`
+	Code StatusCode  `json:"code"`
+	Msg  string      `json:"msg"`
+	Data interface{} `json:"data"`
 }
 
 func ApiError(err error, c echo.Context) error {
@@ -39,8 +40,8 @@ func ApiError(err error, c echo.Context) error {
 
 	log.ErrorSkip(2, err)
 	var rjson struct {
-		Code ResponetsCode `json:"code"`
-		Msg  string        `json:"msg"`
+		Code StatusCode `json:"code"`
+		Msg  string     `json:"msg"`
 	}
 
 	if terr, ok := err.(*Error); ok {
@@ -56,8 +57,8 @@ func ApiError(err error, c echo.Context) error {
 
 func OperateSuccess(c echo.Context) error {
 	var rjson struct {
-		Code ResponetsCode `json:"code"`
-		Msg  string        `json:"msg"`
+		Code StatusCode `json:"code"`
+		Msg  string     `json:"msg"`
 	}
 
 	rjson.Code = StatusOK
@@ -76,7 +77,7 @@ func ListDataResponse(arr interface{}, total int64, c echo.Context) error {
 
 	r := ListResponse{
 		Data: ListData{
-			Datas: arr,
+			List:  arr,
 			Total: total,
 		},
 		Code: StatusOK,

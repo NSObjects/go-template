@@ -7,8 +7,8 @@
 package data
 
 import (
+	"github.com/NSObjects/go-template/internal/api/data/db"
 	"github.com/NSObjects/go-template/internal/api/data/model"
-	"github.com/NSObjects/go-template/tools/db"
 
 	"github.com/pkg/errors"
 )
@@ -29,7 +29,7 @@ func NewUserDataSource(dataSource *db.DataSource) *UserDataSource {
 	return &UserDataSource{dataSource: dataSource}
 }
 
-func (this *UserDataSource) CreateUser(param model.UserParam) (id int64, err error) {
+func (u *UserDataSource) CreateUser(param model.UserParam) (id int64, err error) {
 	var user model.User
 	user.Account = param.Account
 	user.Password = param.Password
@@ -37,7 +37,7 @@ func (this *UserDataSource) CreateUser(param model.UserParam) (id int64, err err
 	user.Status = param.Status
 	user.Name = param.Name
 
-	_, err = this.dataSource.Engine.Insert(&user)
+	_, err = u.dataSource.Engine.Insert(&user)
 	if err != nil {
 		return 0, errors.Wrap(err, "创建用户失败")
 	}
@@ -45,9 +45,9 @@ func (this *UserDataSource) CreateUser(param model.UserParam) (id int64, err err
 	return
 }
 
-func (this *UserDataSource) GetUserById(id int64) (user model.User, err error) {
+func (u *UserDataSource) GetUserById(id int64) (user model.User, err error) {
 
-	if _, err = this.dataSource.Engine.ID(id).Get(&user); err != nil {
+	if _, err = u.dataSource.Engine.ID(id).Get(&user); err != nil {
 		return user, errors.Wrap(err, "查询用户失败")
 	}
 
@@ -55,9 +55,9 @@ func (this *UserDataSource) GetUserById(id int64) (user model.User, err error) {
 
 }
 
-func (this *UserDataSource) FindUser(param model.UserParam) (user []model.User, total int64, err error) {
+func (u *UserDataSource) FindUser(param model.UserParam) (user []model.User, total int64, err error) {
 
-	session := this.dataSource.Engine.Table(new(model.User))
+	session := u.dataSource.Engine.Table(new(model.User))
 
 	if param.Phone != "" {
 		session = session.Where("phone = ?", param.Phone)
@@ -86,9 +86,9 @@ func (this *UserDataSource) FindUser(param model.UserParam) (user []model.User, 
 	return
 }
 
-func (this *UserDataSource) DeleteUserById(id int64) (err error) {
+func (u *UserDataSource) DeleteUserById(id int64) (err error) {
 
-	if _, err = this.dataSource.Engine.ID(id).Delete(new(model.User)); err != nil {
+	if _, err = u.dataSource.Engine.ID(id).Delete(new(model.User)); err != nil {
 		return errors.Wrap(err, "删除用户失败")
 	}
 

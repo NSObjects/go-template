@@ -12,39 +12,39 @@ import (
 )
 
 type UserController struct {
-	ucase biz.UserUsecase
+	user biz.UserUsecase
 }
 
-func (this *UserController) RegisterRouter(s *echo.Group, middlewareFunc ...echo.MiddlewareFunc) {
-	s.GET("/users", this.getUser).Name = "用户查询"
-	s.POST("/users", this.createUser).Name = "创建用户"
-	s.DELETE("/users/:id", this.deleteUser).Name = "删除用户"
-	s.PUT("/users/:id", this.updateUser).Name = "更新用户"
-	s.GET("/users/:id", this.getUserDetail).Name = "获取某个用户信息"
+func (u *UserController) RegisterRouter(s *echo.Group, middlewareFunc ...echo.MiddlewareFunc) {
+	s.GET("/users", u.getUser).Name = "用户查询"
+	s.POST("/users", u.createUser).Name = "创建用户"
+	s.DELETE("/users/:id", u.deleteUser).Name = "删除用户"
+	s.PUT("/users/:id", u.updateUser).Name = "更新用户"
+	s.GET("/users/:id", u.getUserDetail).Name = "获取某个用户信息"
 }
 
 func NewUserController(ucase biz.UserUsecase) *UserController {
 	return &UserController{
-		ucase: ucase,
+		user: ucase,
 	}
 }
 
-func (this *UserController) getUser(c echo.Context) (err error) {
-	return this.ucase.GetUser(c)
+func (u *UserController) getUser(c echo.Context) (err error) {
+	return u.user.GetUser(c)
 }
 
-func (this *UserController) getUserDetail(c echo.Context) (err error) {
-	return this.ucase.GetUserDetail(c)
+func (u *UserController) getUserDetail(c echo.Context) (err error) {
+	return u.user.GetUserDetail(c)
 }
 
-func (this *UserController) createUser(c echo.Context) (err error) {
-	return this.ucase.CreateUser(c)
+func (u *UserController) createUser(c echo.Context) (err error) {
+	return u.user.CreateUser(c)
 }
 
-func (this *UserController) updateUser(c echo.Context) (err error) {
-	return this.ucase.UpdateUser(c)
+func (u *UserController) updateUser(c echo.Context) (err error) {
+	return u.user.UpdateUser(c)
 }
 
-func (this *UserController) deleteUser(c echo.Context) (err error) {
-	return this.ucase.DeleteUser(c)
+func (u *UserController) deleteUser(c echo.Context) (err error) {
+	return u.user.DeleteUser(c)
 }

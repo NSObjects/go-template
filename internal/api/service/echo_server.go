@@ -13,9 +13,9 @@ import (
 	"github.com/labstack/echo/v4"
 	"gopkg.in/go-playground/validator.v9"
 
+	"github.com/NSObjects/go-template/internal/api/data/db"
 	"github.com/NSObjects/go-template/internal/api/service/middlewares"
-	"github.com/NSObjects/go-template/tools/db"
-	"github.com/NSObjects/go-template/tools/log"
+	"github.com/NSObjects/go-template/internal/log"
 	"os"
 	"os/signal"
 	"time"

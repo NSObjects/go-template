@@ -4,20 +4,20 @@
  *
  */
 
-package tools
+package resp
 
 import "errors"
 
 type Error struct {
 	Err  error
-	Code ResponetsCode
+	Code StatusCode
 }
 
-func (this *Error) Error() string {
-	return this.Err.Error()
+func (e *Error) Error() string {
+	return e.Err.Error()
 }
 
-func NewError(err error, code ResponetsCode) *Error {
+func NewError(err error, code StatusCode) *Error {
 	return &Error{
 		Err:  err,
 		Code: code,
@@ -41,13 +41,13 @@ func NewDBError(err error) *Error {
 func NewMsgError(str string) *Error {
 	return &Error{
 		Err:  errors.New(str),
-		Code: StatusAlerMsg,
+		Code: StatusAlterMsg,
 	}
 }
 
-func NewReloginError(err error) *Error {
+func NewAuthError(err error) *Error {
 	return &Error{
 		Err:  err,
-		Code: StatusRelogin,
+		Code: StatusAuth,
 	}
 }

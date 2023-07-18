@@ -10,7 +10,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/NSObjects/go-template/tools/configs"
+	"github.com/NSObjects/go-template/internal/configs"
 	_ "github.com/go-sql-driver/mysql"
 	"time"
 	"xorm.io/xorm"
@@ -19,32 +19,32 @@ import (
 type DataBase int
 
 const (
-	DefultDB DataBase = iota
+	DefaultDB DataBase = iota
 )
 
-// 在使用多个db的项目中在DataSource结构体中增加Engine即可
+// DataSource 在使用多个db的项目中在DataSource结构体中增加Engine即可
 type DataSource struct {
 	Engine *xorm.EngineGroup
 }
 
 var db *DataSource
 
-func NewDataSource() (datasouce *DataSource, err error) {
+func NewDataSource() (datasource *DataSource, err error) {
 	if db != nil {
 		return db, nil
 	}
 
 	db = new(DataSource)
-	if db.Engine, err = createEngin(DefultDB); err != nil {
+	if db.Engine, err = createEngin(DefaultDB); err != nil {
 		return nil, err
 	}
 
 	return db, nil
 }
 
-func NewTestDataSource(db2 *sql.DB) (datasouce *DataSource, err error) {
+func NewTestDataSource(db2 *sql.DB) (datasource *DataSource, err error) {
 	db = new(DataSource)
-	if db.Engine, err = createEngin(DefultDB, db2); err != nil {
+	if db.Engine, err = createEngin(DefaultDB, db2); err != nil {
 		return nil, err
 	}
 
@@ -71,17 +71,17 @@ func createEngin(db DataBase, db2 ...*sql.DB) (engine *xorm.EngineGroup, err err
 		engine.DB().DB = db2[0]
 	}
 
-	retryConnect := 0
-	for {
-		if err = engine.Ping(); err == nil {
-			break
-		}
-		time.Sleep(3 * time.Second)
-		if retryConnect == 5 {
-			panic(err)
-		}
-		retryConnect++
-	}
+	//retryConnect := 0
+	//for {
+	//	if err = engine.Ping(); err == nil {
+	//		break
+	//	}
+	//	time.Sleep(3 * time.Second)
+	//	if retryConnect == 5 {
+	//		panic(err)
+	//	}
+	//	retryConnect++
+	//}
 
 	cst, err := time.LoadLocation("Asia/Shanghai")
 	if err != nil {

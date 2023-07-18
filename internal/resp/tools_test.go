@@ -4,7 +4,7 @@
  *
  */
 
-package tools
+package resp
 
 import "testing"
 
@@ -26,13 +26,13 @@ func TestMd5Encode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotMd, err := Md5Encode(tt.args.str)
+			gotMd, err := ShaEncode(tt.args.str)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Md5Encode() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ShaEncode() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if gotMd != tt.wantMd {
-				t.Errorf("Md5Encode() = %v, want %v", gotMd, tt.wantMd)
+				t.Errorf("ShaEncode() = %v, want %v", gotMd, tt.wantMd)
 			}
 		})
 	}

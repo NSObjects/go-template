@@ -22,7 +22,7 @@ func TestInitConfig(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := InitConfig(tt.args.configPath, tt.args.configType); (err != nil) != tt.wantErr {
+			if err := InitConfig(tt.args.configPath); (err != nil) != tt.wantErr {
 				t.Errorf("InitConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -43,7 +43,7 @@ func Test_viperInit(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := viperInit(tt.args.configPath, tt.args.configType); (err != nil) != tt.wantErr {
+			if err := viperInit(tt.args.configPath); (err != nil) != tt.wantErr {
 				t.Errorf("viperInit() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

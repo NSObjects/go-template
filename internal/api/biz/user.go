@@ -7,11 +7,12 @@
 package biz
 
 import (
+	"strconv"
+
 	"github.com/NSObjects/go-template/internal/api/data"
 	"github.com/NSObjects/go-template/internal/api/data/model"
-	"github.com/NSObjects/go-template/tools"
+	"github.com/NSObjects/go-template/internal/resp"
 	"github.com/labstack/echo/v4"
-	"strconv"
 )
 
 type UserUsecase interface {
@@ -30,78 +31,78 @@ func NewUserHandler(repository data.UserRepository) *UserHandler {
 	return &UserHandler{repository: repository}
 }
 
-func (this *UserHandler) GetUser(c echo.Context) (err error) {
+func (h *UserHandler) GetUser(c echo.Context) (err error) {
 	var p model.UserParam
 	if err := c.Bind(&p); err != nil {
-		return tools.ApiError(tools.NewParamError(err), c)
+		return resp.ApiError(resp.NewParamError(err), c)
 	}
 
-	users, total, err := this.repository.FindUser(p)
+	users, total, err := h.repository.FindUser(p)
 	if err != nil {
-		return tools.ApiError(tools.NewDBError(err), c)
+		return resp.ApiError(resp.NewDBError(err), c)
 	}
 
-	return tools.ListDataResponse(users, total, c)
+	return resp.ListDataResponse(users, total, c)
 }
 
-func (this *UserHandler) CreateUser(c echo.Context) (err error) {
+func (h *UserHandler) CreateUser(c echo.Context) (err error) {
 
 	var p model.UserParam
 	if err := c.Bind(&p); err != nil {
-		return tools.ApiError(tools.NewParamError(err), c)
+		return resp.ApiError(resp.NewParamError(err), c)
 	}
 
-	if _, err = this.repository.CreateUser(p); err != nil {
-		return tools.ApiError(tools.NewDBError(err), c)
+	if _, err = h.repository.CreateUser(p); err != nil {
+		return resp.ApiError(resp.NewDBError(err), c)
 	}
 
-	return tools.OperateSuccess(c)
+	return resp.OperateSuccess(c)
 }
 
-func (this *UserHandler) DeleteUser(c echo.Context) (err error) {
+func (h *UserHandler) DeleteUser(c echo.Context) (err error) {
 
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return tools.ApiError(tools.NewParamError(err), c)
+		return resp.ApiError(resp.NewParamError(err), c)
 	}
 
-	err = this.repository.DeleteUserById(int64(id))
+	err = h.repository.DeleteUserById(int64(id))
 	if err != nil {
-		return tools.ApiError(tools.NewDBError(err), c)
+		return resp.ApiError(resp.NewDBError(err), c)
 	}
 
-	return tools.OperateSuccess(c)
+	return resp.OperateSuccess(c)
 }
 
-func (this *UserHandler) UpdateUser(c echo.Context) error {
+func (h *UserHandler) UpdateUser(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return tools.ApiError(tools.NewParamError(err), c)
+		return resp.ApiError(resp.NewParamError(err), c)
 	}
 
 	param := new(model.UserParam)
 	if err := c.Bind(param); err != nil {
-		return tools.ApiError(tools.NewParamError(err), c)
+		return resp.ApiError(resp.NewParamError(err), c)
 	}
 
-	err = this.repository.UpdateUser(*param, int64(id))
+	err = h.repository.UpdateUser(*param, int64(id))
 	if err != nil {
-		return tools.ApiError(tools.NewDBError(err), c)
+		return resp.ApiError(resp.NewDBError(err), c)
 	}
 
-	return tools.OperateSuccess(c)
+	return resp.OperateSuccess(c)
 }
 
-func (this *UserHandler) GetUserDetail(c echo.Context) error {
+func (h *UserHandler) GetUserDetail(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		return tools.ApiError(tools.NewParamError(err), c)
+		return resp.ApiError(resp.NewParamError(err), c)
 	}
 
-	user, err := this.repository.GetUserById(int64(id))
+	user, err := h.repository.GetUserById(int64(id))
 	if err != nil {
-		return tools.ApiError(tools.NewDBError(err), c)
+		return resp.ApiError(resp.NewDBError(err), c)
 	}
 
-	return tools.OneDataResponse(user, c)
+	return resp.OneDataResponse(user, c)
 }

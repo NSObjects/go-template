@@ -8,7 +8,7 @@ package service
 
 import (
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/NSObjects/go-template/tools/db"
+	"github.com/NSObjects/go-template/internal/api/data/db"
 	"github.com/labstack/echo/v4"
 	"net/http/httptest"
 )

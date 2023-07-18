@@ -1,0 +1,91 @@
+# 设置运行超时时间为10分钟
+run:
+  #运行并发根据项目大小设定
+  concurrency: 4
+  timeout: 10m
+  #  忽略部分包或者文件
+  #  skip-dirs:
+  #    - vendor
+  #    - testdata
+  skip-files:
+    - ".*_test\\.go"
+
+linters:
+  # 禁用所有默认启用的linters
+  disable-all: true
+  # 仅启用以下linters
+  enable:
+    # 检查未使用的变量分配和初始化
+    - ineffassign
+    # 类型检查
+    - typecheck
+    # 检查未使用的变量和导入
+    - unused
+    # 检查可以简化的代码
+    - gosimple
+    # 自动添加或删除导入，以及对它们进行排序
+    - goimports
+    # 检查未处理的错误返回值
+    - errcheck
+    # 静态分析工具，检查潜在的错误、不正确的用法等
+    - staticcheck
+    # 检查代码是否遵循Go编码规范
+    - stylecheck
+    # 安全检查，报告安全问题
+    - gosec
+    # 检查是否所有的分支都已覆盖
+    - exhaustive
+    # 检查非ASCII标识符
+    - asciicheck
+    # 检查函数的长度
+    - funlen
+    # 检查数字魔法数（应使用常量替换的数字）
+    - gomnd
+    # 检查嵌套的if语句
+    - nestif
+    # 检查未关闭的HTTP响应体
+    - bodyclose
+    # 检查行长度是否超过限制
+    - lll
+    # 检查导出的循环引用
+    - exportloopref
+    # 检查未处理的数据库查询错误
+    - rowserrcheck
+    # 检查零值是否未使用make创建
+    - makezero
+    # 检查时间.Duration是否使用了整数值
+    - durationcheck
+    # 检查可以预分配的切片
+    - prealloc
+    # 检查预声明标识符的重新定义
+    - predeclared
+
+# 针对特定linters的设置
+linters-settings:
+  # 设置funlen的最大行数和语句数
+  funlen:
+    lines: 70
+    statements: 40
+  # 配置staticcheck要执行的检查项 https://staticcheck.io/docs/checks/
+  staticcheck:
+    checks: ["S1002","S1004","S1007","S1009","S1010","S1012","S1019","S1020","S1021","S1024","S1030","SA2*","SA3*","SA4009","SA5*","SA6000","SA6001","SA6005", "-SA2002"]
+  # 配置stylecheck要执行的检查项，排除ST1003
+  stylecheck:
+    checks: ["-ST1003"]
+  # 设置gosec的严重性和置信度，并排除G101和G112
+  gosec:
+    severity: "low"
+    confidence: "low"
+    excludes:
+      - G101
+      - G112
+# 配置问题排除规则
+issues:
+  # 对_test.go文件排除以下linters的检查
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+        - rowserrcheck
+        - makezero

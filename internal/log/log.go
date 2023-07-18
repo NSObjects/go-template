@@ -8,7 +8,7 @@ package log
 
 import (
 	"fmt"
-	"github.com/NSObjects/go-template/tools/configs"
+	"github.com/NSObjects/go-template/internal/configs"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -37,7 +37,7 @@ func Init() {
 	logger = NewLog(l)
 }
 
-type LogInterface interface {
+type Interface interface {
 	Debug(msg interface{}, fields ...zap.Field)
 	Debugf(msg string, args ...interface{})
 	Info(msg interface{}, fields ...zap.Field)
@@ -99,7 +99,10 @@ func (*Log) ErrorSkip(skip int, err interface{}, fields ...zap.Field) {
 	)
 	l.Error(fmt.Sprint(err),
 		fields...)
-	l.Sync()
+
+	if err = l.Sync(); err != nil {
+		return
+	}
 }
 
 func (l *Log) Errorf(msg string, args ...interface{}) {
@@ -164,7 +167,7 @@ func loggerCore() (core zapcore.Core) {
 				return true
 			})),
 		)
-	case configs.PrdocutionLevel:
+	case configs.ProsecutionLevel:
 		topicDebugging := zapcore.AddSync(LumberJackLogger(logPath(configs.Log.Path, zapcore.DebugLevel), configs.Log.MaxSize, configs.Log.MaxBackups, configs.Log.MaxAge))
 		topicErrors := zapcore.AddSync(LumberJackLogger(logPath(configs.Log.Path, zapcore.ErrorLevel), configs.Log.MaxSize, configs.Log.MaxBackups, configs.Log.MaxAge))
 		jsonEncoder := zapcore.NewJSONEncoder(config)
@@ -232,60 +235,3 @@ func Panicf(msg string, args ...interface{}) {
 func DebugResponse(response *http.Response) {
 	logger.DebugResponse(response)
 }
-
-//type Xormlog struct {
-//	showSQL bool
-//	level   core
-//}
-//
-//func (c *Xormlog) Debug(v ...interface{}) {
-//	logger.Debug(fmt.Sprint(v...))
-//}
-//
-//func (Xormlog) Debugf(format string, v ...interface{}) {
-//	logger.Debug(fmt.Sprint(v...))
-//}
-//
-//func (c *Xormlog) Error(v ...interface{}) {
-//	logger.Error(fmt.Sprint(v...))
-//}
-//
-//func (c *Xormlog) Errorf(format string, v ...interface{}) {
-//	logger.Error(fmt.Sprintf(format, v...))
-//}
-//
-//func (c *Xormlog) Info(v ...interface{}) {
-//	logger.Info(fmt.Sprint(v...))
-//}
-//
-//func (c *Xormlog) Infof(format string, v ...interface{}) {
-//	logger.Info(fmt.Sprintf(format, v...))
-//}
-//
-//func (c *Xormlog) Warn(v ...interface{}) {
-//	logger.Warn(fmt.Sprint(v...))
-//}
-//
-//func (c *Xormlog) Warnf(format string, v ...interface{}) {
-//	logger.Warn(fmt.Sprintf(format, v...))
-//}
-//
-//func (c *Xormlog) Level() core.LogLevel {
-//	return c.level
-//}
-//
-//func (c *Xormlog) SetLevel(l core.LogLevel) {
-//	c.level = l
-//}
-//
-//func (c *Xormlog) ShowSQL(show ...bool) {
-//	if len(show) == 0 {
-//		c.showSQL = true
-//	} else {
-//		c.showSQL = show[0]
-//	}
-//}
-//
-//func (c *Xormlog) IsShowSQL() bool {
-//	return c.showSQL
-//}

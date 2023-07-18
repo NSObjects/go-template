@@ -1,5 +1,5 @@
 [system]
-prot = ":9322"
+port = ":9322"
 #1 = debug , 2 = online
 level = 1
 
@@ -12,7 +12,7 @@ docker_host = "db"
 port = "3306"
 database = ["go_template"]
 user = "root"
-password = "123456"
+password = "123456789"
 max_idle_conns = 20
 max_open_conns = 20
 

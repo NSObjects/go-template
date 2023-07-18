@@ -7,7 +7,7 @@
 package db
 
 import (
-	"github.com/NSObjects/go-template/tools/configs"
+	"github.com/NSObjects/go-template/internal/configs"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

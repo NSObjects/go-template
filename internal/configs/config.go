@@ -9,7 +9,6 @@ package configs
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/spf13/viper"
@@ -18,7 +17,7 @@ import (
 type Environment string
 
 const (
-	RUNENVIRONMENT Environment = "RUN_ENVIRONMENT"
+	ENVIRONMENT Environment = "RUN_ENVIRONMENT"
 )
 
 type EnvironmentType int
@@ -41,8 +40,8 @@ const (
 	// DebugLevel logs are typically voluminous, and are usually disabled in
 	// production.
 	DebugLevel Level = iota + 1
-	// InfoLevel is the default logging priority.
-	PrdocutionLevel
+	// ProsecutionLevel InfoLevel is the default logging priority.
+	ProsecutionLevel
 )
 
 var (
@@ -60,7 +59,7 @@ type Config struct {
 }
 
 type SystemConfig struct {
-	Prot  string `mapstructure:"prot"`
+	Port  string `mapstructure:"port"`
 	Level Level  `mapstructure:"level"`
 }
 
@@ -111,7 +110,7 @@ func InitConfig(configPath string) (err error) {
 func viperInit(configPath string) (err error) {
 	viper.SetConfigType("toml")
 	if configPath != "" {
-		content, err := ioutil.ReadFile(configPath)
+		content, err := os.ReadFile(configPath)
 		if err != nil {
 			return err
 		}
@@ -129,5 +128,5 @@ func viperInit(configPath string) (err error) {
 }
 
 func RunEnvironment() EnvironmentType {
-	return runContext[os.Getenv(string(RUNENVIRONMENT))]
+	return runContext[os.Getenv(string(ENVIRONMENT))]
 }

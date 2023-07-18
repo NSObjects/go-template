@@ -4,7 +4,7 @@
  *
  */
 
-package tools
+package resp
 
 import (
 	"errors"
@@ -35,7 +35,7 @@ func TestError_Error(t *testing.T) {
 func TestNewError(t *testing.T) {
 	type args struct {
 		err  error
-		code ResponetsCode
+		code StatusCode
 	}
 	tests := []struct {
 		name string
@@ -45,7 +45,7 @@ func TestNewError(t *testing.T) {
 		{
 			args: struct {
 				err  error
-				code ResponetsCode
+				code StatusCode
 			}{err: errors.New("some error"), code: StatusDBErr},
 			want: NewError(errors.New("some error"), StatusDBErr),
 		},
@@ -128,7 +128,7 @@ func TestNewMsgError(t *testing.T) {
 	}
 }
 
-func TestNewReloginError(t *testing.T) {
+func TestNewAuthError(t *testing.T) {
 	type args struct {
 		err error
 	}
@@ -138,14 +138,14 @@ func TestNewReloginError(t *testing.T) {
 		want *Error
 	}{
 		{
-			args: args{err: errors.New("relogin error")},
-			want: NewReloginError(errors.New("relogin error")),
+			args: args{err: errors.New("auth error")},
+			want: NewAuthError(errors.New("auth error")),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewReloginError(tt.args.err); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewReloginError() = %v, want %v", got, tt.want)
+			if got := NewAuthError(tt.args.err); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewAuthError() = %v, want %v", got, tt.want)
 			}
 		})
 	}

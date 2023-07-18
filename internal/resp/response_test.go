@@ -4,7 +4,7 @@
  *
  */
 
-package tools
+package resp
 
 import (
 	"errors"

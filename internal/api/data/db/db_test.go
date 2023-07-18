@@ -17,24 +17,24 @@ import (
 
 func TestNewDataSource(t *testing.T) {
 	tests := []struct {
-		name          string
-		wantDatasouce *DataSource
-		wantErr       bool
+		name           string
+		wantDatasource *DataSource
+		wantErr        bool
 	}{
 		{
-			wantDatasouce: nil,
-			wantErr:       true,
+			wantDatasource: nil,
+			wantErr:        true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotDatasouce, err := NewDataSource()
+			gotDatasource, err := NewDataSource()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewDataSource() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(gotDatasouce, tt.wantDatasouce) {
-				t.Errorf("NewDataSource() = %v, want %v", gotDatasouce, tt.wantDatasouce)
+			if !reflect.DeepEqual(gotDatasource, tt.wantDatasource) {
+				t.Errorf("NewDataSource() = %v, want %v", gotDatasource, tt.wantDatasource)
 			}
 		})
 	}
@@ -45,25 +45,25 @@ func TestNewTestDataSource(t *testing.T) {
 		db2 *sql.DB
 	}
 	tests := []struct {
-		name          string
-		args          args
-		wantDatasouce *DataSource
-		wantErr       bool
+		name           string
+		args           args
+		wantDatasource *DataSource
+		wantErr        bool
 	}{
 		{
-			wantDatasouce: nil,
-			wantErr:       true,
+			wantDatasource: nil,
+			wantErr:        true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotDatasouce, err := NewTestDataSource(tt.args.db2)
+			gotDatasource, err := NewTestDataSource(tt.args.db2)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewTestDataSource() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(gotDatasouce, tt.wantDatasouce) {
-				t.Errorf("NewTestDataSource() = %v, want %v", gotDatasouce, tt.wantDatasouce)
+			if !reflect.DeepEqual(gotDatasource, tt.wantDatasource) {
+				t.Errorf("NewTestDataSource() = %v, want %v", gotDatasource, tt.wantDatasource)
 			}
 		})
 	}
