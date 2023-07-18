@@ -1,10 +1,6 @@
 /*
- *
- * middleware.go
- * api_helper
- *
- * Created by lintao on 2019-01-29 09:18
- * Copyright © 2017-2019 PYL. All rights reserved.
+ * Created by lintao on 2023/7/18 下午3:56
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 

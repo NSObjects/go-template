@@ -1,21 +1,16 @@
 /*
- *
- * delivery.go
- * delivery
- *
- * Created by lintao on 2020/4/28 1:59 下午
- * Copyright © 2020-2020 LINTAO. All rights reserved.
+ * Created by lintao on 2023/7/18 下午4:00
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
-package delivery
+package service
 
 import (
-	"go-template/tools/db"
-	"net/http/httptest"
-
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/NSObjects/go-template/tools/db"
 	"github.com/labstack/echo/v4"
-	"gopkg.in/DATA-DOG/go-sqlmock.v1"
+	"net/http/httptest"
 )
 
 type RegisterRouter interface {

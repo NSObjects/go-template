@@ -1,14 +1,10 @@
 /*
- *
- * model.go
- * models
- *
- * Created by lintao on 2019-01-10 17:07
- * Copyright © 2017-2019 PYL. All rights reserved.
+ * Created by lintao on 2023/7/18 下午3:59
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
-package domain
+package model
 
 import (
 	"fmt"
@@ -18,7 +14,7 @@ import (
 type Time time.Time
 
 const (
-	timeFormart = "2006-01-02 15:04:05"
+	timeFormat = "2006-01-02 15:04:05"
 )
 
 func (t *Time) UnmarshalJSON(data []byte) (err error) {
@@ -28,13 +24,13 @@ func (t *Time) UnmarshalJSON(data []byte) (err error) {
 		panic(err)
 	}
 
-	now, err := time.ParseInLocation(timeFormart, string(data), local)
+	now, err := time.ParseInLocation(timeFormat, string(data), local)
 	*t = Time(now)
 	return
 }
 
-func (t Time) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("%d", time.Time(t).Unix())), nil
+func (t *Time) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("%d", time.Time(*t).Unix())), nil
 }
 
 type ApiQuery struct {

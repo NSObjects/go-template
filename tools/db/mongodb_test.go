@@ -1,23 +1,19 @@
 /*
- *
- * mongodb_test.go
- * db
- *
- * Created by lintao on 2020/4/27 11:33 上午
- * Copyright © 2020-2020 LINTAO. All rights reserved.
+ * Created by lintao on 2023/7/18 下午3:56
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
 package db
 
 import (
-	"go-template/tools/configs"
+	"github.com/NSObjects/go-template/tools/configs"
 	"testing"
 )
 
 func Test_mongoUrl(t *testing.T) {
 
-	if err := configs.InitConfig("", "toml"); err != nil {
+	if err := configs.InitConfig("toml"); err != nil {
 		panic(err)
 	}
 	tests := []struct {

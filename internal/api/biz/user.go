@@ -1,22 +1,17 @@
 /*
- *
- * user.go
- * ucase
- *
- * Created by lintao on 2019-01-29 16:24
- * Copyright © 2017-2019 PYL. All rights reserved.
+ * Created by lintao on 2023/7/18 下午3:59
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
-package usecase
+package biz
 
 import (
-	"go-template/domain"
-	"go-template/repository"
-	"go-template/tools"
-	"strconv"
-
+	"github.com/NSObjects/go-template/internal/api/data"
+	"github.com/NSObjects/go-template/internal/api/data/model"
+	"github.com/NSObjects/go-template/tools"
 	"github.com/labstack/echo/v4"
+	"strconv"
 )
 
 type UserUsecase interface {
@@ -28,15 +23,15 @@ type UserUsecase interface {
 }
 
 type UserHandler struct {
-	repository repository.UserRepository
+	repository data.UserRepository
 }
 
-func NewUserHandler(repository repository.UserRepository) *UserHandler {
+func NewUserHandler(repository data.UserRepository) *UserHandler {
 	return &UserHandler{repository: repository}
 }
 
 func (this *UserHandler) GetUser(c echo.Context) (err error) {
-	var p domain.UserParam
+	var p model.UserParam
 	if err := c.Bind(&p); err != nil {
 		return tools.ApiError(tools.NewParamError(err), c)
 	}
@@ -51,7 +46,7 @@ func (this *UserHandler) GetUser(c echo.Context) (err error) {
 
 func (this *UserHandler) CreateUser(c echo.Context) (err error) {
 
-	var p domain.UserParam
+	var p model.UserParam
 	if err := c.Bind(&p); err != nil {
 		return tools.ApiError(tools.NewParamError(err), c)
 	}
@@ -84,7 +79,7 @@ func (this *UserHandler) UpdateUser(c echo.Context) error {
 		return tools.ApiError(tools.NewParamError(err), c)
 	}
 
-	param := new(domain.UserParam)
+	param := new(model.UserParam)
 	if err := c.Bind(param); err != nil {
 		return tools.ApiError(tools.NewParamError(err), c)
 	}

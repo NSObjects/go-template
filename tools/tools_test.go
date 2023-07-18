@@ -1,10 +1,6 @@
 /*
- *
- * tools.go
- * tools
- *
- * Created by lin on 2018/12/10 5:19 PM
- * Copyright © 2017-2018 PYL. All rights reserved.
+ * Created by lintao on 2023/7/18 下午3:56
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 

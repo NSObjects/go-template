@@ -1,14 +1,10 @@
 /*
- *
- * user.go
- * models
- *
- * Created by lintao on 2019-01-29 16:31
- * Copyright © 2017-2019 PYL. All rights reserved.
+ * Created by lintao on 2023/7/18 下午3:59
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
-package domain
+package model
 
 type User struct {
 	Id       int64  `json:"id" form:"id" query:"id" json:"id" xorm:"not null pk autoincr INT(10)"`

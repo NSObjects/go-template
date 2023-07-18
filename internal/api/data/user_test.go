@@ -1,19 +1,15 @@
 /*
- *
- * user.go
- * repository
- *
- * Created by lintao on 2019-01-29 16:29
- * Copyright © 2017-2019 PYL. All rights reserved.
+ * Created by lintao on 2023/7/18 下午3:59
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
-package repository
+package data
 
 import (
 	"fmt"
-	"go-template/domain"
-	"go-template/tools/db"
+	"github.com/NSObjects/go-template/internal/api/data/model"
+	"github.com/NSObjects/go-template/tools/db"
 	"reflect"
 	"regexp"
 	"testing"
@@ -85,7 +81,7 @@ func TestUserDataSource_CreateUser(t *testing.T) {
 		dataSource *db.DataSource
 	}
 	type args struct {
-		param domain.UserParam
+		param model.UserParam
 	}
 	tests := []struct {
 		name    string
@@ -97,9 +93,9 @@ func TestUserDataSource_CreateUser(t *testing.T) {
 		{
 			fields: fields{dataSource: database},
 			args: args{param: struct {
-				domain.ApiQuery
-				domain.User
-			}{User: domain.User{
+				model.ApiQuery
+				model.User
+			}{User: model.User{
 				Name:     "string",
 				Account:  "string",
 				Password: "string",
@@ -157,13 +153,13 @@ func TestUserDataSource_GetUserById(t *testing.T) {
 		name     string
 		fields   fields
 		args     args
-		wantUser domain.User
+		wantUser model.User
 		wantErr  bool
 	}{
 		{
 			fields:   fields{dataSource: database},
 			args:     args{id: 1},
-			wantUser: domain.User{Id: 1, Name: "string", Account: "string", Password: "string", Phone: "string", Status: 0},
+			wantUser: model.User{Id: 1, Name: "string", Account: "string", Password: "string", Phone: "string", Status: 0},
 			wantErr:  false,
 		},
 	}
@@ -214,21 +210,21 @@ func TestUserDataSource_FindUser(t *testing.T) {
 		dataSource *db.DataSource
 	}
 	type args struct {
-		param domain.UserParam
+		param model.UserParam
 	}
 	tests := []struct {
 		name      string
 		fields    fields
 		args      args
-		wantUser  []domain.User
+		wantUser  []model.User
 		wantTotal int64
 		wantErr   bool
 	}{
 		{
 			fields:    fields{dataSource: database},
-			args:      args{param: domain.UserParam{}},
+			args:      args{param: model.UserParam{}},
 			wantErr:   false,
-			wantUser:  []domain.User{{Id: 1, Name: "string", Account: "string", Password: "string", Phone: "string", Status: 0}},
+			wantUser:  []model.User{{Id: 1, Name: "string", Account: "string", Password: "string", Phone: "string", Status: 0}},
 			wantTotal: 20,
 		},
 	}
@@ -332,7 +328,7 @@ func TestUserDataSource_UpdateUser(t *testing.T) {
 		dataSource *db.DataSource
 	}
 	type args struct {
-		param domain.UserParam
+		param model.UserParam
 		id    int64
 	}
 	tests := []struct {
@@ -343,7 +339,7 @@ func TestUserDataSource_UpdateUser(t *testing.T) {
 	}{
 		{
 			fields:  fields{dataSource: dataSource},
-			args:    args{param: domain.UserParam{User: domain.User{Name: "lin"}}, id: 1},
+			args:    args{param: model.UserParam{User: model.User{Name: "lin"}}, id: 1},
 			wantErr: false,
 		},
 	}

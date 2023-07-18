@@ -1,30 +1,26 @@
 /*
- *
- * echo_server.go
- * apis
- *
- * Created by lintao on 2019-01-31 11:26
- * Copyright © 2017-2019 PYL. All rights reserved.
+ * Created by lintao on 2023/7/18 下午4:00
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
-package delivery
+package service
 
 import (
 	"context"
-	"go-template/repository"
-	"go-template/usecase"
+	"github.com/NSObjects/go-template/internal/api/biz"
+	"github.com/NSObjects/go-template/internal/api/data"
+	"github.com/labstack/echo/v4"
+	"gopkg.in/go-playground/validator.v9"
 
-	"go-template/delivery/middlewares"
-	"go-template/tools/db"
-	"go-template/tools/log"
+	"github.com/NSObjects/go-template/internal/api/service/middlewares"
+	"github.com/NSObjects/go-template/tools/db"
+	"github.com/NSObjects/go-template/tools/log"
 	"os"
 	"os/signal"
 	"time"
 
-	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"gopkg.in/go-playground/validator.v9"
 )
 
 type EchoServer struct {
@@ -62,8 +58,8 @@ func (s *EchoServer) loadMiddleware() {
 }
 
 func InitializeController(d *db.DataSource) *UserController {
-	userDataSource := repository.NewUserDataSource(d)
-	userHandler := usecase.NewUserHandler(userDataSource)
+	userDataSource := data.NewUserDataSource(d)
+	userHandler := biz.NewUserHandler(userDataSource)
 	userController := NewUserController(userHandler)
 	return userController
 }

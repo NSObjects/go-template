@@ -1,17 +1,13 @@
 /*
- *
- * mongodb.go
- * db
- *
- * Created by lintao on 2020/4/27 10:28 上午
- * Copyright © 2020-2020 LINTAO. All rights reserved.
+ * Created by lintao on 2023/7/18 下午3:56
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
 package db
 
 import (
-	"go-template/tools/configs"
+	"github.com/NSObjects/go-template/tools/configs"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

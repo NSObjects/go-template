@@ -1,23 +1,18 @@
 /*
- *
- * user.go
- * apis
- *
- * Created by lintao on 2019-01-29 16:17
- * Copyright © 2017-2019 PYL. All rights reserved.
+ * Created by lintao on 2023/7/18 下午4:00
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
-package delivery
+package service
 
 import (
-	"go-template/usecase"
-
+	"github.com/NSObjects/go-template/internal/api/biz"
 	"github.com/labstack/echo/v4"
 )
 
 type UserController struct {
-	ucase usecase.UserUsecase
+	ucase biz.UserUsecase
 }
 
 func (this *UserController) RegisterRouter(s *echo.Group, middlewareFunc ...echo.MiddlewareFunc) {
@@ -28,7 +23,7 @@ func (this *UserController) RegisterRouter(s *echo.Group, middlewareFunc ...echo
 	s.GET("/users/:id", this.getUserDetail).Name = "获取某个用户信息"
 }
 
-func NewUserController(ucase usecase.UserUsecase) *UserController {
+func NewUserController(ucase biz.UserUsecase) *UserController {
 	return &UserController{
 		ucase: ucase,
 	}

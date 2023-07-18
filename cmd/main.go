@@ -1,28 +1,23 @@
 /*
- *
- * main.go
- * pyl_erp
- *
- * Created by lin on 2018/12/10 3:05 PM
- * Copyright © 2017-2018 PYL. All rights reserved.
+ * Created by lintao on 2023/7/18 下午3:56
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 package main
 
 import (
-	"go-template/delivery"
-	"go-template/tools/configs"
-	"go-template/tools/db"
-	"go-template/tools/log"
+	"github.com/NSObjects/go-template/internal/api/service"
+	"github.com/NSObjects/go-template/tools/configs"
+	"github.com/NSObjects/go-template/tools/db"
+	"github.com/NSObjects/go-template/tools/log"
+	"github.com/urfave/cli"
 	"os"
-
-	"github.com/urfave/cli/v2"
 )
 
 func main() {
 	app := cli.NewApp()
 	app.Name = "go-template"
-	app.Commands = []*cli.Command{
+	app.Commands = []cli.Command{
 		newWebCmd(),
 	}
 	err := app.Run(os.Args)
@@ -32,14 +27,13 @@ func main() {
 
 }
 
-func newWebCmd() *cli.Command {
-	return &cli.Command{
+func newWebCmd() cli.Command {
+	return cli.Command{
 		Name:  "web",
 		Usage: "run api server",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "conf",
-				Aliases:  []string{"c"},
 				Usage:    "配置文件(.json,.yaml,.toml)",
 				Required: false,
 			},
@@ -59,11 +53,11 @@ func newWebCmd() *cli.Command {
 	}
 }
 
-func InitializeEchoServer() (*delivery.EchoServer, error) {
+func InitializeEchoServer() (*service.EchoServer, error) {
 	dataSource, err := db.NewDataSource()
 	if err != nil {
 		return nil, err
 	}
-	echoServer := delivery.NewEchoServer(dataSource)
+	echoServer := service.NewEchoServer(dataSource)
 	return echoServer, nil
 }

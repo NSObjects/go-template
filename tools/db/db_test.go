@@ -1,10 +1,6 @@
 /*
- *
- * db.go
- * db
- *
- * Created by lin on 2018-12-26 17:21
- * Copyright © 2017-2018 PYL. All rights reserved.
+ * Created by lintao on 2023/7/18 下午3:56
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
@@ -15,8 +11,8 @@ import (
 	"reflect"
 	"testing"
 
-	"xorm.io/xorm"
 	_ "github.com/go-sql-driver/mysql"
+	"xorm.io/xorm"
 )
 
 func TestNewDataSource(t *testing.T) {

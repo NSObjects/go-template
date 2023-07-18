@@ -1,10 +1,6 @@
 /*
- *
- * log.go
- * log
- *
- * Created by lin on 2018/12/10 3:18 PM
- * Copyright © 2017-2018 PYL. All rights reserved.
+ * Created by lintao on 2023/7/18 下午3:56
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
@@ -12,12 +8,12 @@ package log
 
 import (
 	"fmt"
-	"go-template/tools/configs"
+	"github.com/NSObjects/go-template/tools/configs"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
 	"net/http"
 	"os"
-	"gopkg.in/natefinch/lumberjack.v2"
-	"go.uber.org/zap/zapcore"
-	"go.uber.org/zap"
 	"time"
 )
 

@@ -1,10 +1,6 @@
 /*
- *
- * response.go
- * api_helper
- *
- * Created by lintao on 2019-01-26 17:33
- * Copyright © 2017-2019 PYL. All rights reserved.
+ * Created by lintao on 2023/7/18 下午3:56
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
@@ -12,11 +8,10 @@ package tools
 
 import (
 	"errors"
-	"go-template/tools/log"
+	"github.com/NSObjects/go-template/tools/log"
+	"github.com/labstack/echo/v4"
 	"net/http"
 	"reflect"
-
-	"github.com/labstack/echo/v4"
 )
 
 type ListResponse struct {

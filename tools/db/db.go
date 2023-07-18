@@ -1,10 +1,6 @@
 /*
- *
- * db.go
- * db
- *
- * Created by lin on 2018-12-26 17:21
- * Copyright © 2017-2018 PYL. All rights reserved.
+ * Created by lintao on 2023/7/18 下午3:56
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
@@ -14,8 +10,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/NSObjects/go-template/tools/configs"
 	_ "github.com/go-sql-driver/mysql"
-	"go-template/tools/configs"
 	"time"
 	"xorm.io/xorm"
 )
@@ -26,7 +22,7 @@ const (
 	DefultDB DataBase = iota
 )
 
-//在使用多个db的项目中在DataSource结构体中增加Engine即可
+// 在使用多个db的项目中在DataSource结构体中增加Engine即可
 type DataSource struct {
 	Engine *xorm.EngineGroup
 }
