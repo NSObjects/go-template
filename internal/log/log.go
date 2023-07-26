@@ -8,13 +8,15 @@ package log
 
 import (
 	"fmt"
-	"github.com/NSObjects/go-template/internal/configs"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"gopkg.in/natefinch/lumberjack.v2"
+
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/NSObjects/go-template/internal/configs"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
 var logger *Log

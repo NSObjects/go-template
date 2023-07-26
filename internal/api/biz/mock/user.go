@@ -35,15 +35,15 @@ func (m *MockUserUsecase) EXPECT() *MockUserUsecaseMockRecorder {
 }
 
 // GetUser mocks base method
-func (m *MockUserUsecase) GetUser(c echo.Context) error {
-	ret := m.ctrl.Call(m, "GetUser", c)
+func (m *MockUserUsecase) ListUser(c echo.Context) error {
+	ret := m.ctrl.Call(m, "ListUser", c)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // GetUser indicates an expected call of GetUser
 func (mr *MockUserUsecaseMockRecorder) GetUser(c interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUser", reflect.TypeOf((*MockUserUsecase)(nil).GetUser), c)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListUser", reflect.TypeOf((*MockUserUsecase)(nil).ListUser), c)
 }
 
 // GetUserDetail mocks base method

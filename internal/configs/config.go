@@ -56,11 +56,19 @@ type Config struct {
 	System  SystemConfig `mapstructure:"system"`
 	Log     LogConfig    `mapstructure:"log"`
 	Mongodb Mongodb      `mapstructure:"mongodb"`
+	Redis   RedisConfig  `mapstructure:"redis"`
 }
 
 type SystemConfig struct {
 	Port  string `mapstructure:"port"`
 	Level Level  `mapstructure:"level"`
+}
+
+type RedisConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	Password string `mapstructure:"password"`
+	Database int    `mapstructure:"database"`
 }
 
 type LogConfig struct {
@@ -72,14 +80,14 @@ type LogConfig struct {
 }
 
 type MysqlConfig struct {
-	DockerHost   string   `mapstructure:"docker_host"`
-	Host         string   `mapstructure:"host"`
-	Port         string   `mapstructure:"port"`
-	User         string   `mapstructure:"user"`
-	Password     string   `mapstructure:"password"`
-	MaxOpenConns int      `mapstructure:"max_open_conns"`
-	MaxIdleConns int      `mapstructure:"max_idle_conns"`
-	Database     []string `mapstructure:"database"`
+	DockerHost   string `mapstructure:"docker_host"`
+	Host         string `mapstructure:"host"`
+	Port         string `mapstructure:"port"`
+	User         string `mapstructure:"user"`
+	Password     string `mapstructure:"password"`
+	MaxOpenConns int    `mapstructure:"max_open_conns"`
+	MaxIdleConns int    `mapstructure:"max_idle_conns"`
+	Database     string `mapstructure:"database"`
 }
 
 type Mongodb struct {
@@ -87,6 +95,7 @@ type Mongodb struct {
 	Port     string `mapstructure:"port"`
 	User     string `mapstructure:"user"`
 	Password string `mapstructure:"password"`
+	DataBase string `mapstructure:"database"`
 }
 
 func InitConfig(configPath string) (err error) {

@@ -1,24 +1,27 @@
 /*
- * Created by lintao on 2023/7/18 下午4:00
+ * Created by lintao on 2023/7/26 下午2:22
  * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
-package service
+package server
 
 import (
 	"context"
-	"github.com/NSObjects/go-template/internal/api/biz"
-	"github.com/NSObjects/go-template/internal/api/data"
-	"github.com/labstack/echo/v4"
-	"gopkg.in/go-playground/validator.v9"
 
-	"github.com/NSObjects/go-template/internal/api/data/db"
-	"github.com/NSObjects/go-template/internal/api/service/middlewares"
-	"github.com/NSObjects/go-template/internal/log"
+	"github.com/NSObjects/go-template/internal/configs"
+
+	"github.com/NSObjects/go-template/internal/api/server/middlewares"
+	"github.com/NSObjects/go-template/internal/api/service"
+	"github.com/labstack/echo/v4"
+	validator "gopkg.in/go-playground/validator.v9"
+
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/NSObjects/go-template/internal/api/data/db"
+	"github.com/NSObjects/go-template/internal/log"
 
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -26,16 +29,18 @@ import (
 type EchoServer struct {
 	server     *echo.Echo
 	dataSource *db.DataSource
+	cfg        configs.Config
 }
 
 func (s *EchoServer) Server() *echo.Echo {
 	return s.server
 }
 
-func NewEchoServer(db *db.DataSource) *EchoServer {
+func NewEchoServer(db *db.DataSource, cfg configs.Config) *EchoServer {
 	s := &EchoServer{
 		server:     echo.New(),
 		dataSource: db,
+		cfg:        cfg,
 	}
 	s.loadMiddleware()
 	s.registerRouter()
@@ -57,16 +62,16 @@ func (s *EchoServer) loadMiddleware() {
 	}))
 }
 
-func InitializeController(d *db.DataSource) *UserController {
-	userDataSource := data.NewUserDataSource(d)
-	userHandler := biz.NewUserHandler(userDataSource)
-	userController := NewUserController(userHandler)
-	return userController
-}
+//func InitializeController(d *db.DataSource) *user.Controller {
+//	userDataSource := data.NewUserDataSource(d)
+//	userHandler := biz.NewUserHandler(userDataSource)
+//	userController := user.NewUserController(userHandler)
+//	return userController
+//}
 
 func (s *EchoServer) registerRouter() {
-	routers := []RegisterRouter{
-		InitializeController(s.dataSource),
+	routers := []service.RegisterRouter{
+		//InitializeController(s.dataSource),
 	}
 
 	g := s.server.Group("api")

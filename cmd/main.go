@@ -8,8 +8,9 @@ package main
 import (
 	"os"
 
+	"github.com/NSObjects/go-template/internal/api/server"
+
 	"github.com/NSObjects/go-template/internal/api/data/db"
-	"github.com/NSObjects/go-template/internal/api/service"
 	"github.com/NSObjects/go-template/internal/configs"
 	"github.com/NSObjects/go-template/internal/log"
 	"github.com/urfave/cli/v2"
@@ -24,7 +25,7 @@ func main() {
 				return err
 			}
 
-			api, err := InitializeEchoServer()
+			api, err := NewHttpServer(configs.Config{}, db.NewDataSource(configs.Config{}))
 			if err != nil {
 				panic(err)
 			}
@@ -51,11 +52,6 @@ func newFlag() []cli.Flag {
 	}
 }
 
-func InitializeEchoServer() (*service.EchoServer, error) {
-	dataSource, err := db.NewDataSource()
-	if err != nil {
-		return nil, err
-	}
-	echoServer := service.NewEchoServer(dataSource)
-	return echoServer, nil
+func NewHttpServer(cfg configs.Config, dataSource *db.DataSource) (*server.EchoServer, error) {
+	return server.NewEchoServer(dataSource, cfg), nil
 }

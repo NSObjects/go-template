@@ -12,7 +12,7 @@ package biz
 //	ctl := gomock.NewController(t)
 //	defer ctl.Finish()
 //	pmock := mock_repository.NewMockUserRepository(ctl)
-//	pmock.EXPECT().FindUser(domain.UserParam{ApiQuery: domain.ApiQuery{Page: 1, Count: 10}})
+//	pmock.EXPECT().FindUser(domain.UserParam{APIQuery: domain.APIQuery{Page: 1, Count: 10}})
 //
 //	type fields struct {
 //		repository repository.UserRepository
@@ -35,8 +35,8 @@ package biz
 //	for _, tt := range tests {
 //		t.Run(tt.name, func(t *testing.T) {
 //			u := NewUserHandler(tt.fields.repository)
-//			if err := u.GetUser(tt.args.c); (err != nil) != tt.wantErr {
-//				t.Errorf("UserHandler.GetUser() error = %v, wantErr %v", err, tt.wantErr)
+//			if err := u.ListUser(tt.args.c); (err != nil) != tt.wantErr {
+//				t.Errorf("UserHandler.ListUser() error = %v, wantErr %v", err, tt.wantErr)
 //			}
 //		})
 //	}

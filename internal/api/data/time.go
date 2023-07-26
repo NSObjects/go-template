@@ -1,10 +1,10 @@
 /*
- * Created by lintao on 2023/7/18 下午3:59
+ * Created by lintao on 2023/7/26 下午5:08
  * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
-package model
+package data
 
 import (
 	"fmt"
@@ -31,20 +31,4 @@ func (t *Time) UnmarshalJSON(data []byte) (err error) {
 
 func (t *Time) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf("%d", time.Time(*t).Unix())), nil
-}
-
-type ApiQuery struct {
-	Page  int `json:"page" form:"page" query:"page"`
-	Count int `json:"count" form:"count" query:"count"`
-}
-
-func (q *ApiQuery) Limit() (count, offset int) {
-	if q.Page > 0 {
-		q.Page -= 1
-	}
-
-	if q.Count == 0 {
-		q.Count = 20
-	}
-	return q.Count, q.Page * q.Count
 }

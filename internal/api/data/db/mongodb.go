@@ -13,18 +13,17 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func MongoClient() *mongo.Client {
-	client, err := mongo.NewClient(options.Client().ApplyURI(mongoUrl()))
+func MongoClient(cfg configs.Mongodb) *mongo.Database {
+
+	uri := "mongodb://"
+	if cfg.Password != "" && cfg.User != "" {
+		uri += cfg.User + ":" + cfg.Password + "@"
+	}
+	uri += cfg.Host + ":" + cfg.Port
+
+	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
 	if err != nil {
 		panic(err)
 	}
-	return client
-}
-
-func mongoUrl() string {
-	uri := "mongodb://"
-	if configs.Mgo.Password != "" && configs.Mgo.User != "" {
-		uri += configs.Mgo.User + ":" + configs.Mgo.Password + "@"
-	}
-	return uri + configs.Mgo.Host + ":" + configs.Mgo.Port
+	return client.Database(cfg.DataBase)
 }
