@@ -8,10 +8,6 @@ package main
 import (
 	"os"
 
-	"github.com/NSObjects/go-template/internal/api/server"
-
-	"github.com/NSObjects/go-template/internal/api/data/db"
-	"github.com/NSObjects/go-template/internal/configs"
 	"github.com/NSObjects/go-template/internal/log"
 	"github.com/urfave/cli/v2"
 )
@@ -20,16 +16,7 @@ func main() {
 	app := &cli.App{
 		Flags: newFlag(),
 		Action: func(cCtx *cli.Context) error {
-			log.Init()
-			if err := configs.InitConfig(cCtx.String("conf")); err != nil {
-				return err
-			}
-
-			api, err := NewHttpServer(configs.Config{}, db.NewDataSource(configs.Config{}))
-			if err != nil {
-				panic(err)
-			}
-			api.Run(configs.System.Port)
+			Run(cCtx.String("conf"))
 			return nil
 		},
 	}
@@ -50,8 +37,4 @@ func newFlag() []cli.Flag {
 			Required:    false,
 		},
 	}
-}
-
-func NewHttpServer(cfg configs.Config, dataSource *db.DataSource) (*server.EchoServer, error) {
-	return server.NewEchoServer(dataSource, cfg), nil
 }

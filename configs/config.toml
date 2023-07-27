@@ -17,7 +17,7 @@ max_idle_conns = 20
 max_open_conns = 20
 
 [mongodb]
-host = "localhost"
+host = ""
 port = "27017"
 user = ""
 password = ""

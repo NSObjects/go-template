@@ -116,6 +116,19 @@ func InitConfig(configPath string) (err error) {
 	return
 }
 
+func NewCfg(p string) Config {
+	if err := viperInit(p); err != nil {
+		panic(err)
+	}
+
+	var c Config
+	if err := viper.Unmarshal(&c); err != nil {
+		panic(err)
+	}
+
+	return c
+}
+
 func viperInit(configPath string) (err error) {
 	viper.SetConfigType("toml")
 	if configPath != "" {
@@ -124,6 +137,9 @@ func viperInit(configPath string) (err error) {
 			return err
 		}
 		err = viper.ReadConfig(bytes.NewBuffer(content))
+		if err != nil {
+			return err
+		}
 	} else {
 		viper.AddConfigPath(".")
 		viper.AddConfigPath("../../")

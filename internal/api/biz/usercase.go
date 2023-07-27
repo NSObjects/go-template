@@ -5,3 +5,9 @@
  */
 
 package biz
+
+import (
+	"go.uber.org/fx"
+)
+
+var Model = fx.Options(fx.Provide(NewUserHandler))

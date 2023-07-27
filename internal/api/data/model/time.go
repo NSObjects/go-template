@@ -1,10 +1,10 @@
 /*
- * Created by lintao on 2023/7/26 下午5:08
+ * Created by lintao on 2023/7/27 下午2:43
  * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
-package data
+package model
 
 import (
 	"fmt"

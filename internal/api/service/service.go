@@ -9,8 +9,24 @@ package service
 import (
 	"net/http/httptest"
 
+	"go.uber.org/fx"
+
 	"github.com/labstack/echo/v4"
 )
+
+var Model = fx.Options(
+	fx.Provide(
+		AsRoute(NewUserController),
+	),
+)
+
+func AsRoute(f any) any {
+	return fx.Annotate(
+		f,
+		fx.As(new(RegisterRouter)),
+		fx.ResultTags(`group:"routes"`),
+	)
+}
 
 type RegisterRouter interface {
 	RegisterRouter(s *echo.Group, middlewareFunc ...echo.MiddlewareFunc)

@@ -1,13 +1,14 @@
 /*
- * Created by lintao on 2023/7/26 下午5:08
+ * Created by lintao on 2023/7/27 下午2:36
  * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
-package repo
+package data
 
 import (
 	"github.com/NSObjects/go-template/internal/api/data/db"
+	"gorm.io/gorm"
 
 	"github.com/NSObjects/go-template/internal/api/data/model"
 	"github.com/NSObjects/go-template/internal/api/service/param"
@@ -15,9 +16,9 @@ import (
 )
 
 type UserRepository interface {
-	GetUserById(id int64) (user model.User, err error)
+	GetUserByID(id int64) (user model.User, err error)
 	FindUser(param model.User, query param.APIQuery) (user []model.User, total int64, err error)
-	DeleteUserById(id int64) (err error)
+	DeleteUserByID(id int64) (err error)
 	UpdateUser(param model.User, id int64) (err error)
 	CreateUser(param model.User) (id int64, err error)
 }
@@ -26,7 +27,7 @@ type UserDataSource struct {
 	dataSource *db.DataSource
 }
 
-func NewUserDataSource(dataSource *db.DataSource) *UserDataSource {
+func NewUserDataSource(dataSource *db.DataSource) UserRepository {
 	return &UserDataSource{dataSource: dataSource}
 }
 
@@ -38,9 +39,13 @@ func (u *UserDataSource) CreateUser(param model.User) (id int64, err error) {
 	return
 }
 
-func (u *UserDataSource) GetUserById(id int64) (user model.User, err error) {
-	if err = u.dataSource.Mysql.First(model.User{Id: id}).Error; err != nil {
-		return user, errors.Wrap(err, "查询用户失败")
+func (u *UserDataSource) GetUserByID(id int64) (user model.User, err error) {
+
+	if err = u.dataSource.Mysql.First(&user, id).Error; err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return user, errors.Wrap(err, "查询用户失败")
+		}
+		return model.User{}, nil
 	}
 	return
 }
@@ -49,23 +54,22 @@ func (u *UserDataSource) FindUser(param model.User, query param.APIQuery) (user 
 	if err = u.dataSource.Mysql.Offset(query.Offset()).Limit(query.Limit()).Where(&param).Find(&user).Error; err != nil {
 		return nil, 0, errors.Wrap(err, "")
 	}
-	if err = u.dataSource.Mysql.Where(&param).Count(&total).Error; err != nil {
+	if err = u.dataSource.Mysql.Model(&model.User{}).Where(&param).Count(&total).Error; err != nil {
 		return nil, 0, errors.Wrap(err, "")
 	}
 	return
 }
 
-func (u *UserDataSource) DeleteUserById(id int64) (err error) {
-
+func (u *UserDataSource) DeleteUserByID(id int64) (err error) {
 	if err = u.dataSource.Mysql.Delete(&model.User{}, id).Error; err != nil {
 		return errors.Wrap(err, "删除用户失败")
 	}
-
 	return
 }
 
 func (u *UserDataSource) UpdateUser(param model.User, id int64) (err error) {
-	if err = u.dataSource.Mysql.Save(&param).Error; err != nil {
+	param.ID = uint(id)
+	if err = u.dataSource.Mysql.Select("name", "phone", "status", "password").Updates(&param).Error; err != nil {
 		return errors.Wrap(err, "更新用户失败")
 	}
 

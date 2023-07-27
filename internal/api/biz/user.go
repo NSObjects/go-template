@@ -7,52 +7,52 @@
 package biz
 
 import (
-	"github.com/NSObjects/go-template/internal/api/data/repo"
+	"github.com/NSObjects/go-template/internal/api/data"
 
 	"github.com/NSObjects/go-template/internal/api/service/param"
 
 	"github.com/NSObjects/go-template/internal/api/data/model"
 )
 
-//type UserUsecase interface {
-//	ListUser(p param.APIQuery) error
-//	GetUserDetail(c echo.Context) error
-//	CreateUser(c echo.Context) error
-//	DeleteUser(c echo.Context) error
-//	UpdateUser(c echo.Context) error
-//}
-
 type UserHandler struct {
-	repository repo.UserRepository
+	repository data.UserRepository
 }
 
-func NewUserHandler(repository repo.UserRepository) *UserHandler {
+func NewUserHandler(repository data.UserRepository) *UserHandler {
 	return &UserHandler{repository: repository}
 }
 
-func (h *UserHandler) ListUser(param model.User, p param.APIQuery) (users []model.User, total int64, err error) {
+func (h *UserHandler) ListUser(u model.User, p param.APIQuery) ([]param.UserResponse, int64, error) {
 
-	users, total, err = h.repository.FindUser(param, p)
+	users, total, err := h.repository.FindUser(u, p)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	return users, total, nil
+	resp := make([]param.UserResponse, len(users))
+	for i, user := range users {
+		resp[i] = param.UserResponse{
+			Name:     user.Name,
+			Phone:    user.Phone,
+			Status:   user.Status,
+			Password: user.Password,
+		}
+	}
+
+	return resp, total, nil
 }
 
 func (h *UserHandler) CreateUser(param model.User) (err error) {
 	if _, err = h.repository.CreateUser(param); err != nil {
 		return err
 	}
-
 	return nil
 }
 
 func (h *UserHandler) DeleteUser(id int64) (err error) {
-	if err = h.repository.DeleteUserById(id); err != nil {
+	if err = h.repository.DeleteUserByID(id); err != nil {
 		return err
 	}
-
 	return err
 }
 
@@ -63,11 +63,16 @@ func (h *UserHandler) UpdateUser(user model.User, id int64) error {
 	return nil
 }
 
-func (h *UserHandler) GetUserDetail(id int64) (model.User, error) {
-	user, err := h.repository.GetUserById(id)
+func (h *UserHandler) GetUserDetail(id int64) (param.UserResponse, error) {
+	user, err := h.repository.GetUserByID(id)
 	if err != nil {
-		return user, err
+		return param.UserResponse{}, err
 	}
 
-	return user, nil
+	return param.UserResponse{
+		Name:     user.Name,
+		Phone:    user.Phone,
+		Status:   user.Status,
+		Password: user.Password,
+	}, nil
 }

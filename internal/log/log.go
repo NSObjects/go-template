@@ -30,8 +30,8 @@ func LumberJackLogger(filePath string, maxSize int, maxBackups int, maxAge int) 
 	}
 }
 
-func Init() {
-	l := zap.New(loggerCore()).WithOptions(
+func Init(cfg configs.Config) {
+	l := zap.New(loggerCore(cfg)).WithOptions(
 		zap.AddCaller(),
 		zap.AddCallerSkip(1),
 	)
@@ -58,6 +58,7 @@ type Interface interface {
 
 type Log struct {
 	logger *zap.Logger
+	cfg    configs.Config
 }
 
 func NewLog(logger *zap.Logger) *Log {
@@ -94,15 +95,15 @@ func (l *Log) Error(err interface{}, fields ...zap.Field) {
 	l.logger.Error(fmt.Sprint(err), fields...)
 }
 
-func (*Log) ErrorSkip(skip int, err interface{}, fields ...zap.Field) {
-	l := zap.New(loggerCore()).WithOptions(
+func (l *Log) ErrorSkip(skip int, err interface{}, fields ...zap.Field) {
+	x := zap.New(loggerCore(l.cfg)).WithOptions(
 		zap.AddCaller(),
 		zap.AddCallerSkip(skip),
 	)
-	l.Error(fmt.Sprint(err),
+	x.Error(fmt.Sprint(err),
 		fields...)
 
-	if err = l.Sync(); err != nil {
+	if err = x.Sync(); err != nil {
 		return
 	}
 }
@@ -149,7 +150,7 @@ func logPath(base string, level zapcore.Level) string {
 	return path
 }
 
-func loggerCore() (core zapcore.Core) {
+func loggerCore(cfg configs.Config) (core zapcore.Core) {
 	highPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return lvl >= zapcore.ErrorLevel
 	})
@@ -160,7 +161,7 @@ func loggerCore() (core zapcore.Core) {
 	config := zap.NewProductionEncoderConfig()
 	config.EncodeTime = TimeEncoder
 
-	switch configs.System.Level {
+	switch cfg.System.Level {
 	case configs.DebugLevel:
 		consoleEncoder := zapcore.NewConsoleEncoder(config)
 		consoleDebugging := zapcore.Lock(os.Stdout)
@@ -170,8 +171,11 @@ func loggerCore() (core zapcore.Core) {
 			})),
 		)
 	case configs.ProsecutionLevel:
-		topicDebugging := zapcore.AddSync(LumberJackLogger(logPath(configs.Log.Path, zapcore.DebugLevel), configs.Log.MaxSize, configs.Log.MaxBackups, configs.Log.MaxAge))
-		topicErrors := zapcore.AddSync(LumberJackLogger(logPath(configs.Log.Path, zapcore.ErrorLevel), configs.Log.MaxSize, configs.Log.MaxBackups, configs.Log.MaxAge))
+		topicDebugging := zapcore.AddSync(
+			LumberJackLogger(logPath(cfg.Log.Path, zapcore.DebugLevel), cfg.Log.MaxSize, cfg.Log.MaxBackups, cfg.Log.MaxAge))
+		topicErrors := zapcore.AddSync(
+			LumberJackLogger(logPath(cfg.Log.Path, zapcore.ErrorLevel),
+				cfg.Log.MaxSize, cfg.Log.MaxBackups, cfg.Log.MaxAge))
 		jsonEncoder := zapcore.NewJSONEncoder(config)
 		core = zapcore.NewTee(
 			zapcore.NewCore(jsonEncoder, topicErrors, highPriority),

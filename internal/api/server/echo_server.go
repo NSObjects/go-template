@@ -8,8 +8,7 @@ package server
 
 import (
 	"context"
-
-	"github.com/NSObjects/go-template/internal/configs"
+	"net/http"
 
 	"github.com/NSObjects/go-template/internal/api/server/middlewares"
 	"github.com/NSObjects/go-template/internal/api/service"
@@ -20,27 +19,22 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/NSObjects/go-template/internal/api/data/db"
-	"github.com/NSObjects/go-template/internal/log"
-
 	"github.com/labstack/echo/v4/middleware"
 )
 
 type EchoServer struct {
-	server     *echo.Echo
-	dataSource *db.DataSource
-	cfg        configs.Config
+	server  *echo.Echo
+	Routers []service.RegisterRouter `group:"routes"`
 }
 
 func (s *EchoServer) Server() *echo.Echo {
 	return s.server
 }
 
-func NewEchoServer(db *db.DataSource, cfg configs.Config) *EchoServer {
+func NewEchoServer(routes []service.RegisterRouter) *EchoServer {
 	s := &EchoServer{
-		server:     echo.New(),
-		dataSource: db,
-		cfg:        cfg,
+		server:  echo.New(),
+		Routers: routes,
 	}
 	s.loadMiddleware()
 	s.registerRouter()
@@ -50,7 +44,7 @@ func NewEchoServer(db *db.DataSource, cfg configs.Config) *EchoServer {
 func (s *EchoServer) loadMiddleware() {
 	s.server.Validator = &middlewares.Validator{Validator: validator.New()}
 	s.server.Use(middleware.Gzip())
-	s.server.Use(middleware.Recover())
+	//s.server.Use(middleware.Recover())
 	s.server.Use(middleware.Logger())
 	s.server.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		//todo 域名设置
@@ -62,38 +56,26 @@ func (s *EchoServer) loadMiddleware() {
 	}))
 }
 
-//func InitializeController(d *db.DataSource) *user.Controller {
-//	userDataSource := data.NewUserDataSource(d)
-//	userHandler := biz.NewUserHandler(userDataSource)
-//	userController := user.NewUserController(userHandler)
-//	return userController
-//}
-
 func (s *EchoServer) registerRouter() {
-	routers := []service.RegisterRouter{
-		//InitializeController(s.dataSource),
-	}
-
 	g := s.server.Group("api")
-	for _, v := range routers {
+	for _, v := range s.Routers {
 		v.RegisterRouter(g)
 	}
 }
 
 func (s *EchoServer) Run(port string) {
 	go func() {
-		if err := s.server.Start(port); err != nil {
-			log.Panic(err)
+		if err := s.server.Start(port); err != nil && err != http.ErrServerClosed {
+			s.server.Logger.Fatal("shutting down the server")
 		}
-		log.Info("start")
 	}()
 
-	quit := make(chan os.Signal)
+	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := s.server.Shutdown(ctx); err != nil {
-		log.Error(err)
+		s.server.Logger.Fatal(err)
 	}
 }

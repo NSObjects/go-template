@@ -1,10 +1,10 @@
 /*
- * Created by lintao on 2023/7/26 下午5:08
+ * Created by lintao on 2023/7/27 下午2:36
  * Copyright © 2020-2023 LINTAO. All rights reserved.
  *
  */
 
-package repo
+package data
 
 //
 //func TestNewUserDataSource(t *testing.T) {
@@ -156,13 +156,13 @@ package repo
 //	for _, tt := range tests {
 //		t.Run(tt.name, func(t *testing.T) {
 //			this := NewUserDataSource(tt.fields.dataSource)
-//			gotUser, err := this.GetUserById(tt.args.id)
+//			gotUser, err := this.GetUserByID(tt.args.id)
 //			if (err != nil) != tt.wantErr {
-//				t.Errorf("UserDataSource.GetUserById() error = %v, wantErr %v", err, tt.wantErr)
+//				t.Errorf("UserDataSource.GetUserByID() error = %v, wantErr %v", err, tt.wantErr)
 //				return
 //			}
 //			if !reflect.DeepEqual(gotUser, tt.wantUser) {
-//				t.Errorf("UserDataSource.GetUserById() = %v, want %v", gotUser, tt.wantUser)
+//				t.Errorf("UserDataSource.GetUserByID() = %v, want %v", gotUser, tt.wantUser)
 //			}
 //			if err := mock.ExpectationsWereMet(); err != nil {
 //				t.Errorf("there were unfulfilled expectations: %s", err)
@@ -283,8 +283,8 @@ package repo
 //			this := &UserDataSource{
 //				dataSource: tt.fields.dataSource,
 //			}
-//			if err := this.DeleteUserById(tt.args.id); (err != nil) != tt.wantErr {
-//				t.Errorf("UserDataSource.DeleteUserById() error = %v, wantErr %v", err, tt.wantErr)
+//			if err := this.DeleteUserByID(tt.args.id); (err != nil) != tt.wantErr {
+//				t.Errorf("UserDataSource.DeleteUserByID() error = %v, wantErr %v", err, tt.wantErr)
 //			}
 //			if err := mock.ExpectationsWereMet(); err != nil {
 //				t.Errorf("there were unfulfilled expectations: %s", err)

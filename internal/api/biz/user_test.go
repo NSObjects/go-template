@@ -125,7 +125,7 @@ package biz
 //	ctl := gomock.NewController(t)
 //	defer ctl.Finish()
 //	pmock := mock_repository.NewMockUserRepository(ctl)
-//	pmock.EXPECT().DeleteUserById(int64(1))
+//	pmock.EXPECT().DeleteUserByID(int64(1))
 //
 //	type fields struct {
 //		repository repository.UserRepository
