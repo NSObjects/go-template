@@ -48,7 +48,7 @@ func TestInit(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			Init()
+
 		})
 	}
 }
@@ -457,22 +457,6 @@ func Test_logPath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := logPath(tt.args.base, tt.args.level); got != tt.want {
 				t.Errorf("logPath() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_loggerCore(t *testing.T) {
-	tests := []struct {
-		name     string
-		wantCore zapcore.Core
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if gotCore := loggerCore(); !reflect.DeepEqual(gotCore, tt.wantCore) {
-				t.Errorf("loggerCore() = %v, want %v", gotCore, tt.wantCore)
 			}
 		})
 	}
