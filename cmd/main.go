@@ -15,8 +15,8 @@ import (
 func main() {
 	app := &cli.App{
 		Flags: newFlag(),
-		Action: func(cCtx *cli.Context) error {
-			Run(cCtx.String("conf"))
+		Action: func(ctx *cli.Context) error {
+			Run(ctx.String("conf"))
 			return nil
 		},
 	}

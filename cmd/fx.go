@@ -14,8 +14,8 @@ import (
 	"github.com/NSObjects/go-template/internal/log"
 	"go.uber.org/fx"
 
-	"github.com/NSObjects/go-template/internal/api/server"
 	"github.com/NSObjects/go-template/internal/configs"
+	"github.com/NSObjects/go-template/internal/server"
 )
 
 func Run(cfg string) {
@@ -33,12 +33,13 @@ func Run(cfg string) {
 				server.NewEchoServer,
 				fx.ParamTags(`group:"routes"`)),
 		),
-		fx.Invoke(runHttpServer)).Run()
-}
-
-func runHttpServer(lifecycle fx.Lifecycle, s *server.EchoServer, cfg configs.Config) {
-	lifecycle.Append(fx.Hook{OnStart: func(context.Context) error {
-		go s.Run(cfg.System.Port)
-		return nil
-	}})
+		fx.Invoke(func(lifecycle fx.Lifecycle, s *server.EchoServer, cfg configs.Config) {
+			lifecycle.Append(
+				fx.Hook{
+					OnStart: func(context.Context) error {
+						go s.Run(cfg.System.Port)
+						return nil
+					},
+				})
+		})).Run()
 }
