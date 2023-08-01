@@ -10,7 +10,7 @@ import "gorm.io/gorm"
 
 type User struct {
 	gorm.Model
-	Name     string `json:"name" form:"name" query:"name"`
+	Name     string `json:"name" form:"name" query:"name" binding:"required"`
 	Phone    string `json:"phone" form:"phone" query:"phone"`
 	Status   int64  `json:"status" form:"status" query:"status"`
 	Password string `json:"password" form:"password" query:"password"`

@@ -36,13 +36,13 @@ func NewUserController(u *biz.UserHandler) RegisterRouter {
 
 func (u *Controller) getUser(c echo.Context) (err error) {
 	var user param.UserParam
-	if err = c.Bind(&user); err != nil {
+	if err = BindAndValidate(&user, c); err != nil {
 		return err
 	}
 
 	listUser, total, err := u.user.ListUser(user.User, user.APIQuery)
 	if err != nil {
-		return resp.ApiError(err, c)
+		return err
 	}
 	return resp.ListDataResponse(listUser, total, c)
 }
@@ -51,7 +51,7 @@ func (u *Controller) getUserDetail(c echo.Context) (err error) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	detail, err := u.user.GetUserDetail(id)
 	if err != nil {
-		return resp.ApiError(err, c)
+		return err
 	}
 
 	return resp.OneDataResponse(detail, c)
@@ -59,12 +59,12 @@ func (u *Controller) getUserDetail(c echo.Context) (err error) {
 
 func (u *Controller) createUser(c echo.Context) (err error) {
 	var user model.User
-	if err = c.Bind(&user); err != nil {
-		return resp.ApiError(err, c)
+	if err = BindAndValidate(&user, c); err != nil {
+		return err
 	}
 
 	if err = u.user.CreateUser(user); err != nil {
-		return resp.ApiError(err, c)
+		return err
 	}
 
 	return resp.OperateSuccess(c)
@@ -73,12 +73,12 @@ func (u *Controller) createUser(c echo.Context) (err error) {
 func (u *Controller) updateUser(c echo.Context) (err error) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	var user model.User
-	if err = c.Bind(&user); err != nil {
-		return resp.ApiError(err, c)
+	if err = BindAndValidate(&user, c); err != nil {
+		return err
 	}
 
 	if err = u.user.UpdateUser(user, id); err != nil {
-		return resp.ApiError(err, c)
+		return err
 	}
 
 	return resp.OperateSuccess(c)
@@ -88,7 +88,7 @@ func (u *Controller) updateUser(c echo.Context) (err error) {
 func (u *Controller) deleteUser(c echo.Context) (err error) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err = u.user.DeleteUser(id); err != nil {
-		return resp.ApiError(err, c)
+		return err
 	}
 
 	return resp.OperateSuccess(c)

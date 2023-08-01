@@ -7,6 +7,8 @@
 package service
 
 import (
+	"github.com/NSObjects/go-template/internal/code"
+	"github.com/marmotedu/errors"
 	"net/http/httptest"
 
 	"go.uber.org/fx"
@@ -26,6 +28,18 @@ func AsRoute(f any) any {
 		fx.As(new(RegisterRouter)),
 		fx.ResultTags(`group:"routes"`),
 	)
+}
+
+func BindAndValidate(obj any, ctx echo.Context) error {
+	if err := ctx.Bind(&obj); err != nil {
+		return errors.WrapC(err, code.ErrBind, err.Error())
+	}
+
+	if err := ctx.Validate(&obj); err != nil {
+		return errors.WrapC(err, code.ErrValidation, err.Error())
+	}
+
+	return nil
 }
 
 type RegisterRouter interface {

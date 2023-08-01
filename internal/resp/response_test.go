@@ -44,8 +44,8 @@ func TestApiError(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ApiError(tt.args.err, tt.args.c); (err != nil) != tt.wantErr {
-				t.Errorf("ApiError() error = %v, wantErr %v", err, tt.wantErr)
+			if err := APIError(tt.args.err, tt.args.c); (err != nil) != tt.wantErr {
+				t.Errorf("APIError() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

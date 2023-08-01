@@ -8,6 +8,8 @@ package server
 
 import (
 	"context"
+	"github.com/NSObjects/go-template/internal/log"
+	"github.com/NSObjects/go-template/internal/resp"
 	"net/http"
 
 	"github.com/NSObjects/go-template/internal/api/service"
@@ -41,9 +43,17 @@ func NewEchoServer(routes []service.RegisterRouter) *EchoServer {
 	return s
 }
 
+func errorHandler(err error, c echo.Context) {
+	er := resp.APIError(err, c)
+	if er != nil {
+		log.Error(er)
+	}
+}
+
 func (s *EchoServer) loadMiddleware() {
 	s.server.Validator = &middlewares.Validator{Validator: validator.New()}
 	s.server.Use(middleware.Gzip())
+	s.server.HTTPErrorHandler = errorHandler
 	//s.server.Use(middleware.Recover())
 	s.server.Use(middleware.Logger())
 	s.server.Use(middleware.CORSWithConfig(middleware.CORSConfig{
