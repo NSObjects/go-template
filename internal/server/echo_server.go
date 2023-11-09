@@ -14,8 +14,8 @@ import (
 
 	"github.com/NSObjects/go-template/internal/api/service"
 	"github.com/NSObjects/go-template/internal/server/middlewares"
+	validator "github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
-	validator "gopkg.in/go-playground/validator.v9"
 
 	"os"
 	"os/signal"

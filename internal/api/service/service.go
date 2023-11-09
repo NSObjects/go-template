@@ -7,13 +7,12 @@
 package service
 
 import (
-	"github.com/NSObjects/go-template/internal/code"
-	"github.com/marmotedu/errors"
 	"net/http/httptest"
 
-	"go.uber.org/fx"
-
+	"github.com/NSObjects/go-template/internal/code"
 	"github.com/labstack/echo/v4"
+	"github.com/marmotedu/errors"
+	"go.uber.org/fx"
 )
 
 var Model = fx.Options(
@@ -31,11 +30,11 @@ func AsRoute(f any) any {
 }
 
 func BindAndValidate(obj any, ctx echo.Context) error {
-	if err := ctx.Bind(&obj); err != nil {
+	if err := ctx.Bind(obj); err != nil {
 		return errors.WrapC(err, code.ErrBind, err.Error())
 	}
 
-	if err := ctx.Validate(&obj); err != nil {
+	if err := ctx.Validate(obj); err != nil {
 		return errors.WrapC(err, code.ErrValidation, err.Error())
 	}
 
