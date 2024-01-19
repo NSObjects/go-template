@@ -49,6 +49,7 @@ var (
 	System SystemConfig
 	Log    LogConfig
 	Mgo    Mongodb
+	JWT    JWTConfig
 )
 
 type Config struct {
@@ -57,6 +58,7 @@ type Config struct {
 	Log     LogConfig    `mapstructure:"log"`
 	Mongodb Mongodb      `mapstructure:"mongodb"`
 	Redis   RedisConfig  `mapstructure:"redis"`
+	JWT     JWTConfig    `mapstructure:"jwt"`
 }
 
 type SystemConfig struct {
@@ -90,6 +92,11 @@ type MysqlConfig struct {
 	Database     string `mapstructure:"database"`
 }
 
+type JWTConfig struct {
+	Secret string `mapstructure:"secret"`
+	Expire int    `mapstructure:"expire"`
+}
+
 type Mongodb struct {
 	Host     string `mapstructure:"host"`
 	Port     string `mapstructure:"port"`
@@ -109,10 +116,12 @@ func InitConfig(configPath string) (err error) {
 		fmt.Println(err)
 		return
 	}
+
 	Mysql = c.Mysql
 	System = c.System
 	Log = c.Log
 	Mgo = c.Mongodb
+	JWT = c.JWT
 	return
 }
 

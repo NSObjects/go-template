@@ -40,7 +40,8 @@ var errCodeDocPrefix = `# 错误码
 }
 {{.}}{{.}}{{.}}
 
-上述返回中 {{.}}code{{.}} 表示错误码，{{.}}message{{.}} 表示该错误的具体信息。每个错误同时也对应一个 HTTP 状态码，比如上述错误码对应了 HTTP 状态码 500(Internal Server Error)。
+上述返回中 {{.}}code{{.}} 表示错误码，{{.}}message{{.}} 表示该错误的具体信息。每个错误同时也对应一个 HTTP 状态码，比如上述错误码对应了
+HTTP 状态码 500(Internal Server Error)。
 
 ## 错误码列表
 
@@ -53,9 +54,11 @@ var errCodeDocPrefix = `# 错误码
 var (
 	typeNames  = flag.String("type", "", "comma-separated list of type names; must be set")
 	output     = flag.String("output", "", "output file name; default srcdir/<type>_string.go")
-	trimprefix = flag.String("trimprefix", "", "trim the `prefix` from the generated constant names")
-	buildTags  = flag.String("tags", "", "comma-separated list of build tags to apply")
-	doc        = flag.Bool("doc", false, "if true only generate error code documentation in markdown format")
+	trimprefix = flag.String("trimprefix", "", "trim the `prefix` from the generated "+
+		"constant names")
+	buildTags = flag.String("tags", "", "comma-separated list of build tags to apply")
+	doc       = flag.Bool("doc", false, "if true only generate error code "+
+		"documentation in markdown format")
 )
 
 // Usage is a replacement usage function for the flags package.
@@ -67,14 +70,14 @@ func Usage() {
 	flag.PrintDefaults()
 }
 
-func main() {
+func main() { //nolint:funlen
 	log.SetFlags(0)
 	log.SetPrefix("codegen: ")
 	flag.Usage = Usage
 	flag.Parse()
 	if len(*typeNames) == 0 {
 		flag.Usage()
-		os.Exit(2)
+		os.Exit(2) //nolint:gomnd
 	}
 	types := strings.Split(*typeNames, ",")
 	var tags []string
@@ -146,7 +149,7 @@ func main() {
 		outputName = filepath.Join(dir, strings.ToLower(baseName))
 	}
 
-	err := os.WriteFile(outputName, src, 0o600)
+	err := os.WriteFile(outputName, src, 0o600) //nolint:gomnd
 	if err != nil {
 		log.Fatalf("writing output: %s", err)
 	}
@@ -173,7 +176,10 @@ type Generator struct {
 
 // Printf like fmt.Printf, but add the string to g.buf.
 func (g *Generator) Printf(format string, args ...interface{}) {
-	fmt.Fprintf(&g.buf, format, args...)
+	_, err := fmt.Fprintf(&g.buf, format, args...)
+	if err != nil {
+		return
+	}
 }
 
 // File holds a single parsed file and associated data.
@@ -234,7 +240,7 @@ func (g *Generator) addPackage(pkg *packages.Package) {
 
 // generate produces the register calls for the named type.
 func (g *Generator) generate(typeName string) {
-	values := make([]Value, 0, 100)
+	values := make([]Value, 0, 100) //nolint:gomnd
 	for _, file := range g.pkg.files {
 		// Set the state for this run of the walker.
 		file.typeName = typeName
@@ -260,7 +266,7 @@ func (g *Generator) generate(typeName string) {
 
 // generateDocs produces error code markdown document for the named type.
 func (g *Generator) generateDocs(typeName string) {
-	values := make([]Value, 0, 100)
+	values := make([]Value, 0, 100) //nolint:gomnd
 	for _, file := range g.pkg.files {
 		// Set the state for this run of the walker.
 		file.typeName = typeName
@@ -333,16 +339,15 @@ func (v *Value) ParseComment() (string, string) {
 	}
 
 	groups := reg.FindStringSubmatch(v.comment)
-	if len(groups) != 3 {
+	if len(groups) != 3 { //nolint:gomnd
 		return "500", "Internal server error"
 	}
 
 	return groups[1], groups[2]
 }
 
-// nolint: gocognit
 // genDecl processes one declaration clause.
-func (f *File) genDecl(node ast.Node) bool {
+func (f *File) genDecl(node ast.Node) bool { //nolint:funlen
 	decl, ok := node.(*ast.GenDecl)
 	if !ok || decl.Tok != token.CONST {
 		// We only care about const declarations.

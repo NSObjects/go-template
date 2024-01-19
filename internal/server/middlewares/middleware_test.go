@@ -7,9 +7,8 @@
 package middlewares
 
 import (
+	"github.com/go-playground/validator/v10"
 	"testing"
-
-	"gopkg.in/go-playground/validator.v9"
 )
 
 type vData struct {

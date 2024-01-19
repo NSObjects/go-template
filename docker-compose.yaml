@@ -7,7 +7,7 @@ services:
     #  先将api镜像发布到私有仓库，当前配置只是测试使用
     # api:
     #    image: xxx/api
-    #    container_name: go-template-api
+    #    container_name: echo-admin-api
     #    volumes:
     #      - ./config.toml:/config.toml
     #    ports:
@@ -15,8 +15,8 @@ services:
     #    links:
     #      - mysql
     #      - redis
-    #image: registry.pyl.com/backend/go-template:v0.0.3
-    container_name: go-template-api
+    #image: registry.pyl.com/backend/echo-admin:v0.0.3
+    container_name: echo-admin-api
     environment:
       RUN_ENVIRONMENT: docker
     volumes:
@@ -30,7 +30,7 @@ services:
       - api-net
   db:
     image: mysql:8.0.14
-    container_name: go-template-mysql
+    container_name: echo-admin-mysql
     restart: always
     command: --default-authentication-plugin=mysql_native_password
     volumes:

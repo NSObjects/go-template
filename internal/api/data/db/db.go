@@ -11,13 +11,12 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	redis "github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.uber.org/fx"
 	"gorm.io/gorm"
 )
 
-var Model = fx.Options(
-	fx.Provide(NewDataSource),
-)
+//var Model = fx.Options(
+//	fx.Provide(NewDataSource),
+//)
 
 // DataSource 在使用多个db的项目中在DataSource结构体中增加Engine即可
 type DataSource struct {

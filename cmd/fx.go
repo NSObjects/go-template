@@ -4,25 +4,24 @@
  *
  */
 
-package main
+package cmd
 
 import (
 	"context"
+
 	"github.com/NSObjects/go-template/internal/api/biz"
 	"github.com/NSObjects/go-template/internal/api/data"
 	"github.com/NSObjects/go-template/internal/api/service"
-	"github.com/NSObjects/go-template/internal/log"
-	"go.uber.org/fx"
-
 	"github.com/NSObjects/go-template/internal/configs"
 	"github.com/NSObjects/go-template/internal/server"
+	"go.uber.org/fx"
 )
 
 func Run(cfg string) {
 	fx.New(
 		fx.Provide(func() configs.Config {
 			config := configs.NewCfg(cfg)
-			log.Init(config)
+			//log.Init(config)
 			return config
 		}),
 		data.Model,

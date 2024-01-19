@@ -4,7 +4,7 @@
 
 # 指定 GO 版本号
 ARG GO_VERSION=1.14
-ARG PROJECT_NAME=go-template
+ARG PROJECT_NAME=echo-admin
 
 # 指定构建环境
 FROM golang:$GO_VERSION-alpine AS builder

@@ -7,9 +7,10 @@
 package code
 
 import (
+	"net/http"
+
 	"github.com/marmotedu/errors"
 	"github.com/novalagung/gubrak"
-	"net/http"
 )
 
 var _ errors.Coder = (*ErrCode)(nil)
@@ -59,7 +60,7 @@ func (coder *ErrCode) HTTPStatus() int {
 }
 
 func register(code int, httpStatus int, message string, refs ...string) {
-	found, _ := gubrak.Includes([]int{200, 400, 401, 403, 404, 500}, httpStatus)
+	found, _ := gubrak.Includes([]int{200, 201, 400, 401, 403, 404, 500}, httpStatus)
 	if !found {
 		panic("http code not in `200, 400, 401, 403, 404, 500`")
 	}

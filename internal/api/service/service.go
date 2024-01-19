@@ -16,9 +16,7 @@ import (
 )
 
 var Model = fx.Options(
-	fx.Provide(
-		AsRoute(NewUserController),
-	),
+	fx.Provide(),
 )
 
 func AsRoute(f any) any {

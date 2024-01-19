@@ -7,19 +7,18 @@
 package resp
 
 import (
-	"github.com/NSObjects/go-template/internal/log"
 	"net/http"
 	"reflect"
 
-	"github.com/marmotedu/errors"
-
+	"github.com/NSObjects/go-template/internal/log"
 	"github.com/labstack/echo/v4"
+	"github.com/marmotedu/errors"
 )
 
 type ListResponse struct {
-	Code StatusCode `json:"code"`
-	Msg  string     `json:"msg"`
-	Data ListData   `json:"data"`
+	Code int      `json:"code"`
+	Msg  string   `json:"msg"`
+	Data ListData `json:"data"`
 }
 
 type ListData struct {
@@ -28,7 +27,7 @@ type ListData struct {
 }
 
 type DataResponse struct {
-	Code StatusCode  `json:"code"`
+	Code int         `json:"code"`
 	Msg  string      `json:"msg"`
 	Data interface{} `json:"data"`
 }
@@ -45,17 +44,16 @@ func APIError(err error, c echo.Context) error {
 	codeError := errors.ParseCoder(err)
 	rjson.Code = codeError.Code()
 	rjson.Msg = codeError.String()
-	log.Errorf("%+v", err)
+	log.Error(err)
 	return c.JSON(codeError.HTTPStatus(), rjson)
 }
 
 func OperateSuccess(c echo.Context) error {
 	var rjson struct {
-		Code StatusCode `json:"code"`
-		Msg  string     `json:"msg"`
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
 	}
 
-	rjson.Code = StatusOK
 	rjson.Msg = "success"
 
 	return c.JSON(http.StatusOK, rjson)
@@ -73,16 +71,14 @@ func ListDataResponse(arr interface{}, total int64, c echo.Context) error {
 			List:  arr,
 			Total: total,
 		},
-		Code: StatusOK,
 	}
 
-	return c.JSON(http.StatusOK, r)
+	return c.JSONPretty(http.StatusOK, r, "  ")
 }
 
 func OneDataResponse(data interface{}, c echo.Context) error {
 	r := DataResponse{
 		Data: data,
-		Code: StatusOK,
 	}
 
 	return c.JSON(http.StatusOK, r)
