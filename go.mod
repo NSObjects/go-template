@@ -18,7 +18,7 @@ require (
 	github.com/redis/go-redis/v9 v9.0.5
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.17.0
-	go.mongodb.org/mongo-driver v1.5.1
+	go.mongodb.org/mongo-driver v1.8.1
 	go.uber.org/fx v1.20.0
 	golang.org/x/tools v0.16.1
 	gorm.io/driver/mysql v1.5.2
@@ -26,6 +26,7 @@ require (
 )
 
 require (
+	github.com/5xxxx/pie v0.1.11 // indirect
 	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible // indirect
 	github.com/aws/aws-sdk-go v1.34.28 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect

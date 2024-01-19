@@ -7,10 +7,10 @@
 package db
 
 import (
+	"github.com/5xxxx/pie/driver"
 	"github.com/NSObjects/go-template/internal/configs"
 	_ "github.com/go-sql-driver/mysql"
 	redis "github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 )
 
@@ -21,7 +21,7 @@ import (
 // DataSource 在使用多个db的项目中在DataSource结构体中增加Engine即可
 type DataSource struct {
 	Mysql   *gorm.DB
-	Mongodb *mongo.Database
+	Mongodb driver.Client
 	Redis   *redis.Client
 }
 
