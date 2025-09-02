@@ -7,7 +7,6 @@
 package db
 
 import (
-	"github.com/5xxxx/pie/driver"
 	"github.com/NSObjects/go-template/internal/configs"
 	_ "github.com/go-sql-driver/mysql"
 	redis "github.com/redis/go-redis/v9"
@@ -20,18 +19,14 @@ import (
 
 // DataSource 在使用多个db的项目中在DataSource结构体中增加Engine即可
 type DataSource struct {
-	Mysql   *gorm.DB
-	Mongodb driver.Client
-	Redis   *redis.Client
+	Mysql *gorm.DB
+	Redis *redis.Client
 }
 
 func NewDataSource(cfg configs.Config) *DataSource {
 	var dataSource DataSource
 	if cfg.Mysql.Host != "" {
 		dataSource.Mysql = NewMysql(cfg.Mysql)
-	}
-	if cfg.Mongodb.Host != "" {
-		dataSource.Mongodb = MongoClient(cfg.Mongodb)
 	}
 
 	if cfg.Redis.Host != "" {
