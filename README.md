@@ -1,4 +1,4 @@
-# go-template - api快速开发框架
+# go-template - API快速开发框架
 
 [![Go Version](https://img.shields.io/badge/Go-1.24.0+-blue.svg)](https://golang.org)
 [![Echo Version](https://img.shields.io/badge/Echo-v4.13.4-green.svg)](https://echo.labstack.com)
@@ -6,7 +6,7 @@
 
 ## 📖 项目简介
 
-Echo Admin 是一个基于 [Echo](https://echo.labstack.com) 框架构建的企业级Go Web应用框架，采用Clean Architecture架构设计，集成了完整的认证授权、数据库管理、代码生成等企业级功能。
+go-template 是一个基于 [Echo](https://echo.labstack.com) 框架构建的企业级Go Web应用框架，采用Clean Architecture架构设计，集成了完整的认证授权、数据库管理、智能代码生成等企业级功能。
 
 ### ✨ 核心特性
 
@@ -23,37 +23,22 @@ Echo Admin 是一个基于 [Echo](https://echo.labstack.com) 框架构建的企�
 
 ## 🚀 快速开始
 
-### 环境要求
-
-- Go 1.24.0+
-- MySQL 8.0+
-- Redis 6.0+
-- Make
-
-### 安装步骤
-
 ```bash
 # 1. 克隆项目
 git clone <repository-url>
-cd echo-admin
+cd go-template
 
 # 2. 安装依赖
 go mod download
 
-# 3. 配置数据库
-# 编辑 configs/config.toml 文件，配置数据库连接信息
-
-# 4. 初始化数据库
-make db-init
-
-# 5. 启动服务
+# 3. 启动服务
 make run
 ```
 
 ## 📁 项目结构
 
 ```
-echo-admin/
+go-template/
 ├── cmd/                    # 命令行工具和入口
 │   ├── fx.go              # FX依赖注入配置
 │   ├── gen.go             # 代码生成工具
@@ -80,126 +65,179 @@ echo-admin/
 │   └── utils/             # 工具函数
 ├── tools/                 # 开发工具
 │   ├── modgen/            # 模块生成器
-│   │   ├── main.go        # 主程序
-│   │   ├── openapi_templates.go  # OpenAPI模板
-│   │   ├── test_templates.go     # 测试模板
-│   │   └── openapi_gen.go        # OpenAPI解析
-│   └── encrypt.go         # 加密工具
-├── scripts/               # 脚本文件
+│   ├── dynamic-sql-gen/   # 动态SQL生成器
+│   └── codegen/           # 错误码生成器
+├── examples/              # 使用示例
 ├── main.go                # 主入口文件
 ├── Makefile               # 构建脚本
 └── README.md              # 项目说明
 ```
 
-## 🔧 配置说明
+## 🔄 开发流程
 
-### 主配置文件 (configs/config.toml)
+### 1. 快速生成API模块
 
-```toml
-# 应用配置
-[app]
-name = "echo-admin"
-version = "1.0.0"
-debug = true
-port = 9322
-
-# 数据库配置
-[database]
-driver = "mysql"
-host = "localhost"
-port = 3306
-username = "root"
-password = "password"
-database = "echo_admin"
-charset = "utf8mb4"
-max_idle_conns = 10
-max_open_conns = 100
-conn_max_lifetime = "1h"
-
-# Redis配置
-[redis]
-host = "localhost"
-port = 6379
-password = ""
-database = 0
-pool_size = 10
-
-# JWT配置
-[jwt]
-secret = "your-secret-key"
-expire = 3600
-skip_paths = ["/api/health", "/api/login"]
-
-# Casbin配置
-[casbin]
-model_path = "configs/rbac_model.conf"
-policy_path = "configs/rbac_policy.csv"
-```
-
-## 🛠️ 开发指南
-
-### 快速开发流程
-
-1. **设计API接口** - 在 `doc/openapi.yaml` 中定义API规范
-2. **生成代码** - 使用 `modgen` 工具生成完整的业务模块
-3. **实现业务逻辑** - 在生成的 `biz` 层实现具体的业务逻辑
-4. **自定义接口** - 在 `service` 层自定义HTTP接口
-5. **注册路由** - 在 `RegisterRouter` 方法中注册API路由
-6. **测试验证** - 运行生成的测试用例验证功能
-
-### 代码生成工具
-
-#### 基于OpenAPI3文档生成（推荐）
+#### 方法一：使用默认模板生成
 
 ```bash
-# 生成完整的API模块（包含测试用例）
-go run tools/modgen/main.go --name=user --openapi=doc/openapi.yaml --tests --force
+# 生成用户模块（包含完整的CRUD操作）
+go run tools/modgen/main.go --name=user --force
 
-# 只生成代码，不生成测试
-go run tools/modgen/main.go --name=user --openapi=doc/openapi.yaml --force
-```
+# 生成文章模块
+go run tools/modgen/main.go --name=article --force
 
-#### 基于默认模板生成
-
-```bash
-# 生成基础模块
+# 生成模块并包含测试用例
 go run tools/modgen/main.go --name=product --tests --force
 ```
 
-### 生成的文件结构
+#### 方法二：基于OpenAPI3文档生成（推荐）
+
+```bash
+# 从OpenAPI3文档生成用户模块
+go run tools/modgen/main.go --name=user --openapi=doc/openapi.yaml --force
+
+# 生成模块并包含测试用例
+go run tools/modgen/main.go --name=user --openapi=doc/openapi.yaml --tests --force
+```
+
+#### 生成的文件结构
+
+每个模块会生成以下文件：
 
 ```
-internal/api/
-├── biz/
-│   ├── user.go           # 业务逻辑实现
-│   └── user_test.go      # 业务逻辑测试
-├── service/
-│   ├── user.go           # HTTP控制器
-│   ├── user_test.go      # 控制器测试
-│   └── param/
-│       └── user.go       # 请求参数结构
-├── data/
-│   └── model/
-│       └── user.go       # 数据模型
+internal/
+├── api/
+│   ├── biz/
+│   │   ├── {name}.go          # 业务逻辑层
+│   │   └── {name}_test.go     # 业务逻辑测试用例（--tests时生成）
+│   ├── service/
+│   │   ├── {name}.go          # 服务层（控制器）
+│   │   ├── {name}_test.go     # 服务层测试用例（--tests时生成）
+│   │   └── param/
+│   │       └── {name}.go      # 参数结构体
+│   └── data/
+│       └── model/
+│           └── {name}.go      # 数据模型
 └── code/
-    └── user.go           # 错误码定义
+    └── {name}.go              # 错误码定义
 ```
 
-### OpenAPI3文档规范
+### 2. 快速生成数据库映射
 
-项目使用OpenAPI3规范定义API接口，支持以下特性：
+#### 方法一：生成所有表的模型和查询方法
 
-- **参数验证**: 自动生成validator标签
-- **错误码映射**: 自动生成错误码定义
-- **测试用例**: 自动生成完整的测试用例
-- **Mock支持**: 集成testify/mock框架
-- **RESTful设计**: 根据HTTP方法自动设置参数位置
+```bash
+# 生成所有数据库模型和查询方法
+make db-gen
 
-示例OpenAPI定义：
+# 生成指定表的模型
+make db-gen-table TABLE=users
+```
+
+#### 方法二：生成Dynamic SQL查询（推荐）
+
+```bash
+# 生成Dynamic SQL查询方法
+make db-gen-dynamic
+
+# 生成完整的数据库代码（模型 + Dynamic SQL）
+make db-gen-full
+```
+
+#### Dynamic SQL特性
+
+- **通用方法**: 所有表都生成相同的查询方法
+- **类型安全**: 所有生成的代码都是类型安全的，编译时检查
+- **模板表达式**: 支持 if/else, where, set, for 等高级功能
+- **占位符**: `@@table` 自动替换为表名，`@param` 绑定参数
+
+#### 生成的查询接口
+
+```go
+// 通用查询接口 - 适用于所有模型的基础CRUD操作
+type ICommonQuery interface {
+    GetByID(id uint) (gen.T, error)
+    GetByIDs(ids []uint) ([]gen.T, error)
+    CountRecords() (int64, error)
+    Exists(id uint) (bool, error)
+    DeleteByID(id uint) error
+    DeleteByIDs(ids []uint) error
+}
+
+// 分页查询接口 - 适用于需要分页的模型
+type IPaginationQuery interface {
+    GetPage(offset, limit int, orderBy string) ([]gen.T, error)
+    GetPageWithCondition(condition string, offset, limit int, orderBy string) ([]gen.T, error)
+}
+
+// 搜索查询接口 - 适用于需要搜索功能的模型
+type ISearchQuery interface {
+    Search(field, keyword string) ([]gen.T, error)
+    SearchMultiple(field1, field2, keyword string) ([]gen.T, error)
+}
+```
+
+### 3. 完整的开发流程
+
+1. **设计API接口** - 在 `doc/openapi.yaml` 中定义API规范
+2. **生成API模块** - 使用 `modgen` 工具生成完整的业务模块
+3. **生成数据库映射** - 使用 `make db-gen-dynamic` 生成Dynamic SQL查询
+4. **实现业务逻辑** - 在生成的 `biz` 层实现具体的业务逻辑
+5. **运行测试** - 使用 `make test` 验证功能
+6. **启动服务** - 使用 `make run` 启动服务
+
+## 🛠️ 开发命令
+
+### 代码生成
+
+```bash
+# 生成API模块
+go run tools/modgen/main.go --name=user --force
+
+# 生成数据库映射
+make db-gen-dynamic
+
+# 生成错误码文档
+make gen-code
+```
+
+### 测试和运行
+
+```bash
+# 运行测试
+make test
+
+# 启动服务
+make run
+
+# 构建应用
+make build
+```
+
+### 代码质量
+
+```bash
+# 格式化代码
+make fmt
+
+# 代码检查
+make vet
+
+# 清理生成的文件
+make clean
+```
+
+## 📚 使用示例
+
+### 创建用户管理模块
+
+#### 1. 定义OpenAPI规范
+
+在 `doc/openapi.yaml` 中添加用户相关接口：
 
 ```yaml
 paths:
-  /api/users:
+  /users:
     get:
       operationId: find users
       parameters:
@@ -207,13 +245,10 @@ paths:
           in: query
           schema:
             type: integer
-            minimum: 1
         - name: count
           in: query
           schema:
             type: integer
-            minimum: 1
-            maximum: 100
     post:
       operationId: createUser
       requestBody:
@@ -238,16 +273,77 @@ components:
           format: email
 ```
 
-## 📚 API文档
+#### 2. 生成API模块
 
-### RESTful API设计规范
+```bash
+# 生成用户模块
+go run tools/modgen/main.go --name=user --openapi=doc/openapi.yaml --tests --force
+```
 
-- **请求格式**: JSON
-- **响应格式**: 统一JSON响应格式
-- **状态码**: 标准HTTP状态码
-- **认证**: JWT Bearer Token
-- **权限**: 基于Casbin的RBAC权限控制
-- **参数位置**: 根据RESTful标准自动设置（GET用query，POST/PUT用body等）
+#### 3. 生成数据库映射
+
+```bash
+# 生成Dynamic SQL查询
+make db-gen-dynamic
+```
+
+#### 4. 实现业务逻辑
+
+编辑 `internal/api/biz/user.go`：
+
+```go
+func (h *UserHandler) List(ctx context.Context, p param.UserParam) ([]param.UserResponse, int64, error) {
+    // 使用Dynamic SQL查询
+    users, err := h.q.User.GetPage(p.Offset(), p.Limit(), "id ASC")
+    if err != nil {
+        return nil, 0, code.WrapDatabaseError(err, "query user list")
+    }
+    
+    total, err := h.q.User.CountRecords()
+    if err != nil {
+        return nil, 0, code.WrapDatabaseError(err, "count users")
+    }
+    
+    return convertToResponses(users), total, nil
+}
+```
+
+### 使用Dynamic SQL查询
+
+```go
+// 基础查询
+users, err := q.User.GetByID(1)
+users, err := q.User.GetByIDs([]uint{1, 2, 3})
+count, err := q.User.CountRecords()
+
+// 分页查询
+users, err := q.User.GetPage(0, 10, "id ASC")
+users, err := q.User.GetPageWithCondition("status = 1", 0, 10, "id ASC")
+
+// 搜索查询
+users, err := q.User.Search("name", "admin")
+users, err := q.User.SearchMultiple("name", "email", "admin")
+
+// 高级查询
+users, err := q.User.FilterWithCondition("status = 1 AND created_at > '2023-01-01'")
+users, err := q.User.GetByField("email", "admin@example.com")
+```
+
+## 🔧 核心特性
+
+### 智能代码生成
+
+- **OpenAPI3支持**: 从OpenAPI3文档自动生成完整的API模块
+- **默认模板**: 快速生成标准的CRUD API模块
+- **测试用例**: 自动生成业务逻辑和服务层测试用例
+- **依赖注入**: 自动注册到fx.Options
+
+### Dynamic SQL查询
+
+- **通用方法**: 所有表都生成相同的查询方法
+- **类型安全**: 编译时检查，避免运行时错误
+- **模板表达式**: 支持if/else, where, set, for等高级功能
+- **占位符**: `@@table`自动替换为表名，`@param`绑定参数
 
 ### 统一响应格式
 
@@ -260,71 +356,6 @@ components:
 }
 ```
 
-### 错误码规范
-
-```go
-// 成功
-const (
-    Success = 200
-)
-
-// 客户端错误
-const (
-    ParamError = 400
-    Unauthorized = 401
-    Forbidden = 403
-    NotFound = 404
-)
-
-// 服务端错误
-const (
-    InternalError = 500
-    DBError = 502
-)
-```
-
-## 🧪 测试
-
-### 运行测试
-
-```bash
-# 运行所有测试
-make test
-
-# 运行详细测试
-make test-verbose
-
-# 运行特定模块测试
-go test ./internal/api/service -v
-
-# 运行特定测试用例
-go test ./internal/api/service -v -run TestUserController_list
-
-# 运行测试并生成覆盖率报告
-make test-coverage
-```
-
-### 测试特性
-
-- **自动生成测试用例**: 基于OpenAPI文档自动生成测试用例
-- **Mock支持**: 集成testify/mock框架，支持依赖注入
-- **参数验证测试**: 自动测试参数验证规则
-- **HTTP测试**: 完整的HTTP请求测试
-- **业务逻辑测试**: 独立的业务逻辑测试
-
-### 测试覆盖率
-
-当前项目测试覆盖率情况：
-
-| 模块 | 覆盖率 | 状态 |
-|------|--------|------|
-| `internal/code` | 51.3% | ✅ 良好 |
-| `internal/resp` | 86.1% | ✅ 优秀 |
-| `internal/api/service` | 75.2% | ✅ 良好 |
-| 其他模块 | 待完善 | 🔄 进行中 |
-
-**总体覆盖率**: 65.8% (基于已测试模块)
-
 ## 🚀 部署
 
 ### 开发环境
@@ -333,66 +364,42 @@ make test-coverage
 # 启动开发服务器
 make run
 
-# 热重载开发
-make dev
+# 构建应用
+make build
 ```
 
 ### Docker部署
 
-1. **构建镜像**
 ```bash
-docker build -t echo-admin .
-```
+# 构建镜像
+docker build -t go-template .
 
-2. **运行容器**
-```bash
+# 运行容器
 docker run -d \
-  --name echo-admin \
+  --name go-template \
   -p 9322:9322 \
   -v $(pwd)/configs:/app/configs \
-  echo-admin
-```
-
-### 生产环境部署
-
-1. **编译二进制文件**
-```bash
-make build
-```
-
-2. **使用systemd管理服务**
-```bash
-# 创建服务文件
-sudo vim /etc/systemd/system/echo-admin.service
-
-# 启动服务
-sudo systemctl start echo-admin
-sudo systemctl enable echo-admin
+  go-template
 ```
 
 ## 🔍 故障排除
 
 ### 常见问题
 
-1. **数据库连接失败**
+1. **代码生成失败**
+   - 检查OpenAPI文档格式是否正确
+   - 确认Go版本兼容性
+   - 使用 `--force` 参数覆盖已存在文件
+
+2. **数据库连接失败**
    - 检查数据库配置
    - 确认数据库服务是否启动
    - 验证用户名密码是否正确
 
-2. **JWT认证失败**
-   - 检查JWT密钥配置
-   - 确认跳过路径配置
-   - 验证令牌格式
-
-3. **权限控制问题**
-   - 检查Casbin模型配置
-   - 确认策略文件路径
-   - 验证用户角色配置
-
-4. **代码生成问题**
-   - 检查OpenAPI文档格式
-   - 确认Go版本兼容性
-   - 验证模板语法
+3. **测试失败**
+   - 检查依赖是否正确安装
+   - 确认数据库连接正常
+   - 查看详细错误信息
 
 ### 日志查看
 
@@ -407,48 +414,12 @@ tail -f logs/error.log
 go test -v ./internal/api/service
 ```
 
-## 📋 开发命令
-
-### Make命令
-
-```bash
-# 开发相关
-make run          # 启动服务
-make dev          # 开发模式（热重载）
-make build        # 构建二进制文件
-make clean        # 清理构建文件
-
-# 测试相关
-make test         # 运行所有测试
-make test-verbose # 详细测试输出
-make test-coverage # 测试覆盖率
-
-# 数据库相关
-make db-init      # 初始化数据库
-make db-migrate   # 数据库迁移
-make db-reset     # 重置数据库
-
-# 代码生成
-make gen-code     # 生成错误码文档
-make gen-db       # 生成数据库模型
-```
-
-### 工具命令
-
-```bash
-# 模块生成
-go run tools/modgen/main.go --name=user --openapi=doc/openapi.yaml --tests --force
-
-# 加密工具
-go run tools/encrypt.go --text="your-password"
-```
-
 ## 🤝 贡献指南
 
 1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
+2. 创建特性分支
+3. 提交更改
+4. 推送到分支
 5. 打开 Pull Request
 
 ### 代码规范
