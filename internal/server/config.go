@@ -11,7 +11,7 @@ package server
 import (
 	"time"
 
-	"github.com/NSObjects/echo-admin/internal/configs"
+	"github.com/NSObjects/go-template/internal/configs"
 )
 
 // ServerConfig 服务器配置

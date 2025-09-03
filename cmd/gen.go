@@ -6,7 +6,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/NSObjects/echo-admin/internal/configs"
+	"github.com/NSObjects/go-template/internal/configs"
 
 	"github.com/spf13/cobra"
 	"gorm.io/driver/mysql"

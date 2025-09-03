@@ -1,7 +1,7 @@
 package data
 
 import (
-	"github.com/NSObjects/echo-admin/internal/configs"
+	"github.com/NSObjects/go-template/internal/configs"
 	"github.com/casbin/casbin/v2"
 	gormadapter "github.com/casbin/gorm-adapter/v3"
 	"go.uber.org/fx"

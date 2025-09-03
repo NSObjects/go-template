@@ -12,8 +12,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/NSObjects/echo-admin/internal/api/data"
-	"github.com/NSObjects/echo-admin/internal/code"
+	"github.com/NSObjects/go-template/internal/api/data"
+	"github.com/NSObjects/go-template/internal/code"
 	"github.com/golang-jwt/jwt/v5"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"

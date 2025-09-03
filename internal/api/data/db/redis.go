@@ -9,7 +9,7 @@ package db
 import (
 	"context"
 
-	"github.com/NSObjects/echo-admin/internal/configs"
+	"github.com/NSObjects/go-template/internal/configs"
 	redis "github.com/redis/go-redis/v9"
 )
 

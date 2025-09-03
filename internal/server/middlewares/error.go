@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/NSObjects/echo-admin/internal/log"
-	"github.com/NSObjects/echo-admin/internal/resp"
+	"github.com/NSObjects/go-template/internal/log"
+	"github.com/NSObjects/go-template/internal/resp"
 	"github.com/labstack/echo/v4"
 	"github.com/marmotedu/errors"
 )

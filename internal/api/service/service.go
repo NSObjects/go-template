@@ -3,7 +3,7 @@ package service
 import (
 	"net/http/httptest"
 
-	"github.com/NSObjects/echo-admin/internal/code"
+	"github.com/NSObjects/go-template/internal/code"
 	"github.com/labstack/echo/v4"
 	"github.com/marmotedu/errors"
 	"go.uber.org/fx"

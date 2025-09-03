@@ -1,4 +1,4 @@
-module github.com/NSObjects/echo-admin
+module github.com/NSObjects/go-template
 
 go 1.24.0
 

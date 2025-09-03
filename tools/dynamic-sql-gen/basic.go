@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/NSObjects/echo-admin/internal/configs"
+	"github.com/NSObjects/go-template/internal/configs"
 	"gorm.io/driver/mysql"
 	"gorm.io/gen"
 	"gorm.io/gorm"

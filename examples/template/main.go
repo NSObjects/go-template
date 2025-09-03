@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/NSObjects/echo-admin/internal/api/data"
-	"github.com/NSObjects/echo-admin/internal/configs"
+	"github.com/NSObjects/go-template/internal/api/data"
+	"github.com/NSObjects/go-template/internal/configs"
 	"go.uber.org/fx"
 )
 

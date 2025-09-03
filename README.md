@@ -1,4 +1,4 @@
-# Echo Admin - 企业级Go Web应用框架
+# go-template - api快速开发框架
 
 [![Go Version](https://img.shields.io/badge/Go-1.24.0+-blue.svg)](https://golang.org)
 [![Echo Version](https://img.shields.io/badge/Echo-v4.13.4-green.svg)](https://echo.labstack.com)
@@ -470,12 +470,3 @@ go run tools/encrypt.go --text="your-password"
 - [Uber FX](https://uber-go.github.io/fx/) - 依赖注入框架
 - [Testify](https://github.com/stretchr/testify) - 测试框架
 
-## 📞 联系方式
-
-- 项目维护者: [Your Name]
-- 邮箱: [your.email@example.com]
-- 项目链接: [https://github.com/your-username/echo-admin](https://github.com/your-username/echo-admin)
-
----
-
-**注意**: 这是一个企业级框架，请在生产环境中使用前进行充分测试。建议在开发环境中先熟悉框架特性和代码生成工具的使用。

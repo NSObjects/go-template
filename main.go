@@ -15,7 +15,7 @@ limitations under the License.
 */
 package main
 
-import "github.com/NSObjects/echo-admin/cmd"
+import "github.com/NSObjects/go-template/cmd"
 
 func main() {
 	cmd.Execute()

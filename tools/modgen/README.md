@@ -153,7 +153,7 @@ package biz
 
 import (
 	"context"
-	"github.com/NSObjects/echo-admin/internal/api/service/param"
+	"github.com/NSObjects/go-template/internal/api/service/param"
 )
 
 // UserUseCase 业务逻辑接口
@@ -181,9 +181,9 @@ func NewUserHandler() UserUseCase {
 package service
 
 import (
-	"github.com/NSObjects/echo-admin/internal/api/biz"
-	"github.com/NSObjects/echo-admin/internal/api/service/param"
-	"github.com/NSObjects/echo-admin/internal/resp"
+	"github.com/NSObjects/go-template/internal/api/biz"
+	"github.com/NSObjects/go-template/internal/api/service/param"
+	"github.com/NSObjects/go-template/internal/resp"
 	"github.com/labstack/echo/v4"
 )
 

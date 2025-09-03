@@ -6,7 +6,7 @@ package db
 
 import (
 	"github.com/IBM/sarama"
-	"github.com/NSObjects/echo-admin/internal/configs"
+	"github.com/NSObjects/go-template/internal/configs"
 )
 
 func NewKafkaProducer(cfg configs.KafkaConfig) (sarama.SyncProducer, error) {

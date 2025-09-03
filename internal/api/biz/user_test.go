@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NSObjects/echo-admin/internal/api/service/param"
+	"github.com/NSObjects/go-template/internal/api/service/param"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -20,7 +20,6 @@ import (
 type MockUserUseCase struct {
 	mock.Mock
 }
-
 
 func (m *MockUserUseCase) GetByID(ctx context.Context, req param.UserGetByIDRequest) (*param.UserResponse, error) {
 	args := m.Called(ctx, req)
@@ -59,19 +58,16 @@ func (m *MockUserUseCase) Create(ctx context.Context, req param.UserCreateReques
 	return args.Get(0).(*param.UserResponse), args.Error(1)
 }
 
-
 func TestUserHandler_GetByID(t *testing.T) {
 	tests := []struct {
-		name    string
-		req     param.UserGetByIDRequest
-		wantErr bool
+		name      string
+		req       param.UserGetByIDRequest
+		wantErr   bool
 		mockSetup func(*MockUserUseCase)
 	}{
 		{
-			name: "valid request",
-			req: param.UserGetByIDRequest{
-
-			},
+			name:    "valid request",
+			req:     param.UserGetByIDRequest{},
 			wantErr: false,
 			mockSetup: func(m *MockUserUseCase) {
 				// TODO: 设置mock期望
@@ -82,7 +78,7 @@ func TestUserHandler_GetByID(t *testing.T) {
 		},
 		{
 			name: "invalid request",
-			req: param.UserGetByIDRequest{
+			req:  param.UserGetByIDRequest{
 				// 无效数据
 			},
 			wantErr: true,
@@ -100,14 +96,14 @@ func TestUserHandler_GetByID(t *testing.T) {
 			// 创建mock
 			mockUseCase := new(MockUserUseCase)
 			tt.mockSetup(mockUseCase)
-			
+
 			handler := &UserHandler{
 				// TODO: 注入mock依赖
 			}
 			ctx := context.Background()
-			
+
 			result, err := handler.GetByID(ctx, tt.req)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -115,7 +111,7 @@ func TestUserHandler_GetByID(t *testing.T) {
 				assert.NotNil(t, result)
 				// TODO: 验证返回结果
 			}
-			
+
 			// 验证mock调用
 			mockUseCase.AssertExpectations(t)
 		})
@@ -124,20 +120,20 @@ func TestUserHandler_GetByID(t *testing.T) {
 
 func TestUserHandler_Update(t *testing.T) {
 	tests := []struct {
-		name    string
-		req     param.UserUpdateRequest
-		wantErr bool
+		name      string
+		req       param.UserUpdateRequest
+		wantErr   bool
 		mockSetup func(*MockUserUseCase)
 	}{
 		{
 			name: "valid request",
 			req: param.UserUpdateRequest{
-			Name: "test",
-			Phone: "13800138000",
-			Account: "test@example.com",
-			Password: "password123",
-			Status: 1,
-			Id: 1,
+				Name:     "test",
+				Phone:    "13800138000",
+				Account:  "test@example.com",
+				Password: "password123",
+				Status:   1,
+				Id:       1,
 			},
 			wantErr: false,
 			mockSetup: func(m *MockUserUseCase) {
@@ -149,7 +145,7 @@ func TestUserHandler_Update(t *testing.T) {
 		},
 		{
 			name: "invalid request",
-			req: param.UserUpdateRequest{
+			req:  param.UserUpdateRequest{
 				// 无效数据
 			},
 			wantErr: true,
@@ -167,14 +163,14 @@ func TestUserHandler_Update(t *testing.T) {
 			// 创建mock
 			mockUseCase := new(MockUserUseCase)
 			tt.mockSetup(mockUseCase)
-			
+
 			handler := &UserHandler{
 				// TODO: 注入mock依赖
 			}
 			ctx := context.Background()
-			
+
 			result, err := handler.Update(ctx, tt.req)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -182,7 +178,7 @@ func TestUserHandler_Update(t *testing.T) {
 				assert.NotNil(t, result)
 				// TODO: 验证返回结果
 			}
-			
+
 			// 验证mock调用
 			mockUseCase.AssertExpectations(t)
 		})
@@ -191,16 +187,14 @@ func TestUserHandler_Update(t *testing.T) {
 
 func TestUserHandler_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		req     param.UserDeleteRequest
-		wantErr bool
+		name      string
+		req       param.UserDeleteRequest
+		wantErr   bool
 		mockSetup func(*MockUserUseCase)
 	}{
 		{
-			name: "valid request",
-			req: param.UserDeleteRequest{
-
-			},
+			name:    "valid request",
+			req:     param.UserDeleteRequest{},
 			wantErr: false,
 			mockSetup: func(m *MockUserUseCase) {
 				// TODO: 设置mock期望
@@ -211,7 +205,7 @@ func TestUserHandler_Delete(t *testing.T) {
 		},
 		{
 			name: "invalid request",
-			req: param.UserDeleteRequest{
+			req:  param.UserDeleteRequest{
 				// 无效数据
 			},
 			wantErr: true,
@@ -229,14 +223,14 @@ func TestUserHandler_Delete(t *testing.T) {
 			// 创建mock
 			mockUseCase := new(MockUserUseCase)
 			tt.mockSetup(mockUseCase)
-			
+
 			handler := &UserHandler{
 				// TODO: 注入mock依赖
 			}
 			ctx := context.Background()
-			
+
 			result, err := handler.Delete(ctx, tt.req)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -244,7 +238,7 @@ func TestUserHandler_Delete(t *testing.T) {
 				assert.NotNil(t, result)
 				// TODO: 验证返回结果
 			}
-			
+
 			// 验证mock调用
 			mockUseCase.AssertExpectations(t)
 		})
@@ -253,16 +247,14 @@ func TestUserHandler_Delete(t *testing.T) {
 
 func TestUserHandler_List(t *testing.T) {
 	tests := []struct {
-		name    string
-		req     param.UserListRequest
-		wantErr bool
+		name      string
+		req       param.UserListRequest
+		wantErr   bool
 		mockSetup func(*MockUserUseCase)
 	}{
 		{
-			name: "valid request",
-			req: param.UserListRequest{
-
-			},
+			name:    "valid request",
+			req:     param.UserListRequest{},
 			wantErr: false,
 			mockSetup: func(m *MockUserUseCase) {
 				// TODO: 设置mock期望
@@ -273,7 +265,7 @@ func TestUserHandler_List(t *testing.T) {
 		},
 		{
 			name: "invalid request",
-			req: param.UserListRequest{
+			req:  param.UserListRequest{
 				// 无效数据
 			},
 			wantErr: true,
@@ -291,14 +283,14 @@ func TestUserHandler_List(t *testing.T) {
 			// 创建mock
 			mockUseCase := new(MockUserUseCase)
 			tt.mockSetup(mockUseCase)
-			
+
 			handler := &UserHandler{
 				// TODO: 注入mock依赖
 			}
 			ctx := context.Background()
-			
+
 			result, err := handler.List(ctx, tt.req)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -306,7 +298,7 @@ func TestUserHandler_List(t *testing.T) {
 				assert.NotNil(t, result)
 				// TODO: 验证返回结果
 			}
-			
+
 			// 验证mock调用
 			mockUseCase.AssertExpectations(t)
 		})
@@ -315,19 +307,19 @@ func TestUserHandler_List(t *testing.T) {
 
 func TestUserHandler_Create(t *testing.T) {
 	tests := []struct {
-		name    string
-		req     param.UserCreateRequest
-		wantErr bool
+		name      string
+		req       param.UserCreateRequest
+		wantErr   bool
 		mockSetup func(*MockUserUseCase)
 	}{
 		{
 			name: "valid request",
 			req: param.UserCreateRequest{
-			Name: "test",
-			Phone: "13800138000",
-			Account: "test@example.com",
-			Password: "password123",
-			Status: 1,
+				Name:     "test",
+				Phone:    "13800138000",
+				Account:  "test@example.com",
+				Password: "password123",
+				Status:   1,
 			},
 			wantErr: false,
 			mockSetup: func(m *MockUserUseCase) {
@@ -339,7 +331,7 @@ func TestUserHandler_Create(t *testing.T) {
 		},
 		{
 			name: "invalid request",
-			req: param.UserCreateRequest{
+			req:  param.UserCreateRequest{
 				// 无效数据
 			},
 			wantErr: true,
@@ -357,14 +349,14 @@ func TestUserHandler_Create(t *testing.T) {
 			// 创建mock
 			mockUseCase := new(MockUserUseCase)
 			tt.mockSetup(mockUseCase)
-			
+
 			handler := &UserHandler{
 				// TODO: 注入mock依赖
 			}
 			ctx := context.Background()
-			
+
 			result, err := handler.Create(ctx, tt.req)
-			
+
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -372,23 +364,22 @@ func TestUserHandler_Create(t *testing.T) {
 				assert.NotNil(t, result)
 				// TODO: 验证返回结果
 			}
-			
+
 			// 验证mock调用
 			mockUseCase.AssertExpectations(t)
 		})
 	}
 }
 
-
 func TestUserUpdateRequest_Structure(t *testing.T) {
 	// 测试结构体创建和字段访问
 	result := param.UserUpdateRequest{
-		Account: "test",
+		Account:  "test",
 		Password: "test",
-		Status: 1,
-		Id: 1,
-		Name: "test",
-		Phone: "test",
+		Status:   1,
+		Id:       1,
+		Name:     "test",
+		Phone:    "test",
 	}
 
 	// 验证字段值
@@ -403,12 +394,12 @@ func TestUserUpdateRequest_Structure(t *testing.T) {
 func TestUserCreateRequest_Structure(t *testing.T) {
 	// 测试结构体创建和字段访问
 	result := param.UserCreateRequest{
-		Id: 1,
-		Name: "test",
-		Phone: "test",
-		Account: "test",
+		Id:       1,
+		Name:     "test",
+		Phone:    "test",
+		Account:  "test",
 		Password: "test",
-		Status: 1,
+		Status:   1,
 	}
 
 	// 验证字段值

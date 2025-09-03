@@ -11,12 +11,12 @@ import (
 
 	"log/slog"
 
-	"github.com/NSObjects/echo-admin/internal/api/biz"
-	"github.com/NSObjects/echo-admin/internal/api/data"
-	"github.com/NSObjects/echo-admin/internal/api/service"
-	"github.com/NSObjects/echo-admin/internal/configs"
-	"github.com/NSObjects/echo-admin/internal/log"
-	"github.com/NSObjects/echo-admin/internal/server"
+	"github.com/NSObjects/go-template/internal/api/biz"
+	"github.com/NSObjects/go-template/internal/api/data"
+	"github.com/NSObjects/go-template/internal/api/service"
+	"github.com/NSObjects/go-template/internal/configs"
+	"github.com/NSObjects/go-template/internal/log"
+	"github.com/NSObjects/go-template/internal/server"
 
 	"go.uber.org/fx"
 )

@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/NSObjects/echo-admin/internal/configs"
+	"github.com/NSObjects/go-template/internal/configs"
 )
 
 // New 创建日志记录器（兼容旧接口）

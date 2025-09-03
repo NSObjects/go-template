@@ -11,9 +11,9 @@ import (
 	"fmt"
 
 	"github.com/IBM/sarama"
-	"github.com/NSObjects/echo-admin/internal/api/data/db"
-	"github.com/NSObjects/echo-admin/internal/api/data/query"
-	"github.com/NSObjects/echo-admin/internal/configs"
+	"github.com/NSObjects/go-template/internal/api/data/db"
+	"github.com/NSObjects/go-template/internal/api/data/query"
+	"github.com/NSObjects/go-template/internal/configs"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/fx"

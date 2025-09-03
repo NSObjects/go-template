@@ -389,7 +389,7 @@ func getPackagePath(repoRoot string) (string, error) {
 	scanner := bufio.NewScanner(file)
 	if scanner.Scan() {
 		line := scanner.Text()
-		// 解析 module github.com/NSObjects/echo-admin
+		// 解析 module github.com/NSObjects/go-template
 		parts := strings.Fields(line)
 		if len(parts) >= 2 && parts[0] == "module" {
 			return parts[1], nil
