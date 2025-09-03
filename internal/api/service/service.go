@@ -1,22 +1,16 @@
-/*
- * Created by lintao on 2023/7/26 下午2:22
- * Copyright © 2020-2023 LINTAO. All rights reserved.
- *
- */
-
 package service
 
 import (
 	"net/http/httptest"
 
-	"github.com/NSObjects/go-template/internal/code"
+	"github.com/NSObjects/echo-admin/internal/code"
 	"github.com/labstack/echo/v4"
 	"github.com/marmotedu/errors"
 	"go.uber.org/fx"
 )
 
 var Model = fx.Options(
-	fx.Provide(),
+	fx.Provide(AsRoute(NewUserController)),
 )
 
 func AsRoute(f any) any {
@@ -27,7 +21,7 @@ func AsRoute(f any) any {
 	)
 }
 
-func BindAndValidate(obj any, ctx echo.Context) error {
+func BindAndValidate(ctx echo.Context, obj any) error {
 	if err := ctx.Bind(obj); err != nil {
 		return errors.WrapC(err, code.ErrBind, err.Error())
 	}

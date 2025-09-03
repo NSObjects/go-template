@@ -11,53 +11,27 @@
 package log
 
 import (
-	"context"
 	"fmt"
-	"os"
-	"time"
-
 	"log/slog"
 
-	"github.com/NSObjects/go-template/internal/configs"
-	"github.com/lmittmann/tint"
+	"github.com/NSObjects/echo-admin/internal/configs"
 )
 
-type log struct {
-	logger *slog.Logger
-	level  slog.Level
+// New 创建日志记录器（兼容旧接口）
+func New(cfg configs.Config) Logger {
+	return NewLogger(cfg)
 }
 
-func New(cfg configs.Config) log {
-
-	l := log{
-		level:  slog.Level(cfg.Log.Level),
-		logger: slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{})),
+// InfoCompat 兼容旧接口
+func InfoCompat(format string, args ...slog.Attr) {
+	if logger := GetGlobalLogger(); logger != nil {
+		logger.Info(format, args...)
 	}
-
-	return l
 }
 
-var logger *slog.Logger
-
-func defaultLog() *slog.Logger {
-	if logger != nil {
-		return logger
+// ErrorCompat 兼容旧接口
+func ErrorCompat(err error, args ...slog.Attr) {
+	if logger := GetGlobalLogger(); logger != nil {
+		logger.Error(fmt.Sprintf("%+v", err), args...)
 	}
-
-	w := os.Stdout
-	logger = slog.New(tint.NewHandler(w, &tint.Options{
-		AddSource:  true,
-		TimeFormat: time.DateTime,
-		Level:      slog.LevelDebug,
-	}))
-
-	return logger
-}
-
-func Info(format string, args ...slog.Attr) {
-	defaultLog().LogAttrs(context.Background(), slog.LevelInfo, format, args...)
-}
-
-func Error(err error, args ...slog.Attr) {
-	defaultLog().LogAttrs(context.Background(), slog.LevelError, fmt.Sprintf("%+v", err), args...)
 }

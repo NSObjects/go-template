@@ -12,7 +12,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/NSObjects/go-template/internal/configs"
+	"database/sql"
+
+	"github.com/NSObjects/echo-admin/internal/configs"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -42,6 +44,21 @@ func NewMysql(cfg configs.MysqlConfig) *gorm.DB {
 	if err != nil {
 		panic(err)
 	}
-
+	// set connection pool on the underlying *sql.DB
+	sqlDB, err := db.DB()
+	if err == nil {
+		configureSQLPool(sqlDB, cfg)
+	}
 	return db
+}
+
+func configureSQLPool(sqlDB *sql.DB, cfg configs.MysqlConfig) {
+	if cfg.MaxOpenConns > 0 {
+		sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
+	}
+	if cfg.MaxIdleConns > 0 {
+		sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
+	}
+	// 5 minutes default if not set elsewhere; safe choice
+	sqlDB.SetConnMaxLifetime(5 * time.Minute)
 }

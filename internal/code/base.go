@@ -32,6 +32,29 @@ const (
 const (
 	// ErrDatabase - 500: Database error.
 	ErrDatabase int = iota + 100101
+
+	// ErrRedis - 500: Redis error.
+	ErrRedis
+
+	// ErrKafka - 500: Kafka error.
+	ErrKafka
+
+	// ErrExternalService - 500: External service error.
+	ErrExternalService
+)
+
+// 通用：HTTP状态码错误.
+const (
+	// ErrBadRequest - 400: Bad request.
+	ErrBadRequest int = iota + 100400
+	// ErrUnauthorized - 401: Unauthorized.
+	ErrUnauthorized
+	// ErrForbidden - 403: Forbidden.
+	ErrForbidden
+	// ErrNotFound - 404: Not found.
+	ErrNotFound
+	// ErrInternalServer - 500: Internal server error.
+	ErrInternalServer
 )
 
 // 通用：认证授权类错误.
@@ -51,14 +74,20 @@ const (
 	// ErrMissingHeader - 401: The `Authorization` header was empty.
 	ErrMissingHeader
 
-	// ErrorExpired - 401: Token expired.
-	ErrorExpired
-
 	// ErrPasswordIncorrect - 401: Password was incorrect.
 	ErrPasswordIncorrect
 
 	// ErrPermissionDenied - 403: Permission denied.
 	ErrPermissionDenied
+
+	// ErrAccountLocked - 403: Account is locked.
+	ErrAccountLocked
+
+	// ErrAccountDisabled - 403: Account is disabled.
+	ErrAccountDisabled
+
+	// ErrTooManyAttempts - 403: Too many login attempts.
+	ErrTooManyAttempts
 )
 
 // 通用：编解码类错误.

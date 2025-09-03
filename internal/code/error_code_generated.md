@@ -43,4 +43,6 @@ IAM 系统支持的错误码列表如下：
 | ErrInvalidYaml | 100306 | 500 | Data is not valid Yaml |
 | ErrEncodingYaml | 100307 | 500 | Yaml data could not be encoded |
 | ErrDecodingYaml | 100308 | 500 | Yaml data could not be decoded |
+| ErrParentMenuExisted | 100501 | 201 | 父菜单id不存在，请确认后再选择 |
+| ErrNotAllowCreate | 100502 | 201 | 当上级菜单不是目录时，不允许创建子菜单 |
 

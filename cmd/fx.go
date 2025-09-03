@@ -9,36 +9,47 @@ package cmd
 import (
 	"context"
 
-	"github.com/NSObjects/go-template/internal/api/biz"
-	"github.com/NSObjects/go-template/internal/api/data"
-	"github.com/NSObjects/go-template/internal/api/service"
-	"github.com/NSObjects/go-template/internal/configs"
-	"github.com/NSObjects/go-template/internal/server"
+	"log/slog"
+
+	"github.com/NSObjects/echo-admin/internal/api/biz"
+	"github.com/NSObjects/echo-admin/internal/api/data"
+	"github.com/NSObjects/echo-admin/internal/api/service"
+	"github.com/NSObjects/echo-admin/internal/configs"
+	"github.com/NSObjects/echo-admin/internal/log"
+	"github.com/NSObjects/echo-admin/internal/server"
+
 	"go.uber.org/fx"
 )
 
 func Run(cfg string) {
 	fx.New(
-		fx.Provide(func() configs.Config {
-			config := configs.NewCfg(cfg)
-			//log.Init(config)
-			return config
-		}),
-		data.Model,
-		biz.Model,
-		service.Model,
-		fx.Provide(
-			fx.Annotate(
-				server.NewEchoServer,
-				fx.ParamTags(`group:"routes"`)),
-		),
-		fx.Invoke(func(lifecycle fx.Lifecycle, s *server.EchoServer, cfg configs.Config) {
+		fx.Module("config", fx.Provide(func() (configs.Config, *configs.Store) {
+			merged, store := configs.Bootstrap(cfg)
+			return merged, store
+		})),
+		fx.Module("log", fx.Provide(func(cfg configs.Config) log.Logger {
+			return log.NewLogger(cfg)
+		})),
+		fx.Module("data", data.Model, data.CasbinModule),
+		fx.Module("biz", biz.Model),
+		fx.Module("service", service.Model),
+		fx.Module("server", fx.Provide(server.NewEchoServer)),
+		fx.Invoke(func(lifecycle fx.Lifecycle, s *server.EchoServer, cfg configs.Config, logger log.Logger) {
+			// 测试日志输出
+			logger.Info("Application starting", slog.String("port", cfg.System.Port))
+
 			lifecycle.Append(
 				fx.Hook{
 					OnStart: func(context.Context) error {
+						logger.Info("Server starting", slog.String("port", cfg.System.Port))
 						go s.Run(cfg.System.Port)
 						return nil
 					},
+					OnStop: func(context.Context) error {
+						logger.Info("Server stopping")
+						return nil
+					},
 				})
-		})).Run()
+		}),
+	).Run()
 }
