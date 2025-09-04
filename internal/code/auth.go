@@ -1,8 +1,9 @@
 package code
 
-// Auth相关错误码
-//
 //go:generate codegen -type=int
+//go:generate codegen -type=int -doc -output ./error_code_generated.md
+
+// Auth相关错误码
 const (
 	// ErrAuthNotFound - 404: Auth not found.
 	ErrAuthNotFound int = iota + 198040
@@ -14,4 +15,10 @@ const (
 	ErrAuthPermissionDenied
 	// ErrAuthInUse - 400: Auth is in use.
 	ErrAuthInUse
+	// ErrAuthCreateFailed - 500: Auth create failed.
+	ErrAuthCreateFailed
+	// ErrAuthUpdateFailed - 500: Auth update failed.
+	ErrAuthUpdateFailed
+	// ErrAuthDeleteFailed - 500: Auth delete failed.
+	ErrAuthDeleteFailed
 )

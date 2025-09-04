@@ -28,8 +28,8 @@ go-template 是一个基于 [Echo](https://echo.labstack.com) 框架构建的企
 git clone git@github.com:NSObjects/go-template.git
 cd go-template
 
-# 2. 安装依赖
-go mod download
+# 2. 设置开发环境
+make dev-setup
 
 # 3. 启动服务
 make run
@@ -67,10 +67,69 @@ go-template/
 │   ├── modgen/            # 模块生成器
 │   ├── dynamic-sql-gen/   # 动态SQL生成器
 │   └── codegen/           # 错误码生成器
-├── examples/              # 使用示例
 ├── main.go                # 主入口文件
 ├── Makefile               # 构建脚本
 └── README.md              # 项目说明
+```
+
+## 🛠️ 开发命令
+
+### 基础命令
+
+```bash
+make build                    # 构建应用程序
+make run                      # 运行应用程序
+make tidy                     # 整理Go模块依赖
+make push m="message"         # 提交代码
+```
+
+### 代码质量
+
+```bash
+make fmt                      # 格式化代码
+make vet                      # 运行go vet检查
+make lint                     # 运行golangci-lint检查
+make test                     # 运行所有测试
+make test-verbose             # 运行详细测试
+make test-coverage            # 生成测试覆盖率报告
+```
+
+### 代码生成
+
+```bash
+# 生成API模块
+make gen-module NAME=user                    # 生成基础模块
+make gen-module-tests NAME=user              # 生成模块和测试用例
+make gen-module-openapi NAME=user            # 从OpenAPI生成模块（使用默认文档）
+make gen-module-openapi-tests NAME=user      # 从OpenAPI生成模块和测试
+make gen-module-route NAME=order ROUTE=/api/v1/orders  # 生成自定义路由模块
+
+# 生成数据库映射
+make db-gen                   # 生成数据库模型和查询
+make db-gen-table TABLE=users # 生成指定表模型
+make db-gen-dynamic           # 生成Dynamic SQL查询
+
+# 生成错误码
+make gen-code                 # 生成错误码和文档
+
+# 完整生成
+make gen-all                  # 生成所有代码（数据库+错误码）
+```
+
+### 开发工作流
+
+```bash
+make dev-setup                # 设置开发环境
+make dev-check                # 运行开发检查（格式化+检查+测试）
+make dev-full                 # 完整开发流程（清理+检查+生成）
+```
+
+### 维护工具
+
+```bash
+make clean                    # 清理生成的文件
+make clean-all                # 深度清理
+make help                     # 显示帮助信息
 ```
 
 ## 🔄 开发流程
@@ -81,23 +140,26 @@ go-template/
 
 ```bash
 # 生成用户模块（包含完整的CRUD操作）
-go run tools/modgen/main.go --name=user --force
+make gen-module NAME=user
 
 # 生成文章模块
-go run tools/modgen/main.go --name=article --force
+make gen-module NAME=article
 
 # 生成模块并包含测试用例
-go run tools/modgen/main.go --name=product --tests --force
+make gen-module-tests NAME=product
 ```
 
 #### 方法二：基于OpenAPI3文档生成（推荐）
 
 ```bash
-# 从OpenAPI3文档生成用户模块
-go run tools/modgen/main.go --name=user --openapi=doc/openapi.yaml --force
+# 从OpenAPI3文档生成用户模块（使用默认文档）
+make gen-module-openapi NAME=user
+
+# 使用自定义OpenAPI文档
+make gen-module-openapi NAME=user OPENAPI=custom.yaml
 
 # 生成模块并包含测试用例
-go run tools/modgen/main.go --name=user --openapi=doc/openapi.yaml --tests --force
+make gen-module-openapi-tests NAME=user
 ```
 
 #### 生成的文件结构
@@ -141,7 +203,7 @@ make db-gen-table TABLE=users
 make db-gen-dynamic
 
 # 生成完整的数据库代码（模型 + Dynamic SQL）
-make db-gen-full
+make gen-all
 ```
 
 #### Dynamic SQL特性
@@ -180,52 +242,11 @@ type ISearchQuery interface {
 ### 3. 完整的开发流程
 
 1. **设计API接口** - 在 `doc/openapi.yaml` 中定义API规范
-2. **生成API模块** - 使用 `modgen` 工具生成完整的业务模块
+2. **生成API模块** - 使用 `make gen-module-openapi-tests NAME=user` 生成完整的业务模块
 3. **生成数据库映射** - 使用 `make db-gen-dynamic` 生成Dynamic SQL查询
 4. **实现业务逻辑** - 在生成的 `biz` 层实现具体的业务逻辑
 5. **运行测试** - 使用 `make test` 验证功能
 6. **启动服务** - 使用 `make run` 启动服务
-
-## 🛠️ 开发命令
-
-### 代码生成
-
-```bash
-# 生成API模块
-go run tools/modgen/main.go --name=user --force
-
-# 生成数据库映射
-make db-gen-dynamic
-
-# 生成错误码文档
-make gen-code
-```
-
-### 测试和运行
-
-```bash
-# 运行测试
-make test
-
-# 启动服务
-make run
-
-# 构建应用
-make build
-```
-
-### 代码质量
-
-```bash
-# 格式化代码
-make fmt
-
-# 代码检查
-make vet
-
-# 清理生成的文件
-make clean
-```
 
 ## 📚 使用示例
 
@@ -276,8 +297,8 @@ components:
 #### 2. 生成API模块
 
 ```bash
-# 生成用户模块
-go run tools/modgen/main.go --name=user --openapi=doc/openapi.yaml --tests --force
+# 生成用户模块（包含测试用例）
+make gen-module-openapi-tests NAME=user
 ```
 
 #### 3. 生成数据库映射
@@ -337,6 +358,7 @@ users, err := q.User.GetByField("email", "admin@example.com")
 - **默认模板**: 快速生成标准的CRUD API模块
 - **测试用例**: 自动生成业务逻辑和服务层测试用例
 - **依赖注入**: 自动注册到fx.Options
+- **默认值支持**: OpenAPI命令支持默认文档路径
 
 ### Dynamic SQL查询
 
@@ -411,7 +433,7 @@ tail -f logs/app.log
 tail -f logs/error.log
 
 # 查看测试日志
-go test -v ./internal/api/service
+make test-verbose
 ```
 
 ## 🤝 贡献指南
@@ -425,7 +447,7 @@ go test -v ./internal/api/service
 ### 代码规范
 
 - 遵循Go官方代码规范
-- 使用gofmt格式化代码
+- 使用 `make fmt` 格式化代码
 - 编写完整的测试用例
 - 更新相关文档
 
@@ -440,4 +462,3 @@ go test -v ./internal/api/service
 - [Casbin](https://casbin.org) - 权限控制库
 - [Uber FX](https://uber-go.github.io/fx/) - 依赖注入框架
 - [Testify](https://github.com/stretchr/testify) - 测试框架
-

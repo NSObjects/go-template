@@ -10,6 +10,5 @@ import (
 	"go.uber.org/fx"
 )
 
-var Model = fx.Options(
-	fx.Provide(),
+var Model = fx.Options(	fx.Provide(NewUserHandler),
 )
