@@ -50,7 +50,7 @@ push:
 		exit 1; \
 	fi
 	@echo "$(BLUE)[INFO]$(NC) Preparing to push..."
-	@go mod download && go mod vendor && git add . && git commit -m '$(m)'
+	@go mod download && go mod vendor && git add . && git commit -m '$(m)' && git push
 	@echo "$(GREEN)[SUCCESS]$(NC) Code committed with message: $(m)"
 
 # =============================================================================
@@ -74,8 +74,48 @@ vet:
 # 代码检查（使用golangci-lint）
 lint:
 	@echo "$(BLUE)[INFO]$(NC) Running linter..."
-	@golangci-lint run || true
+	@golangci-lint run --skip-dirs=vendor,tools/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' || true
 	@echo "$(GREEN)[SUCCESS]$(NC) Linting completed"
+
+# 严格代码检查（失败时退出）
+lint-strict:
+	@echo "$(BLUE)[INFO]$(NC) Running strict linter..."
+	@golangci-lint run --skip-dirs=vendor,tools/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
+	@echo "$(GREEN)[SUCCESS]$(NC) Strict linting completed"
+
+# 快速代码检查（只运行快速linter）
+lint-fast:
+	@echo "$(BLUE)[INFO]$(NC) Running fast linter..."
+	@golangci-lint run --fast-only --skip-dirs=vendor,tools/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
+	@echo "$(GREEN)[SUCCESS]$(NC) Fast linting completed"
+
+# 修复可自动修复的问题
+lint-fix:
+	@echo "$(BLUE)[INFO]$(NC) Running linter with auto-fix..."
+	@golangci-lint run --fix --skip-dirs=vendor,tools/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
+	@echo "$(GREEN)[SUCCESS]$(NC) Linting with auto-fix completed"
+
+# 检查特定目录
+lint-dir:
+	@if [ -z "$(DIR)" ]; then \
+		echo "$(RED)[ERROR]$(NC) Usage: make lint-dir DIR=./internal/api"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)[INFO]$(NC) Running linter on directory: $(DIR)"
+	@golangci-lint run --skip-dirs=vendor,tools/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' $(DIR)
+	@echo "$(GREEN)[SUCCESS]$(NC) Directory linting completed"
+
+# 生成lint报告
+lint-report:
+	@echo "$(BLUE)[INFO]$(NC) Generating lint report..."
+	@golangci-lint run --output.checkstyle.path=golangci-report.xml --skip-dirs=vendor,tools/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' || true
+	@echo "$(GREEN)[SUCCESS]$(NC) Lint report generated: golangci-report.xml"
+
+# 安装golangci-lint
+install-lint:
+	@echo "$(BLUE)[INFO]$(NC) Installing golangci-lint..."
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v2.4.0
+	@echo "$(GREEN)[SUCCESS]$(NC) golangci-lint installed"
 
 # 运行测试
 test:
@@ -255,6 +295,12 @@ help:
 	@echo "  $(GREEN)fmt$(NC)                - 格式化代码"
 	@echo "  $(GREEN)vet$(NC)                - 运行go vet检查"
 	@echo "  $(GREEN)lint$(NC)               - 运行golangci-lint检查"
+	@echo "  $(GREEN)lint-strict$(NC)        - 严格代码检查（失败时退出）"
+	@echo "  $(GREEN)lint-fast$(NC)          - 快速代码检查"
+	@echo "  $(GREEN)lint-fix$(NC)           - 自动修复可修复的问题"
+	@echo "  $(GREEN)lint-dir$(NC)           - 检查特定目录 (DIR=./path)"
+	@echo "  $(GREEN)lint-report$(NC)        - 生成lint报告"
+	@echo "  $(GREEN)install-lint$(NC)       - 安装golangci-lint"
 	@echo "  $(GREEN)test$(NC)               - 运行所有测试"
 	@echo "  $(GREEN)test-verbose$(NC)       - 运行详细测试"
 	@echo "  $(GREEN)test-coverage$(NC)      - 生成测试覆盖率报告"
@@ -286,6 +332,7 @@ help:
 	@echo "  $(GREEN)ROUTE$(NC)              - 路由路径 (用于gen-module-route)"
 	@echo "  $(GREEN)OPENAPI$(NC)            - OpenAPI文档路径 (默认: doc/openapi.yaml)"
 	@echo "  $(GREEN)TABLE$(NC)              - 表名 (用于db-gen-table)"
+	@echo "  $(GREEN)DIR$(NC)                - 目录路径 (用于lint-dir)"
 	@echo "  $(GREEN)m$(NC)                  - 提交消息 (用于push)"
 	@echo ""
 	@echo "$(YELLOW)示例用法:$(NC)"
@@ -295,5 +342,7 @@ help:
 	@echo "  make gen-module-openapi-tests NAME=user"
 	@echo "  make gen-module-route NAME=order ROUTE=/api/v1/orders"
 	@echo "  make db-gen-table TABLE=users"
+	@echo "  make lint-dir DIR=./internal/api"
+	@echo "  make lint-fix"
 	@echo "  make push m=\"feat: add user module\""
 	@echo "  make dev-full"

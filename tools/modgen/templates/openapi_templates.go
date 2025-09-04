@@ -283,7 +283,7 @@ func generateBizImplementation(methodName, pascal string) string {
 	// return responses, total, nil
 	return nil, 0, nil`, pascal, pascal)
 	case "create":
-		return fmt.Sprintf(`// TODO: 实现创建逻辑
+		return `// TODO: 实现创建逻辑
 	// 使用带context的数据库操作 - context包含链路追踪信息
 	// db := h.dataManager.MySQLWithContext(ctx)
 	// 
@@ -301,7 +301,7 @@ func generateBizImplementation(methodName, pascal string) string {
 	// }
 	// 
 	// return nil
-	return nil`)
+	return nil`
 	case "getbyid":
 		return fmt.Sprintf(`// TODO: 实现根据ID查询逻辑
 	// 使用带context的数据库查询 - context包含链路追踪信息
@@ -319,7 +319,7 @@ func generateBizImplementation(methodName, pascal string) string {
 	// }, nil
 	return nil, nil`, pascal)
 	case "update":
-		return fmt.Sprintf(`// TODO: 实现更新逻辑
+		return `// TODO: 实现更新逻辑
 	// 使用带context的数据库操作 - context包含链路追踪信息
 	// 
 	// 示例实现：
@@ -335,7 +335,7 @@ func generateBizImplementation(methodName, pascal string) string {
 	// }
 	// 
 	// return nil
-	return nil`)
+	return nil`
 	case "delete":
 		return `// TODO: 实现删除逻辑
 	// 使用带context的数据库操作 - context包含链路追踪信息

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<checkstyle version="5.0">
+  <file name="internal/api/data/db/db.go">
+    <error column="2" line="99" message="SA9003: empty branch" severity="error" source="staticcheck"></error>
+  </file>
+  <file name="internal/api/data/db/mongodb.go">
+    <error column="17" line="26" message="SA1019: mongo.NewClient is deprecated: Use [Connect] instead. " severity="error" source="staticcheck"></error>
+    <error column="12" line="30" message="SA1019: client.Connect is deprecated: Use [mongo.Connect] instead. " severity="error" source="staticcheck"></error>
+  </file>
+  <file name="internal/log/elasticsearch_sink.go">
+    <error column="23" line="77" message="Error return value of `resp.Body.Close` is not checked" severity="error" source="errcheck"></error>
+  </file>
+  <file name="internal/log/logger.go">
+    <error column="13" line="55" message="Error return value of `sink.Close` is not checked" severity="error" source="errcheck"></error>
+    <error column="2" line="64" message="field mu is unused" severity="error" source="unused"></error>
+  </file>
+  <file name="internal/log/logger_test.go">
+    <error column="17" line="111" message="Error return value of `os.Remove` is not checked" severity="error" source="errcheck"></error>
+    <error column="17" line="145" message="Error return value of `os.Remove` is not checked" severity="error" source="errcheck"></error>
+  </file>
+  <file name="internal/log/loki_sink.go">
+    <error column="23" line="89" message="Error return value of `resp.Body.Close` is not checked" severity="error" source="errcheck"></error>
+  </file>
+  <file name="internal/utils/context.go">
+    <error column="31" line="61" message="SA1029: should not use built-in type string as key for value; define your own type to avoid collisions" severity="error" source="staticcheck"></error>
+    <error column="31" line="62" message="SA1029: should not use built-in type string as key for value; define your own type to avoid collisions" severity="error" source="staticcheck"></error>
+    <error column="31" line="63" message="SA1029: should not use built-in type string as key for value; define your own type to avoid collisions" severity="error" source="staticcheck"></error>
+  </file>
+  <file name="tools/codegen/codegen.go">
+    <error column="11" line="308" message="printf: non-constant format string in call to (*github.com/NSObjects/go-template/tools/codegen.Generator).Printf" severity="error" source="govet"></error>
+  </file>
+  <file name="tools/modgen/openapi/generator.go">
+    <error column="2" line="154" message="S1017: should replace this if statement with an unconditional strings.TrimPrefix" severity="error" source="staticcheck"></error>
+  </file>
+  <file name="tools/modgen/openapi/parser.go">
+    <error column="2" line="10" message="SA1019: &#34;io/ioutil&#34; has been deprecated since Go 1.19: As of Go 1.16, the same functionality is now provided by package [io] or package [os], and those implementations should be preferred in new code. See the specific function documentation for details. " severity="error" source="staticcheck"></error>
+    <error column="2" line="28" message="QF1003: could use tagged switch on ext" severity="error" source="staticcheck"></error>
+  </file>
+  <file name="tools/modgen/templates/default_templates.go">
+    <error column="3" line="25" message="S1039: unnecessary use of fmt.Sprintf" severity="error" source="staticcheck"></error>
+    <error column="3" line="221" message="S1039: unnecessary use of fmt.Sprintf" severity="error" source="staticcheck"></error>
+    <error column="3" line="238" message="S1039: unnecessary use of fmt.Sprintf" severity="error" source="staticcheck"></error>
+  </file>
+  <file name="tools/modgen/templates/openapi_templates.go">
+    <error column="62" line="261" message="printf: fmt.Sprintf format %&#34; has unknown verb &#34;" severity="error" source="govet"></error>
+    <error column="22" line="249" message="SA5009: couldn&#39;t parse format string" severity="error" source="staticcheck"></error>
+    <error column="55" line="524" message="SA1019: strings.Title has been deprecated since Go 1.18 and an alternative has been available since Go 1.0: The rule Title uses for word boundaries does not handle Unicode punctuation properly. Use golang.org/x/text/cases instead. " severity="error" source="staticcheck"></error>
+    <error column="55" line="545" message="SA1019: strings.Title has been deprecated since Go 1.18 and an alternative has been available since Go 1.0: The rule Title uses for word boundaries does not handle Unicode punctuation properly. Use golang.org/x/text/cases instead. " severity="error" source="staticcheck"></error>
+    <error column="6" line="581" message="SA1019: strings.Title has been deprecated since Go 1.18 and an alternative has been available since Go 1.0: The rule Title uses for word boundaries does not handle Unicode punctuation properly. Use golang.org/x/text/cases instead. " severity="error" source="staticcheck"></error>
+    <error column="11" line="709" message="SA9003: empty branch" severity="error" source="staticcheck"></error>
+  </file>
+  <file name="tools/modgen/templates/test_templates.go">
+    <error column="71" line="183" message="printf: fmt.Sprintf format %s reads arg #13, but call has 12 args" severity="error" source="govet"></error>
+    <error column="5" line="550" message="printf: fmt.Sprintf format %s reads arg #8, but call has 7 args" severity="error" source="govet"></error>
+    <error column="21" line="155" message="SA5009: Printf format %s reads arg #13, but call has only 12 args" severity="error" source="staticcheck"></error>
+    <error column="21" line="502" message="SA5009: Printf format %s reads arg #8, but call has only 7 args" severity="error" source="staticcheck"></error>
+  </file>
+  <file name="tools/modgen/utils/file_utils.go">
+    <error column="18" line="37" message="Error return value of `file.Close` is not checked" severity="error" source="errcheck"></error>
+  </file>
+</checkstyle>

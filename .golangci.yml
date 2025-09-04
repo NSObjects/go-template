@@ -1,0 +1,41 @@
+run:
+  timeout: 5m
+  tests: true
+  skip-dirs:
+    - vendor
+    - tools/vendor
+    - internal/api/data/query
+  skip-files:
+    - ".*\\.gen\\.go$"
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - revive
+    - gofmt
+    - goimports
+    - misspell
+    - ineffassign
+    - unconvert
+    - gocyclo
+    - deadcode
+    - unused
+    - typecheck
+
+linters-settings:
+  gofmt:
+    simplify: true
+  goimports:
+    local-prefixes: github.com/NSObjects/go-template
+  gocyclo:
+    min-complexity: 10
+  misspell:
+    locale: US
+  revive:
+    rules:
+      - name: unexported-return
+        severity: warning
+        disabled: true

@@ -22,7 +22,7 @@ func RenderBiz(pascal, packagePath string) string {
 		fmt.Sprintf("\tList(ctx context.Context, p param.%[1]sParam) ([]param.%[1]sResponse, int64, error)\n", pascal) +
 		fmt.Sprintf("\tCreate(ctx context.Context, b param.%[1]sBody) error\n", pascal) +
 		fmt.Sprintf("\tUpdate(ctx context.Context, id int64, b param.%[1]sBody) error\n", pascal) +
-		fmt.Sprintf("\tDelete(ctx context.Context, id int64) error\n") +
+		"\tDelete(ctx context.Context, id int64) error\n" +
 		fmt.Sprintf("\tDetail(ctx context.Context, id int64) (*param.%[1]sResponse, error)\n", pascal) +
 		"}\n\n" +
 		"// " + pascal + "Handler " + pascal + "业务处理器\n" +
@@ -218,7 +218,7 @@ func RenderCode(pascal, table, packagePath string) string {
 		"//go:generate codegen -type=int\n" +
 		"//go:generate codegen -type=int -doc -output ./error_code_generated.md\n\n" +
 		fmt.Sprintf("// %s相关错误码\n", pascal) +
-		fmt.Sprintf("const (\n") +
+		"const (\n" +
 		fmt.Sprintf("\t// Err%sNotFound - 404: %s not found.\n", pascal, pascal) +
 		fmt.Sprintf("\tErr%sNotFound int = iota + %d\n", pascal, baseCode) +
 		fmt.Sprintf("\t// Err%sAlreadyExists - 400: %s already exists.\n", pascal, pascal) +
@@ -235,5 +235,5 @@ func RenderCode(pascal, table, packagePath string) string {
 		fmt.Sprintf("\tErr%sUpdateFailed\n", pascal) +
 		fmt.Sprintf("\t// Err%sDeleteFailed - 500: %s delete failed.\n", pascal, pascal) +
 		fmt.Sprintf("\tErr%sDeleteFailed\n", pascal) +
-		fmt.Sprintf(")\n")
+		")\n"
 }

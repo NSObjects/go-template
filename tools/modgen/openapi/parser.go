@@ -25,11 +25,12 @@ func ParseOpenAPI3(filePath string) (*OpenAPI3, error) {
 
 	// 根据文件扩展名选择解析方式
 	ext := strings.ToLower(filepath.Ext(filePath))
-	if ext == ".yaml" || ext == ".yml" {
+	switch ext {
+	case ".yaml", ".yml":
 		err = yaml.Unmarshal(data, &openapi)
-	} else if ext == ".json" {
+	case ".json":
 		err = json.Unmarshal(data, &openapi)
-	} else {
+	default:
 		return nil, fmt.Errorf("不支持的文件格式: %s", ext)
 	}
 
