@@ -25,7 +25,7 @@ go-template 是一个基于 [Echo](https://echo.labstack.com) 框架构建的企
 
 ```bash
 # 1. 克隆项目
-git clone <repository-url>
+git clone git@github.com:NSObjects/go-template.git
 cd go-template
 
 # 2. 安装依赖
