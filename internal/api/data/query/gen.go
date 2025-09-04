@@ -18,20 +18,18 @@ import (
 var (
 	Q          = new(Query)
 	CasbinRule *casbinRule
-	User       *user
 )
 
 func SetDefault(db *gorm.DB, opts ...gen.DOOption) {
 	*Q = *Use(db, opts...)
 	CasbinRule = &Q.CasbinRule
-	User = &Q.User
+
 }
 
 func Use(db *gorm.DB, opts ...gen.DOOption) *Query {
 	return &Query{
 		db:         db,
 		CasbinRule: newCasbinRule(db, opts...),
-		User:       newUser(db, opts...),
 	}
 }
 
@@ -39,7 +37,6 @@ type Query struct {
 	db *gorm.DB
 
 	CasbinRule casbinRule
-	User       user
 }
 
 func (q *Query) Available() bool { return q.db != nil }
@@ -48,7 +45,6 @@ func (q *Query) clone(db *gorm.DB) *Query {
 	return &Query{
 		db:         db,
 		CasbinRule: q.CasbinRule.clone(db),
-		User:       q.User.clone(db),
 	}
 }
 
@@ -64,19 +60,16 @@ func (q *Query) ReplaceDB(db *gorm.DB) *Query {
 	return &Query{
 		db:         db,
 		CasbinRule: q.CasbinRule.replaceDB(db),
-		User:       q.User.replaceDB(db),
 	}
 }
 
 type queryCtx struct {
 	CasbinRule ICasbinRuleDo
-	User       IUserDo
 }
 
 func (q *Query) WithContext(ctx context.Context) *queryCtx {
 	return &queryCtx{
 		CasbinRule: q.CasbinRule.WithContext(ctx),
-		User:       q.User.WithContext(ctx),
 	}
 }
 

@@ -11,7 +11,5 @@ import (
 )
 
 var Model = fx.Options(
-	fx.Provide(
-		NewUserHandler,
-	),
+	fx.Provide(),
 )

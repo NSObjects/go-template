@@ -160,6 +160,11 @@ func parseOpenAPI3(filePath string) (*OpenAPI3, error) {
 
 // 从OpenAPI3文档生成API模块
 func generateFromOpenAPI(openapi *OpenAPI3, moduleName string) (*APIModule, error) {
+	// 验证模块名称是否在OpenAPI文档中存在
+	if !validateModuleExists(openapi, moduleName) {
+		return nil, fmt.Errorf("OpenAPI文档中没有找到模块 '%s' 的相关接口。请检查OpenAPI文档中的tags或确保模块名称正确", moduleName)
+	}
+
 	module := &APIModule{
 		Name:          moduleName,
 		Operations:    []APIOperation{},
@@ -347,4 +352,30 @@ func toSnakeCase(str string) string {
 		result = append(result, r)
 	}
 	return strings.ToLower(string(result))
+}
+
+// 验证模块是否在OpenAPI文档中存在
+func validateModuleExists(openapi *OpenAPI3, moduleName string) bool {
+	// 检查tags中是否有对应的模块名称
+	for _, tag := range openapi.Tags {
+		if strings.EqualFold(tag.Name, moduleName) {
+			return true
+		}
+	}
+
+	// 检查paths中的操作是否有对应的tag
+	for _, pathItem := range openapi.Paths {
+		operations := []*Operation{pathItem.Get, pathItem.Post, pathItem.Put, pathItem.Delete, pathItem.Patch}
+		for _, op := range operations {
+			if op != nil {
+				for _, tag := range op.Tags {
+					if strings.EqualFold(tag, moduleName) {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
 }

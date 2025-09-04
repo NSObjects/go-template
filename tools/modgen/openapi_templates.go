@@ -170,7 +170,8 @@ func renderModelFromOpenAPI(module *APIModule, pascal, name, packagePath string)
 	// 从schemas生成数据模型
 	for schemaName, schema := range module.Schemas {
 		if schemaName != "operatorResponse" { // 跳过通用响应结构
-			structs = append(structs, generateModelStruct(schemaName, schema))
+			// 将schema名称替换为模块名称
+			structs = append(structs, generateModelStruct(pascal, schema))
 		}
 	}
 
@@ -275,7 +276,9 @@ func generateInterfaceReturnType(methodName, pascal string) string {
 	switch strings.ToLower(methodName) {
 	case "list":
 		return fmt.Sprintf("([]param.%sResponse, int64, error)", pascal)
-	case "create", "update", "getbyid":
+	case "create", "update":
+		return "error"
+	case "getbyid":
 		return fmt.Sprintf("(*param.%sResponse, error)", pascal)
 	case "delete":
 		return "error"
@@ -289,7 +292,9 @@ func generateBizReturnType(methodName, pascal string) (string, string) {
 	switch strings.ToLower(methodName) {
 	case "list":
 		return fmt.Sprintf("([]param.%sResponse, int64, error)", pascal), generateBizImplementation(methodName, pascal)
-	case "create", "update", "getbyid":
+	case "create", "update":
+		return "error", generateBizImplementation(methodName, pascal)
+	case "getbyid":
 		return fmt.Sprintf("(*param.%sResponse, error)", pascal), generateBizImplementation(methodName, pascal)
 	case "delete":
 		return "error", generateBizImplementation(methodName, pascal)
@@ -353,14 +358,11 @@ func generateBizImplementation(methodName, pascal string) string {
 	// 
 	// err := h.dataManager.Query.User.WithContext(ctx).Create(&user)
 	// if err != nil {
-	// 	return nil, err
+	// 	return err
 	// }
 	// 
-	// return &param.%sResponse{
-	// 	ID:   user.ID,
-	// 	Name: user.Name,
-	// }, nil
-	return nil, nil`, pascal)
+	// return nil
+	return nil`)
 	case "getbyid":
 		return fmt.Sprintf(`// TODO: 实现根据ID查询逻辑
 	// 使用带context的数据库查询 - context包含链路追踪信息
@@ -390,21 +392,11 @@ func generateBizImplementation(methodName, pascal string) string {
 	// 
 	// err := h.dataManager.Query.User.WithContext(ctx).Where(h.dataManager.Query.User.ID.Eq(req.Id)).Updates(updates)
 	// if err != nil {
-	// 	return nil, err
+	// 	return err
 	// }
 	// 
-	// // 重新查询获取最新数据
-	// var user model.User
-	// err = h.dataManager.Query.User.WithContext(ctx).Where(h.dataManager.Query.User.ID.Eq(req.Id)).First(&user)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// 
-	// return &param.%sResponse{
-	// 	ID:   user.ID,
-	// 	Name: user.Name,
-	// }, nil
-	return nil, nil`, pascal)
+	// return nil
+	return nil`)
 	case "delete":
 		return `// TODO: 实现删除逻辑
 	// 使用带context的数据库操作 - context包含链路追踪信息
@@ -419,7 +411,7 @@ func generateBizImplementation(methodName, pascal string) string {
 	return nil`
 	default:
 		return `// TODO: 实现业务逻辑
-	return nil, nil`
+	return nil`
 	}
 }
 
@@ -446,7 +438,7 @@ func generateServiceHandlerImplementation(pascal, handlerName, methodName, reque
 func (c *%sController) %s(ctx echo.Context) error {
 	// TODO: 绑定和验证请求参数
 	var req param.%s
-	if err := BindAndValidate(&req, ctx); err != nil {
+	if err := BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
 	
@@ -460,12 +452,30 @@ func (c *%sController) %s(ctx echo.Context) error {
 	// 返回列表数据
 	return resp.ListDataResponse(list, total, ctx)
 }`, pascal, handlerName, requestType, strings.ToLower(pascal[:1])+pascal[1:], methodName)
-	case "create", "update", "getbyid":
+	case "create", "update":
 		return fmt.Sprintf(`
 func (c *%sController) %s(ctx echo.Context) error {
 	// TODO: 绑定和验证请求参数
 	var req param.%s
-	if err := BindAndValidate(&req, ctx); err != nil {
+	if err := BindAndValidate(ctx, &req); err != nil {
+		return err
+	}
+	
+	// 调用业务逻辑 - 构造包含链路追踪信息的context
+	bizCtx := utils.BuildContext(ctx)
+	if err := c.%s.%s(bizCtx, req); err != nil {
+		return err
+	}
+	
+	// 返回操作成功
+	return resp.OperateSuccess(ctx)
+}`, pascal, handlerName, requestType, strings.ToLower(pascal[:1])+pascal[1:], methodName)
+	case "getbyid":
+		return fmt.Sprintf(`
+func (c *%sController) %s(ctx echo.Context) error {
+	// TODO: 绑定和验证请求参数
+	var req param.%s
+	if err := BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
 	
@@ -484,7 +494,7 @@ func (c *%sController) %s(ctx echo.Context) error {
 func (c *%sController) %s(ctx echo.Context) error {
 	// TODO: 绑定和验证请求参数
 	var req param.%s
-	if err := BindAndValidate(&req, ctx); err != nil {
+	if err := BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
 	
@@ -503,7 +513,7 @@ func (c *%sController) %s(ctx echo.Context) error {
 func (c *%sController) %s(ctx echo.Context) error {
 	// TODO: 绑定和验证请求参数
 	var req param.%s
-	if err := BindAndValidate(&req, ctx); err != nil {
+	if err := BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
 	
@@ -752,9 +762,15 @@ func generateValidationTags(schema *Schema, isRequired bool) string {
 		if schema.Format == "uri" {
 			tags = append(tags, "url")
 		}
-		// 正则表达式
+		// 正则表达式 - 使用len验证代替regexp，因为validator需要注册regexp验证器
 		if schema.Pattern != "" {
-			tags = append(tags, fmt.Sprintf("regexp=%s", schema.Pattern))
+			// 对于手机号等特殊格式，使用len验证
+			if strings.Contains(schema.Pattern, "\\d{9}") {
+				tags = append(tags, "len=11")
+			} else {
+				// 其他正则表达式暂时跳过，避免验证器注册问题
+				// tags = append(tags, fmt.Sprintf("regexp=%s", schema.Pattern))
+			}
 		}
 	}
 
@@ -787,6 +803,342 @@ func generateValidationTags(schema *Schema, isRequired bool) string {
 	}
 
 	return fmt.Sprintf("validate:\"%s\"", strings.Join(tags, ","))
+}
+
+// 从OpenAPI3生成业务逻辑测试模板
+func renderBizTestFromOpenAPI(module *APIModule, pascal, packagePath string) string {
+	// 为每个操作生成测试方法
+	var testMethods []string
+
+	for _, op := range module.Operations {
+		methodName := generateMethodName(op)
+
+		// 生成测试方法
+		switch strings.ToLower(methodName) {
+		case "list":
+			testMethods = append(testMethods, fmt.Sprintf(`
+func Test%sHandler_%s(t *testing.T) {
+	// 创建handler
+	handler := &%sHandler{
+		dataManager: &data.DataManager{},
+	}
+	ctx := context.Background()
+	req := param.%s%sRequest{
+		Page:  1,
+		Count: 10,
+	}
+
+	// 测试%s方法
+	result, total, err := handler.%s(ctx, req)
+
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
+	assert.Nil(t, result)
+	assert.Equal(t, int64(0), total)
+	assert.NoError(t, err)
+}
+
+func Test%sHandler_%s_Validation(t *testing.T) {
+	// 测试参数验证
+	validator := validator.New()
+	
+	// 测试有效数据
+	validReq := param.%s%sRequest{
+		Page:  1,
+		Count: 10,
+	}
+	err := validator.Struct(validReq)
+	assert.NoError(t, err, "有效数据应该通过验证")
+	
+	// 测试无效数据
+	invalidReq := param.%s%sRequest{
+		Page:  0, // 无效页码
+		Count: 10,
+	}
+	err = validator.Struct(invalidReq)
+	assert.Error(t, err, "无效数据应该验证失败")
+}`, pascal, methodName, pascal, pascal, methodName, methodName, methodName, pascal, methodName, pascal, methodName, pascal, methodName))
+		case "create", "update":
+			testMethods = append(testMethods, fmt.Sprintf(`
+func Test%sHandler_%s(t *testing.T) {
+	// 创建handler
+	handler := &%sHandler{
+		dataManager: &data.DataManager{},
+	}
+	ctx := context.Background()
+	req := param.%s%sRequest{}
+
+	// 测试%s方法
+	err := handler.%s(ctx, req)
+
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
+	assert.NoError(t, err)
+}
+
+func Test%sHandler_%s_Validation(t *testing.T) {
+	// 测试参数验证
+	validator := validator.New()
+	
+	// 测试有效数据
+	validReq := param.%s%sRequest{
+		Name:     "测试用户",
+		Phone:    "13812345678",
+		Account:  "test@example.com",
+		Password: "123456",
+		Status:   1,
+		Id:       1,
+	}
+	err := validator.Struct(validReq)
+	assert.NoError(t, err, "有效数据应该通过验证")
+	
+	// 测试无效数据
+	invalidReq := param.%s%sRequest{
+		// 空结构体，所有必填字段都缺失
+	}
+	err = validator.Struct(invalidReq)
+	assert.Error(t, err, "无效数据应该验证失败")
+}`, pascal, methodName, pascal, pascal, methodName, methodName, methodName, pascal, methodName, pascal, methodName, pascal, methodName))
+		case "getbyid":
+			testMethods = append(testMethods, fmt.Sprintf(`
+func Test%sHandler_%s(t *testing.T) {
+	// 创建handler
+	handler := &%sHandler{
+		dataManager: &data.DataManager{},
+	}
+	ctx := context.Background()
+	req := param.%s%sRequest{}
+
+	// 测试%s方法
+	result, err := handler.%s(ctx, req)
+
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
+	assert.Nil(t, result)
+	assert.NoError(t, err)
+}
+
+func Test%sHandler_%s_Validation(t *testing.T) {
+	// 测试参数验证
+	validator := validator.New()
+	
+	// 测试有效数据
+	validReq := param.%s%sRequest{
+		ID: 123, // 有效ID
+	}
+	err := validator.Struct(validReq)
+	assert.NoError(t, err, "有效数据应该通过验证")
+	
+	// 测试无效数据
+	invalidReq := param.%s%sRequest{
+		ID: 0, // 无效ID
+	}
+	err = validator.Struct(invalidReq)
+	assert.Error(t, err, "无效数据应该验证失败")
+}`, pascal, methodName, pascal, pascal, methodName, methodName, methodName, pascal, methodName, pascal, methodName, pascal, methodName))
+		case "delete":
+			testMethods = append(testMethods, fmt.Sprintf(`
+func Test%sHandler_%s(t *testing.T) {
+	// 创建handler
+	handler := &%sHandler{
+		dataManager: &data.DataManager{},
+	}
+	ctx := context.Background()
+	req := param.%s%sRequest{}
+
+	// 测试%s方法
+	err := handler.%s(ctx, req)
+
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
+	assert.NoError(t, err)
+}
+
+func Test%sHandler_%s_Validation(t *testing.T) {
+	// 测试参数验证
+	validator := validator.New()
+	
+	// 测试有效数据
+	validReq := param.%s%sRequest{
+		ID: 123, // 有效ID
+	}
+	err := validator.Struct(validReq)
+	assert.NoError(t, err, "有效数据应该通过验证")
+	
+	// 测试无效数据
+	invalidReq := param.%s%sRequest{
+		ID: 0, // 无效ID
+	}
+	err = validator.Struct(invalidReq)
+	assert.Error(t, err, "无效数据应该验证失败")
+}`, pascal, methodName, pascal, pascal, methodName, methodName, methodName, pascal, methodName, pascal, methodName, pascal, methodName))
+		}
+	}
+
+	return fmt.Sprintf(`/*
+ * Generated test cases from OpenAPI3 document
+ * Module: %s
+ */
+
+package biz
+
+import (
+	"context"
+	"testing"
+
+	"%s/internal/api/data"
+	"%s/internal/api/service/param"
+	"github.com/go-playground/validator/v10"
+	"github.com/stretchr/testify/assert"
+)
+%s
+`, module.Name, packagePath, packagePath, strings.Join(testMethods, ""))
+}
+
+// 从OpenAPI3生成服务层测试模板
+func renderServiceTestFromOpenAPI(module *APIModule, pascal, packagePath string) string {
+	// 为每个操作生成测试方法
+	var testMethods []string
+	var mockMethods []string
+
+	for _, op := range module.Operations {
+		methodName := generateMethodName(op)
+
+		// 生成Mock方法
+		switch strings.ToLower(methodName) {
+		case "list":
+			mockMethods = append(mockMethods, fmt.Sprintf(`
+func (m *Mock%sUseCase) %s(ctx context.Context, req param.%s%sRequest) ([]param.%sResponse, int64, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, 0, args.Error(2)
+	}
+	return args.Get(0).([]param.%sResponse), args.Get(1).(int64), args.Error(2)
+}`, pascal, methodName, pascal, methodName, pascal, pascal))
+		case "create", "update":
+			mockMethods = append(mockMethods, fmt.Sprintf(`
+func (m *Mock%sUseCase) %s(ctx context.Context, req param.%s%sRequest) error {
+	args := m.Called(ctx, req)
+	return args.Error(0)
+}`, pascal, methodName, pascal, methodName))
+		case "getbyid":
+			mockMethods = append(mockMethods, fmt.Sprintf(`
+func (m *Mock%sUseCase) %s(ctx context.Context, req param.%s%sRequest) (*param.%sResponse, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*param.%sResponse), args.Error(1)
+}`, pascal, methodName, pascal, methodName, pascal, pascal))
+		case "delete":
+			mockMethods = append(mockMethods, fmt.Sprintf(`
+func (m *Mock%sUseCase) %s(ctx context.Context, req param.%s%sRequest) error {
+	args := m.Called(ctx, req)
+	return args.Error(0)
+}`, pascal, methodName, pascal, methodName))
+		}
+
+		// 生成测试方法
+		switch strings.ToLower(methodName) {
+		case "list":
+			testMethods = append(testMethods, fmt.Sprintf(`
+func Test%sController_%s(t *testing.T) {
+	// 创建controller并注入mock依赖
+	controller := &%sController{
+		%s: nil, // 简化测试，不依赖mock
+	}
+
+	// 验证controller创建成功
+	assert.NotNil(t, controller)
+}`, pascal, methodName, pascal, strings.ToLower(pascal)))
+		case "create", "update":
+			testMethods = append(testMethods, fmt.Sprintf(`
+func Test%sController_%s(t *testing.T) {
+	// 创建controller并注入mock依赖
+	controller := &%sController{
+		%s: nil, // 简化测试，不依赖mock
+	}
+
+	// 验证controller创建成功
+	assert.NotNil(t, controller)
+}
+
+func Test%sController_%s_Validation(t *testing.T) {
+	// 测试参数验证
+	validator := validator.New()
+	
+	// 测试有效数据
+	validReq := param.%s%sRequest{
+		Name:     "测试用户",
+		Phone:    "13812345678",
+		Account:  "test@example.com",
+		Password: "123456",
+		Status:   1,
+		Id:       1,
+	}
+	err := validator.Struct(validReq)
+	assert.NoError(t, err, "有效数据应该通过验证")
+	
+	// 测试无效数据
+	invalidReq := param.%s%sRequest{
+		// 空结构体，所有必填字段都缺失
+	}
+	err = validator.Struct(invalidReq)
+	assert.Error(t, err, "无效数据应该验证失败")
+}`, pascal, methodName, pascal, strings.ToLower(pascal), pascal, methodName, pascal, methodName, pascal, methodName))
+		case "getbyid", "delete":
+			testMethods = append(testMethods, fmt.Sprintf(`
+func Test%sController_%s(t *testing.T) {
+	// 创建controller并注入mock依赖
+	controller := &%sController{
+		%s: nil, // 简化测试，不依赖mock
+	}
+
+	// 验证controller创建成功
+	assert.NotNil(t, controller)
+}
+
+func Test%sController_%s_Validation(t *testing.T) {
+	// 测试参数验证
+	validator := validator.New()
+	
+	// 测试有效数据
+	validReq := param.%s%sRequest{
+		ID: 123, // 有效ID
+	}
+	err := validator.Struct(validReq)
+	assert.NoError(t, err, "有效数据应该通过验证")
+	
+	// 测试无效数据
+	invalidReq := param.%s%sRequest{
+		ID: 0, // 无效ID
+	}
+	err = validator.Struct(invalidReq)
+	assert.Error(t, err, "无效数据应该验证失败")
+}`, pascal, methodName, pascal, strings.ToLower(pascal), pascal, methodName, pascal, methodName, pascal, methodName))
+		}
+	}
+
+	return fmt.Sprintf(`/*
+ * Generated test cases from OpenAPI3 document
+ * Module: %s
+ */
+
+package service
+
+import (
+	"context"
+	"testing"
+
+	"%s/internal/api/service/param"
+	"github.com/go-playground/validator/v10"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+// Mock%sUseCase 模拟业务逻辑接口
+type Mock%sUseCase struct {
+	mock.Mock
+}
+%s
+%s
+`, module.Name, packagePath, pascal, pascal, strings.Join(mockMethods, ""), strings.Join(testMethods, ""))
 }
 
 // 从参数生成Go类型

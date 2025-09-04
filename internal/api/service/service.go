@@ -10,7 +10,7 @@ import (
 )
 
 var Model = fx.Options(
-	fx.Provide(AsRoute(NewUserController)),
+	fx.Provide(),
 )
 
 func AsRoute(f any) any {
@@ -23,11 +23,11 @@ func AsRoute(f any) any {
 
 func BindAndValidate(ctx echo.Context, obj any) error {
 	if err := ctx.Bind(obj); err != nil {
-		return errors.WrapC(err, code.ErrBind, err.Error())
+		return errors.WrapC(err, code.ErrBind, "bind request failed")
 	}
 
 	if err := ctx.Validate(obj); err != nil {
-		return errors.WrapC(err, code.ErrValidation, err.Error())
+		return errors.WrapC(err, code.ErrValidation, "validation failed")
 	}
 
 	return nil
@@ -36,19 +36,6 @@ func BindAndValidate(ctx echo.Context, obj any) error {
 type RegisterRouter interface {
 	RegisterRouter(s *echo.Group, middlewareFunc ...echo.MiddlewareFunc)
 }
-
-//func testServer() *echo.Echo {
-//	aa, _, err := sqlmock.New()
-//	if err != nil {
-//		panic(err)
-//	}
-//	database, err := db.NewTestDataSource(aa)
-//	if err != nil {
-//		panic(err)
-//	}
-//	apiServer := server.NewEchoServer(database)
-//	return apiServer.Server()
-//}
 
 func Request(method, path string) (int, string) {
 	//req := httptest.NewRequest(method, path, nil)

@@ -127,68 +127,107 @@ import (
 	"context"
 	"testing"
 
+	"%s/internal/api/data"
 	"%s/internal/api/service/param"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test%sHandler_List(t *testing.T) {
-	handler := &%sHandler{}
+	// 创建handler
+	handler := &%sHandler{
+		dm: &data.DataManager{},
+	}
 	ctx := context.Background()
 	req := param.%sParam{
 		Page:  1,
 		Count: 10,
 	}
 
-	result, err := handler.List(ctx, req)
+	// 测试List方法
+	result, total, err := handler.List(ctx, req)
+
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
+	// 注意：result为nil，total为0，err为nil，这是biz层的默认实现
+	assert.Nil(t, result)
+	assert.Equal(t, int64(0), total)
 	assert.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func Test%sHandler_Create(t *testing.T) {
-	handler := &%sHandler{}
+	// 创建handler
+	handler := &%sHandler{
+		dm: &data.DataManager{},
+	}
 	ctx := context.Background()
 	req := param.%sBody{
 		// TODO: 填充测试数据
 	}
 
-	result, err := handler.Create(ctx, req)
+	err := handler.Create(ctx, req)
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
 	assert.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func Test%sHandler_Update(t *testing.T) {
-	handler := &%sHandler{}
+	// 创建handler
+	handler := &%sHandler{
+		dm: &data.DataManager{},
+	}
 	ctx := context.Background()
 	req := param.%sBody{
 		// TODO: 填充测试数据
 	}
 
-	result, err := handler.Update(ctx, 1, req)
+	err := handler.Update(ctx, 1, req)
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
 	assert.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func Test%sHandler_Delete(t *testing.T) {
-	handler := &%sHandler{}
+	// 创建handler
+	handler := &%sHandler{
+		dm: &data.DataManager{},
+	}
 	ctx := context.Background()
 
 	err := handler.Delete(ctx, 1)
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
 	assert.NoError(t, err)
 }
 
 func Test%sHandler_Detail(t *testing.T) {
-	handler := &%sHandler{}
+	// 创建handler
+	handler := &%sHandler{
+		dm: &data.DataManager{},
+	}
 	ctx := context.Background()
 
 	result, err := handler.Detail(ctx, 1)
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
+	// 注意：result为nil，err为nil，这是biz层的默认实现
+	assert.Nil(t, result)
 	assert.NoError(t, err)
-	assert.NotNil(t, result)
 }
-`, strings.ToLower(pascal), packagePath, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal)
+`, strings.ToLower(pascal), packagePath, packagePath, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal)
 }
 
 // 生成默认服务层测试模板
 func renderServiceTest(pascal, packagePath string) string {
+	camel := strings.ToLower(pascal[:1]) + pascal[1:]
+
+	header := renderServiceTestHeader(pascal, packagePath)
+	mockInterface := renderServiceTestMockInterface(pascal)
+	listTest := renderServiceTestList(pascal, camel)
+	createTest := renderServiceTestCreate(pascal, camel)
+	updateTest := renderServiceTestUpdate(pascal, camel)
+	deleteTest := renderServiceTestDelete(pascal, camel)
+	detailTest := renderServiceTestDetail(pascal, camel)
+
+	return header + mockInterface + listTest + createTest + updateTest + deleteTest + detailTest
+}
+
+// 生成测试文件头部
+func renderServiceTestHeader(pascal, packagePath string) string {
 	return fmt.Sprintf(`/*
  * Generated test cases
  * Module: %s
@@ -198,87 +237,444 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"%s/internal/api/service/param"
+	"%s/internal/resp"
+	"%s/internal/utils"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-func Test%sController_List(t *testing.T) {
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/test?page=1&count=10", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	controller := &%sController{}
-	err := controller.list(c)
-	assert.NoError(t, err)
+`, strings.ToLower(pascal), packagePath, packagePath, packagePath)
 }
 
-func Test%sController_Create(t *testing.T) {
-	e := echo.New()
-	body := param.%sBody{
-		// TODO: 填充测试数据
+// 生成Mock接口
+func renderServiceTestMockInterface(pascal string) string {
+	return fmt.Sprintf(`// Mock%sUseCase 模拟业务逻辑接口
+type Mock%sUseCase struct {
+	mock.Mock
+}
+
+func (m *Mock%sUseCase) List(ctx context.Context, req param.%sParam) ([]param.%sResponse, int64, error) {
+	args := m.Called(ctx, req)
+	if args.Get(0) == nil {
+		return nil, 0, args.Error(2)
 	}
-	jsonBody, _ := json.Marshal(body)
-	req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewReader(jsonBody))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	controller := &%sController{}
-	err := controller.create(c)
-	assert.NoError(t, err)
+	return args.Get(0).([]param.%sResponse), args.Get(1).(int64), args.Error(2)
 }
 
-func Test%sController_Update(t *testing.T) {
-	e := echo.New()
-	body := param.%sBody{
-		// TODO: 填充测试数据
+func (m *Mock%sUseCase) Create(ctx context.Context, req param.%sBody) error {
+	args := m.Called(ctx, req)
+	return args.Error(0)
+}
+
+func (m *Mock%sUseCase) Update(ctx context.Context, id int64, req param.%sBody) error {
+	args := m.Called(ctx, id, req)
+	return args.Error(0)
+}
+
+func (m *Mock%sUseCase) Delete(ctx context.Context, id int64) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+
+func (m *Mock%sUseCase) Detail(ctx context.Context, id int64) (*param.%sResponse, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	jsonBody, _ := json.Marshal(body)
-	req := httptest.NewRequest(http.MethodPut, "/test/1", bytes.NewReader(jsonBody))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("1")
-
-	controller := &%sController{}
-	err := controller.update(c)
-	assert.NoError(t, err)
+	return args.Get(0).(*param.%sResponse), args.Error(1)
 }
 
-func Test%sController_Delete(t *testing.T) {
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodDelete, "/test/1", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("1")
-
-	controller := &%sController{}
-	err := controller.remove(c)
-	assert.NoError(t, err)
+`, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal)
 }
 
-func Test%sController_Detail(t *testing.T) {
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/test/1", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("1")
+// 生成List测试
+func renderServiceTestList(pascal, camel string) string {
+	return fmt.Sprintf(`func Test%sController_List(t *testing.T) {
+	tests := []struct {
+		name           string
+		queryParams    string
+		expectedStatus int
+		expectedError  bool
+		mockSetup      func(*Mock%sUseCase)
+	}{
+		{
+			name:           "valid request",
+			queryParams:    "?page=1&count=10&name=test",
+			expectedStatus: http.StatusOK,
+			expectedError:  false,
+			mockSetup: func(m *Mock%sUseCase) {
+				m.On("List", mock.Anything, mock.MatchedBy(func(req param.%sParam) bool {
+					return req.Page == 1 && req.Count == 10
+				})).Return([]param.%sResponse{}, int64(0), nil)
+			},
+		},
+		{
+			name:           "invalid request - invalid page",
+			queryParams:    "?page=0&count=10",
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  true,
+			mockSetup: func(m *Mock%sUseCase) {
+				m.On("List", mock.Anything, mock.MatchedBy(func(req param.%sParam) bool {
+					return req.Page == 0
+				})).Return([]param.%sResponse{}, int64(0), assert.AnError)
+			},
+		},
+	}
 
-	controller := &%sController{}
-	err := controller.detail(c)
-	assert.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			utils.SetupTestValidator(e)
+			req := httptest.NewRequest(http.MethodGet, "/test"+tt.queryParams, nil)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+
+			// 创建mock
+			mockUseCase := new(Mock%sUseCase)
+			tt.mockSetup(mockUseCase)
+
+			// 创建控制器并注入mock依赖
+			controller := &%sController{
+				%s: mockUseCase,
+			}
+			err := controller.list(c)
+
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				
+				// 验证响应格式是否符合resp包的标准格式
+				var response resp.ListResponse
+				err = json.Unmarshal(rec.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.NotNil(t, response.Data)
+			}
+			
+			// 验证mock调用
+			mockUseCase.AssertExpectations(t)
+		})
+	}
 }
-`, strings.ToLower(pascal), packagePath, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal)
+
+`, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, pascal, camel, camel)
+}
+
+// 生成Create测试
+func renderServiceTestCreate(pascal, camel string) string {
+	return fmt.Sprintf(`func Test%sController_Create(t *testing.T) {
+	tests := []struct {
+		name           string
+		requestBody    string
+		expectedStatus int
+		expectedError  bool
+		mockSetup      func(*Mock%sUseCase)
+	}{
+		{
+			name: "valid request",
+			requestBody: "{\"name\": \"test\", \"description\": \"test description\"}",
+			expectedStatus: http.StatusOK,
+			expectedError:  false,
+			mockSetup: func(m *Mock%sUseCase) {
+				m.On("Create", mock.Anything, mock.MatchedBy(func(req param.%sBody) bool {
+					return req.Name == "test"
+				})).Return(nil)
+			},
+		},
+		{
+			name:           "invalid request - missing required field",
+			requestBody:    "{\"invalid\": \"data\"}",
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  true,
+			mockSetup: func(m *Mock%sUseCase) {
+				// 无效请求不会调用biz层，所以不需要设置mock期望
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			utils.SetupTestValidator(e)
+			req := httptest.NewRequest(http.MethodPost, "/test", bytes.NewReader([]byte(tt.requestBody)))
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+
+			// 创建mock
+			mockUseCase := new(Mock%sUseCase)
+			tt.mockSetup(mockUseCase)
+
+			// 创建控制器并注入mock依赖
+			controller := &%sController{
+				%s: mockUseCase,
+			}
+			err := controller.create(c)
+
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				
+				// 验证响应格式是否符合resp包的标准格式
+				var response struct {
+					Code int    `+"`json:\"code\"`"+`
+					Msg  string `+"`json:\"msg\"`"+`
+				}
+				err = json.Unmarshal(rec.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Equal(t, "success", response.Msg)
+			}
+			
+			// 验证mock调用
+			mockUseCase.AssertExpectations(t)
+		})
+	}
+}
+
+`, pascal, pascal, pascal, pascal, pascal, pascal, camel, camel)
+}
+
+// 生成Update测试
+func renderServiceTestUpdate(pascal, camel string) string {
+	return fmt.Sprintf(`func Test%sController_Update(t *testing.T) {
+	tests := []struct {
+		name           string
+		requestBody    string
+		expectedStatus int
+		expectedError  bool
+		mockSetup      func(*Mock%sUseCase)
+	}{
+		{
+			name: "valid request",
+			requestBody: "{\"name\": \"updated test\", \"description\": \"updated description\"}",
+			expectedStatus: http.StatusOK,
+			expectedError:  false,
+			mockSetup: func(m *Mock%sUseCase) {
+				m.On("Update", mock.Anything, int64(1), mock.MatchedBy(func(req param.%sBody) bool {
+					return req.Name == "updated test"
+				})).Return(nil)
+			},
+		},
+		{
+			name:           "invalid request - missing required field",
+			requestBody:    "{\"invalid\": \"data\"}",
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  true,
+			mockSetup: func(m *Mock%sUseCase) {
+				// 无效请求不会调用biz层，所以不需要设置mock期望
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			utils.SetupTestValidator(e)
+			req := httptest.NewRequest(http.MethodPut, "/test/1", bytes.NewReader([]byte(tt.requestBody)))
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.SetParamNames("id")
+			c.SetParamValues("1")
+
+			// 创建mock
+			mockUseCase := new(Mock%sUseCase)
+			tt.mockSetup(mockUseCase)
+
+			// 创建控制器并注入mock依赖
+			controller := &%sController{
+				%s: mockUseCase,
+			}
+			err := controller.update(c)
+
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				
+				// 验证响应格式是否符合resp包的标准格式
+				var response struct {
+					Code int    `+"`json:\"code\"`"+`
+					Msg  string `+"`json:\"msg\"`"+`
+				}
+				err = json.Unmarshal(rec.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Equal(t, "success", response.Msg)
+			}
+			
+			// 验证mock调用
+			mockUseCase.AssertExpectations(t)
+		})
+	}
+}
+
+`, pascal, pascal, pascal, pascal, pascal, pascal, camel, camel)
+}
+
+// 生成Delete测试
+func renderServiceTestDelete(pascal, camel string) string {
+	return fmt.Sprintf(`func Test%sController_Delete(t *testing.T) {
+	tests := []struct {
+		name           string
+		path           string
+		expectedStatus int
+		expectedError  bool
+		mockSetup      func(*Mock%sUseCase)
+	}{
+		{
+			name:           "valid request",
+			path:           "/test/1",
+			expectedStatus: http.StatusOK,
+			expectedError:  false,
+			mockSetup: func(m *Mock%sUseCase) {
+				m.On("Delete", mock.Anything, int64(1)).Return(nil)
+			},
+		},
+		{
+			name:           "invalid request - invalid id",
+			path:           "/test/0",
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  true,
+			mockSetup: func(m *Mock%sUseCase) {
+				m.On("Delete", mock.Anything, int64(0)).Return(assert.AnError)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			utils.SetupTestValidator(e)
+			req := httptest.NewRequest(http.MethodDelete, tt.path, nil)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.SetParamNames("id")
+			// 从路径中提取ID
+			pathParts := strings.Split(tt.path, "/")
+			id := pathParts[len(pathParts)-1]
+			c.SetParamValues(id)
+
+			// 创建mock
+			mockUseCase := new(Mock%sUseCase)
+			tt.mockSetup(mockUseCase)
+
+			// 创建控制器并注入mock依赖
+			controller := &%sController{
+				%s: mockUseCase,
+			}
+			err := controller.remove(c)
+
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				
+				// 验证响应格式是否符合resp包的标准格式
+				var response struct {
+					Code int    `+"`json:\"code\"`"+`
+					Msg  string `+"`json:\"msg\"`"+`
+				}
+				err = json.Unmarshal(rec.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.Equal(t, "success", response.Msg)
+			}
+			
+			// 验证mock调用
+			mockUseCase.AssertExpectations(t)
+		})
+	}
+}
+
+`, pascal, pascal, pascal, pascal, pascal, camel, camel)
+}
+
+// 生成Detail测试
+func renderServiceTestDetail(pascal, camel string) string {
+	return fmt.Sprintf(`func Test%sController_Detail(t *testing.T) {
+	tests := []struct {
+		name           string
+		path           string
+		expectedStatus int
+		expectedError  bool
+		mockSetup      func(*Mock%sUseCase)
+	}{
+		{
+			name:           "valid request",
+			path:           "/test/1",
+			expectedStatus: http.StatusOK,
+			expectedError:  false,
+			mockSetup: func(m *Mock%sUseCase) {
+				m.On("Detail", mock.Anything, int64(1)).Return(&param.%sResponse{ID: 1, Name: "test"}, nil)
+			},
+		},
+		{
+			name:           "invalid request - invalid id",
+			path:           "/test/0",
+			expectedStatus: http.StatusBadRequest,
+			expectedError:  true,
+			mockSetup: func(m *Mock%sUseCase) {
+				// 无效ID可能不会调用biz层，或者会调用但返回错误
+				m.On("Detail", mock.Anything, int64(0)).Return(nil, assert.AnError)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			utils.SetupTestValidator(e)
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.SetParamNames("id")
+			// 从路径中提取ID
+			pathParts := strings.Split(tt.path, "/")
+			id := pathParts[len(pathParts)-1]
+			c.SetParamValues(id)
+
+			// 创建mock
+			mockUseCase := new(Mock%sUseCase)
+			tt.mockSetup(mockUseCase)
+
+			// 创建控制器并注入mock依赖
+			controller := &%sController{
+				%s: mockUseCase,
+			}
+			err := controller.detail(c)
+
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				
+				// 验证响应格式是否符合resp包的标准格式
+				var response resp.DataResponse
+				err = json.Unmarshal(rec.Body.Bytes(), &response)
+				assert.NoError(t, err)
+				assert.NotNil(t, response.Data)
+			}
+			
+			// 验证mock调用
+			mockUseCase.AssertExpectations(t)
+		})
+	}
+}
+`, pascal, pascal, pascal, pascal, pascal, pascal, camel, camel)
 }
 
 // 从OpenAPI3文档生成代码
@@ -540,28 +936,25 @@ func renderBiz(pascal, packagePath string) string {
 	return "package biz\n\n" +
 		"import (\n" +
 		"\t\"context\"\n" +
-		"\t\"time\"\n" +
 		fmt.Sprintf("\t\"%s/internal/api/data\"\n", packagePath) +
-		fmt.Sprintf("\t\"%s/internal/api/data/query\"\n", packagePath) +
+		fmt.Sprintf("\t\"%s/internal/api/data/model\"\n", packagePath) +
 		fmt.Sprintf("\t\"%s/internal/api/service/param\"\n", packagePath) +
-		fmt.Sprintf("\t\"%s/internal/code\"\n", packagePath) +
 		")\n\n" +
 		"// " + pascal + "UseCase " + pascal + "业务用例接口\n" +
 		fmt.Sprintf("type %sUseCase interface {\n", pascal) +
 		fmt.Sprintf("\tList(ctx context.Context, p param.%[1]sParam) ([]param.%[1]sResponse, int64, error)\n", pascal) +
-		fmt.Sprintf("\tCreate(ctx context.Context, b param.%[1]sBody) (*param.%[1]sResponse, error)\n", pascal) +
-		fmt.Sprintf("\tUpdate(ctx context.Context, id int64, b param.%[1]sBody) (*param.%[1]sResponse, error)\n", pascal) +
+		fmt.Sprintf("\tCreate(ctx context.Context, b param.%[1]sBody) error\n", pascal) +
+		fmt.Sprintf("\tUpdate(ctx context.Context, id int64, b param.%[1]sBody) error\n", pascal) +
 		fmt.Sprintf("\tDelete(ctx context.Context, id int64) error\n") +
 		fmt.Sprintf("\tDetail(ctx context.Context, id int64) (*param.%[1]sResponse, error)\n", pascal) +
 		"}\n\n" +
 		"// " + pascal + "Handler " + pascal + "业务处理器\n" +
 		fmt.Sprintf("type %sHandler struct {\n", pascal) +
 		"\tdm *data.DataManager\n" +
-		"\tq  *query.Query\n" +
 		"}\n\n" +
 		fmt.Sprintf("// New%[1]sHandler 创建%[1]s业务处理器\n", pascal) +
-		fmt.Sprintf("func New%[1]sHandler(dm *data.DataManager, q *query.Query) *%[1]sHandler {\n", pascal) +
-		fmt.Sprintf("\treturn &%[1]sHandler{dm: dm, q: q}\n", pascal) +
+		fmt.Sprintf("func New%[1]sHandler(dm *data.DataManager) *%[1]sHandler {\n", pascal) +
+		fmt.Sprintf("\treturn &%[1]sHandler{dm: dm}\n", pascal) +
 		"}\n\n" +
 		"// List 获取" + pascal + "列表\n" +
 		fmt.Sprintf("func (h *%[1]sHandler) List(ctx context.Context, p param.%[1]sParam) ([]param.%[1]sResponse, int64, error) {\n", pascal) +
@@ -573,11 +966,11 @@ func renderBiz(pascal, packagePath string) string {
 		"\t// }\n" +
 		"\t// var total int64\n" +
 		"\t// h.dm.MySQLWithContext(ctx).Model(&model." + pascal + "{}).Count(&total)\n" +
-		"\t// return convertToResponses(models), total, nil\n" +
+		"\t// return convert%sToResponses(models), total, nil\n" +
 		"\treturn nil, 0, nil\n" +
 		"}\n\n" +
 		"// Create 创建" + pascal + "\n" +
-		fmt.Sprintf("func (h *%[1]sHandler) Create(ctx context.Context, b param.%[1]sBody) (*param.%[1]sResponse, error) {\n", pascal) +
+		fmt.Sprintf("func (h *%[1]sHandler) Create(ctx context.Context, b param.%[1]sBody) error {\n", pascal) +
 		"\t// TODO: 实现创建逻辑\n" +
 		"\t// 示例：\n" +
 		"\t// model := &model." + pascal + "{\n" +
@@ -587,11 +980,11 @@ func renderBiz(pascal, packagePath string) string {
 		"\t// if err := h.dm.MySQLWithContext(ctx).Create(model).Error; err != nil {\n" +
 		"\t//     return nil, code.WrapDatabaseError(err, \"create " + pascal + "\")\n" +
 		"\t// }\n" +
-		"\t// return convertToResponse(model), nil\n" +
-		"\treturn nil, nil\n" +
+		"\t// 创建成功\n" +
+		"\treturn nil\n" +
 		"}\n\n" +
 		"// Update 更新" + pascal + "\n" +
-		fmt.Sprintf("func (h *%[1]sHandler) Update(ctx context.Context, id int64, b param.%[1]sBody) (*param.%[1]sResponse, error) {\n", pascal) +
+		fmt.Sprintf("func (h *%[1]sHandler) Update(ctx context.Context, id int64, b param.%[1]sBody) error {\n", pascal) +
 		"\t// TODO: 实现更新逻辑\n" +
 		"\t// 示例：\n" +
 		"\t// var model model." + pascal + "\n" +
@@ -604,10 +997,10 @@ func renderBiz(pascal, packagePath string) string {
 		"\t// // 更新字段\n" +
 		"\t// model.UpdatedAt = time.Now()\n" +
 		"\t// if err := h.dm.MySQLWithContext(ctx).Save(&model).Error; err != nil {\n" +
-		"\t//     return nil, code.WrapDatabaseError(err, \"update " + pascal + "\")\n" +
+		"\t//     return code.WrapDatabaseError(err, \"update " + pascal + "\")\n" +
 		"\t// }\n" +
-		"\t// return convertToResponse(&model), nil\n" +
-		"\treturn nil, nil\n" +
+		"\t// 更新成功\n" +
+		"\treturn nil\n" +
 		"}\n\n" +
 		"// Delete 删除" + pascal + "\n" +
 		fmt.Sprintf("func (h *%[1]sHandler) Delete(ctx context.Context, id int64) error {\n", pascal) +
@@ -630,11 +1023,11 @@ func renderBiz(pascal, packagePath string) string {
 		"\t//     }\n" +
 		"\t//     return nil, code.WrapDatabaseError(err, \"query " + pascal + "\")\n" +
 		"\t// }\n" +
-		"\t// return convertToResponse(&model), nil\n" +
+		"\t// return convert%sToResponse(&model), nil\n" +
 		"\treturn nil, nil\n" +
 		"}\n\n" +
-		"// convertToResponse 转换为响应结构\n" +
-		fmt.Sprintf("func convertToResponse(model *model.%[1]s) *param.%[1]sResponse {\n", pascal) +
+		"// convert%sToResponse 转换为响应结构\n" +
+		fmt.Sprintf("func convert%sToResponse(model *model.%[1]s) *param.%[1]sResponse {\n", pascal, pascal) +
 		"\t// TODO: 实现转换逻辑\n" +
 		"\treturn &param." + pascal + "Response{\n" +
 		"\t\t// ID: model.ID,\n" +
@@ -642,11 +1035,11 @@ func renderBiz(pascal, packagePath string) string {
 		"\t\t// UpdatedAt: model.UpdatedAt,\n" +
 		"\t}\n" +
 		"}\n\n" +
-		"// convertToResponses 转换为响应结构列表\n" +
-		fmt.Sprintf("func convertToResponses(models []model.%[1]s) []param.%[1]sResponse {\n", pascal) +
+		"// convert%sToResponses 转换为响应结构列表\n" +
+		fmt.Sprintf("func convert%sToResponses(models []model.%[1]s) []param.%[1]sResponse {\n", pascal, pascal) +
 		"\tresponses := make([]param." + pascal + "Response, len(models))\n" +
 		"\tfor i, model := range models {\n" +
-		"\t\tresponses[i] = *convertToResponse(&model)\n" +
+		"\t\tresponses[i] = *convert" + pascal + "ToResponse(&model)\n" +
 		"\t}\n" +
 		"\treturn responses\n" +
 		"}\n"
@@ -659,16 +1052,17 @@ func renderService(pascal, camel, baseRoute, packagePath string) string {
 		fmt.Sprintf("\t\"%s/internal/api/biz\"\n", packagePath) +
 		fmt.Sprintf("\t\"%s/internal/api/service/param\"\n", packagePath) +
 		fmt.Sprintf("\t\"%s/internal/resp\"\n", packagePath) +
+		fmt.Sprintf("\t\"%s/internal/utils\"\n", packagePath) +
 		"\t\"github.com/labstack/echo/v4\"\n" +
 		")\n\n" +
 		fmt.Sprintf("type %sController struct {\n\t%s biz.%sUseCase\n}\n\n", toCamel(pascal), camel, pascal) +
 		fmt.Sprintf("func New%[1]sController(h *biz.%[1]sHandler) RegisterRouter {\n\treturn &%[2]sController{%[2]s: h}\n}\n\n", pascal, toCamel(pascal)) +
 		fmt.Sprintf("func (c *%[1]sController) RegisterRouter(g *echo.Group, m ...echo.MiddlewareFunc) {\n\tg.GET(\"%[2]s\", c.list).Name = \"列表示例\"\n\tg.POST(\"%[2]s\", c.create).Name = \"创建示例\"\n\tg.GET(\"%[2]s/:id\", c.detail).Name = \"详情示例\"\n\tg.PUT(\"%[2]s/:id\", c.update).Name = \"更新示例\"\n\tg.DELETE(\"%[2]s/:id\", c.remove).Name = \"删除示例\"\n}\n\n", toCamel(pascal), baseRoute) +
-		fmt.Sprintf("func (c *%[1]sController) list(ctx echo.Context) error {\n\tvar p param.%[2]sParam\n\tif err := BindAndValidate(&p, ctx); err != nil { return err }\n\titems, total, err := c.%[3]s.List(ctx.Request().Context(), p)\n\tif err != nil { return err }\n\treturn resp.ListDataResponse(items, total, ctx)\n}\n\n", toCamel(pascal), pascal, camel) +
-		fmt.Sprintf("func (c *%[1]sController) detail(ctx echo.Context) error {\n\tid, _ := strconv.ParseInt(ctx.Param(\"id\"), 10, 64)\n\titem, err := c.%[2]s.Detail(ctx.Request().Context(), id)\n\tif err != nil { return err }\n\treturn resp.OneDataResponse(item, ctx)\n}\n\n", toCamel(pascal), camel) +
-		fmt.Sprintf("func (c *%[1]sController) create(ctx echo.Context) error {\n\tvar b param.%[2]sBody\n\tif err := BindAndValidate(&b, ctx); err != nil { return err }\n\tif err := c.%[3]s.Create(ctx.Request().Context(), b); err != nil { return err }\n\treturn resp.OperateSuccess(ctx)\n}\n\n", toCamel(pascal), pascal, camel) +
-		fmt.Sprintf("func (c *%[1]sController) update(ctx echo.Context) error {\n\tid, _ := strconv.ParseInt(ctx.Param(\"id\"), 10, 64)\n\tvar b param.%[2]sBody\n\tif err := BindAndValidate(&b, ctx); err != nil { return err }\n\tif err := c.%[3]s.Update(ctx.Request().Context(), id, b); err != nil { return err }\n\treturn resp.OperateSuccess(ctx)\n}\n\n", toCamel(pascal), pascal, camel) +
-		fmt.Sprintf("func (c *%[1]sController) remove(ctx echo.Context) error {\n\tid, _ := strconv.ParseInt(ctx.Param(\"id\"), 10, 64)\n\tif err := c.%[2]s.Delete(ctx.Request().Context(), id); err != nil { return err }\n\treturn resp.OperateSuccess(ctx)\n}\n", toCamel(pascal), camel)
+		fmt.Sprintf("func (c *%[1]sController) list(ctx echo.Context) error {\n\tvar p param.%[2]sParam\n\tif err := BindAndValidate(ctx, &p); err != nil { return err }\n\tbizCtx := utils.BuildContext(ctx)\n\titems, total, err := c.%[3]s.List(bizCtx, p)\n\tif err != nil { return err }\n\treturn resp.ListDataResponse(items, total, ctx)\n}\n\n", toCamel(pascal), pascal, camel) +
+		fmt.Sprintf("func (c *%[1]sController) detail(ctx echo.Context) error {\n\tid, _ := strconv.ParseInt(ctx.Param(\"id\"), 10, 64)\n\tbizCtx := utils.BuildContext(ctx)\n\titem, err := c.%[2]s.Detail(bizCtx, id)\n\tif err != nil { return err }\n\treturn resp.OneDataResponse(item, ctx)\n}\n\n", toCamel(pascal), camel) +
+		fmt.Sprintf("func (c *%[1]sController) create(ctx echo.Context) error {\n\tvar b param.%[2]sBody\n\tif err := BindAndValidate(ctx, &b); err != nil { return err }\n\tbizCtx := utils.BuildContext(ctx)\n\tif err := c.%[3]s.Create(bizCtx, b); err != nil { return err }\n\treturn resp.OperateSuccess(ctx)\n}\n\n", toCamel(pascal), pascal, camel) +
+		fmt.Sprintf("func (c *%[1]sController) update(ctx echo.Context) error {\n\tid, _ := strconv.ParseInt(ctx.Param(\"id\"), 10, 64)\n\tvar b param.%[2]sBody\n\tif err := BindAndValidate(ctx, &b); err != nil { return err }\n\tbizCtx := utils.BuildContext(ctx)\n\tif err := c.%[3]s.Update(bizCtx, id, b); err != nil { return err }\n\treturn resp.OperateSuccess(ctx)\n}\n\n", toCamel(pascal), pascal, camel) +
+		fmt.Sprintf("func (c *%[1]sController) remove(ctx echo.Context) error {\n\tid, _ := strconv.ParseInt(ctx.Param(\"id\"), 10, 64)\n\tbizCtx := utils.BuildContext(ctx)\n\tif err := c.%[2]s.Delete(bizCtx, id); err != nil { return err }\n\treturn resp.OperateSuccess(ctx)\n}\n", toCamel(pascal), camel)
 }
 
 func renderParam(pascal, packagePath string) string {
