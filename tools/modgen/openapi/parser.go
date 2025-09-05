@@ -71,34 +71,34 @@ func GenerateFromOpenAPI(openapi *OpenAPI3, moduleName string) (*APIModule, erro
 		module.RequestBodies = openapi.Components.RequestBodies
 	}
 
-	// 解析paths
+	// 解析paths，只处理属于当前模块的操作
 	for path, pathItem := range openapi.Paths {
 		// 处理GET操作
-		if pathItem.Get != nil {
+		if pathItem.Get != nil && hasModuleTag(pathItem.Get.Tags, moduleName) {
 			op := parseOperation("GET", path, pathItem.Get, openapi)
 			module.Operations = append(module.Operations, op)
 		}
 
 		// 处理POST操作
-		if pathItem.Post != nil {
+		if pathItem.Post != nil && hasModuleTag(pathItem.Post.Tags, moduleName) {
 			op := parseOperation("POST", path, pathItem.Post, openapi)
 			module.Operations = append(module.Operations, op)
 		}
 
 		// 处理PUT操作
-		if pathItem.Put != nil {
+		if pathItem.Put != nil && hasModuleTag(pathItem.Put.Tags, moduleName) {
 			op := parseOperation("PUT", path, pathItem.Put, openapi)
 			module.Operations = append(module.Operations, op)
 		}
 
 		// 处理DELETE操作
-		if pathItem.Delete != nil {
+		if pathItem.Delete != nil && hasModuleTag(pathItem.Delete.Tags, moduleName) {
 			op := parseOperation("DELETE", path, pathItem.Delete, openapi)
 			module.Operations = append(module.Operations, op)
 		}
 
 		// 处理PATCH操作
-		if pathItem.Patch != nil {
+		if pathItem.Patch != nil && hasModuleTag(pathItem.Patch.Tags, moduleName) {
 			op := parseOperation("PATCH", path, pathItem.Patch, openapi)
 			module.Operations = append(module.Operations, op)
 		}
@@ -401,5 +401,53 @@ func validateModuleExists(openapi *OpenAPI3, moduleName string) bool {
 		}
 	}
 
+	return false
+}
+
+// ExtractAllModuleNames 从OpenAPI文档中提取所有模块名
+func ExtractAllModuleNames(openapi *OpenAPI3) ([]string, error) {
+	moduleSet := make(map[string]bool)
+
+	// 从tags中提取模块名
+	for _, tag := range openapi.Tags {
+		if tag.Name != "" {
+			moduleSet[strings.ToLower(tag.Name)] = true
+		}
+	}
+
+	// 从paths中的操作tags提取模块名
+	for _, pathItem := range openapi.Paths {
+		operations := []*Operation{pathItem.Get, pathItem.Post, pathItem.Put, pathItem.Delete, pathItem.Patch}
+		for _, op := range operations {
+			if op != nil {
+				for _, tag := range op.Tags {
+					if tag != "" {
+						moduleSet[strings.ToLower(tag)] = true
+					}
+				}
+			}
+		}
+	}
+
+	// 转换为切片
+	var moduleNames []string
+	for moduleName := range moduleSet {
+		moduleNames = append(moduleNames, moduleName)
+	}
+
+	if len(moduleNames) == 0 {
+		return nil, fmt.Errorf("OpenAPI文档中没有找到任何模块标签")
+	}
+
+	return moduleNames, nil
+}
+
+// hasModuleTag 检查操作是否属于指定模块
+func hasModuleTag(tags []string, moduleName string) bool {
+	for _, tag := range tags {
+		if strings.EqualFold(tag, moduleName) {
+			return true
+		}
+	}
 	return false
 }

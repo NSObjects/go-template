@@ -5,16 +5,18 @@
 
 package param
 
+{{if .HasTimeFields}}
 import (
 	"time"
 )
+{{end}}
 
 {{range .Operations}}
 {{if .HasRequestBodyOrQuery}}
 // {{$.Pascal}}{{.MethodName}}Request {{.Summary}}
 type {{$.Pascal}}{{.MethodName}}Request struct {
 {{range .QueryParameters}}
-	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if .Required}} validate:"required"{{end}}` // {{.Description}}
+	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if .Required}} validate:"required"{{end}}{{if .ValidationRules}} validate:"{{.ValidationRules}}"{{end}}` // {{.Description}}
 {{end}}
 {{if .RequestBody}}
 {{range .RequestBody.Fields}}

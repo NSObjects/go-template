@@ -68,12 +68,20 @@ func RenderParamFromOpenAPI(module *openapi.APIModule, pascal, packagePath strin
 		return fmt.Sprintf("// 错误: %v", err)
 	}
 
+	// 检查是否包含时间字段
+	hasTimeFields := checkHasTimeFields(module.Operations)
+
+	// 检查是否有路径参数
+	hasPathParams := checkHasPathParams(module.Operations)
+
 	// 准备模板数据
 	data := TemplateData{
 		Pascal:            pascal,
 		PackagePath:       packagePath,
 		Operations:        module.Operations,
 		ResponseDataTypes: deduplicateResponseData(module.Operations),
+		HasTimeFields:     hasTimeFields,
+		HasPathParams:     hasPathParams,
 	}
 
 	// 渲染模板
@@ -715,4 +723,48 @@ func generateValidationTags(schema *openapi.Schema, isRequired bool) string {
 	}
 
 	return fmt.Sprintf("validate:\"%s\"", strings.Join(tags, ","))
+}
+
+// checkHasTimeFields 检查操作中是否包含时间字段
+func checkHasTimeFields(operations []openapi.APIOperation) bool {
+	for _, op := range operations {
+		// 检查查询参数
+		for _, param := range op.QueryParameters {
+			if strings.Contains(strings.ToLower(param.GoType), "time") {
+				return true
+			}
+		}
+
+		// 检查请求体字段
+		if op.RequestBody != nil {
+			for _, field := range op.RequestBody.Fields {
+				if strings.Contains(strings.ToLower(field.GoType), "time") {
+					return true
+				}
+			}
+		}
+
+		// 检查响应数据字段
+		if op.ResponseData != nil {
+			for _, field := range op.ResponseData.Fields {
+				if strings.Contains(strings.ToLower(field.GoType), "time") {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// checkHasPathParams 检查操作中是否包含路径参数
+func checkHasPathParams(operations []openapi.APIOperation) bool {
+	for _, op := range operations {
+		// 检查是否有需要路径参数的方法（GetByID, Update, Delete等）
+		if strings.HasPrefix(op.MethodName, "Get") ||
+			strings.HasPrefix(op.MethodName, "Update") ||
+			strings.HasPrefix(op.MethodName, "Delete") {
+			return true
+		}
+	}
+	return false
 }

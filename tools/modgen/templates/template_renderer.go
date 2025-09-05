@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/NSObjects/go-template/tools/modgen/openapi"
@@ -24,6 +25,8 @@ type TemplateData struct {
 	BaseCode          int                    // 错误码基础值
 	Operations        []openapi.APIOperation // OpenAPI 操作列表
 	ResponseDataTypes []openapi.ResponseData // 去重的响应数据类型
+	HasTimeFields     bool                   // 是否包含时间字段
+	HasPathParams     bool                   // 是否包含路径参数
 }
 
 // TemplateRenderer 模板渲染器
@@ -52,7 +55,9 @@ func NewTemplateRenderer() (*TemplateRenderer, error) {
 		// 使用计算出的模板目录
 		templatePath := filepath.Join(templateDir, name+".tmpl")
 
-		tmpl, err := template.ParseFiles(templatePath)
+		tmpl, err := template.New(filepath.Base(templatePath)).Funcs(template.FuncMap{
+			"hasPrefix": strings.HasPrefix,
+		}).ParseFiles(templatePath)
 		if err != nil {
 			return nil, fmt.Errorf("加载模板 %s 失败，路径: %s, 错误: %v", name, templatePath, err)
 		}

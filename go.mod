@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/IBM/sarama v1.46.0
-	github.com/casbin/casbin/v2 v2.121.0
+	github.com/casbin/casbin/v2 v2.122.0
 	github.com/casbin/gorm-adapter/v3 v3.36.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-playground/validator/v10 v10.27.0
@@ -17,7 +17,7 @@ require (
 	github.com/lmittmann/tint v1.1.2
 	github.com/marmotedu/errors v1.0.2
 	github.com/novalagung/gubrak v1.0.0
-	github.com/redis/go-redis/v9 v9.12.1
+	github.com/redis/go-redis/v9 v9.13.0
 	github.com/samber/lo v1.51.0
 	github.com/spf13/cast v1.9.2
 	github.com/spf13/cobra v1.10.1
@@ -32,7 +32,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/gen v0.3.27
-	gorm.io/gorm v1.30.2
+	gorm.io/gorm v1.30.3
 	gorm.io/plugin/dbresolver v1.6.2
 )
 
@@ -40,7 +40,7 @@ require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.9.1 // indirect
-	github.com/casbin/govaluate v1.9.0 // indirect
+	github.com/casbin/govaluate v1.10.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.6.0 // indirect

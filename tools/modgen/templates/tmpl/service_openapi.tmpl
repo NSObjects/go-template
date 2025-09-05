@@ -6,8 +6,8 @@
 package service
 
 import (
-	"strconv"
-	"{{.PackagePath}}/internal/api/biz"
+{{if .HasPathParams}}	"strconv"
+{{end}}	"{{.PackagePath}}/internal/api/biz"
 	"{{.PackagePath}}/internal/api/service/param"
 	"{{.PackagePath}}/internal/resp"
 	"{{.PackagePath}}/internal/utils"
@@ -19,7 +19,7 @@ type {{.Pascal}}Controller struct {
 }
 
 func New{{.Pascal}}Controller(h biz.{{.Pascal}}UseCase) RegisterRouter {
-	return &{{.Pascal}}Controller{user: h}
+	return &{{.Pascal}}Controller{ {{.Camel}}: h }
 }
 
 func (c *{{.Pascal}}Controller) RegisterRouter(g *echo.Group, m ...echo.MiddlewareFunc) {
@@ -31,7 +31,7 @@ func (c *{{.Pascal}}Controller) RegisterRouter(g *echo.Group, m ...echo.Middlewa
 // TODO: 实现控制器方法
 
 {{range .Operations}}
-{{if eq .MethodName "ListUsers"}}
+{{if hasPrefix .MethodName "List"}}
 func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
 	// TODO: 绑定和验证请求参数
 	var req param.{{$.Pascal}}{{.MethodName}}Request
@@ -49,7 +49,7 @@ func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
 	// 返回列表数据
 	return resp.ListDataResponse(list, total, ctx)
 }
-{{else if eq .MethodName "Create"}}
+{{else if or (eq .MethodName "Create") (hasPrefix .MethodName "Create")}}
 func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
 	// TODO: 绑定和验证请求参数
 	var req param.{{$.Pascal}}{{.MethodName}}Request
@@ -66,7 +66,7 @@ func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
 	// 返回操作成功
 	return resp.OperateSuccess(ctx)
 }
-{{else if eq .MethodName "GetByID"}}
+{{else if or (eq .MethodName "GetByID") (hasPrefix .MethodName "Get")}}
 func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
 	// 获取路径参数
 	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
@@ -81,7 +81,7 @@ func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
 	// 返回数据
 	return resp.OneDataResponse(result, ctx)
 }
-{{else if eq .MethodName "Update"}}
+{{else if or (eq .MethodName "Update") (hasPrefix .MethodName "Update")}}
 func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
 	// 获取路径参数
 	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
@@ -101,7 +101,7 @@ func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
 	// 返回操作成功
 	return resp.OperateSuccess(ctx)
 }
-{{else if eq .MethodName "Delete"}}
+{{else if or (eq .MethodName "Delete") (hasPrefix .MethodName "Delete")}}
 func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
 	// 获取路径参数
 	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)

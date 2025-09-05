@@ -140,7 +140,7 @@ test-coverage:
 # 代码生成工具
 # =============================================================================
 
-.PHONY: gen-code gen-module gen-module-tests gen-module-openapi gen-module-openapi-tests gen-module-route db-gen db-gen-table gen-all
+.PHONY: gen-code gen-module gen-module-tests gen-module-openapi gen-module-openapi-tests gen-module-route gen-all-modules gen-all-modules-tests db-gen db-gen-table gen-all
 
 # 生成错误码和文档
 gen-code:
@@ -189,6 +189,20 @@ gen-module-openapi-tests:
 	echo "$(BLUE)[INFO]$(NC) Generating module from OpenAPI with tests: $(NAME) ($$OPENAPI_FILE)"; \
 	go run tools/modgen/main.go --name=$(NAME) --openapi=$$OPENAPI_FILE --tests --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) with tests generated from OpenAPI"
+
+# 生成所有API模块（从OpenAPI）
+gen-all-modules:
+	@OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
+	echo "$(BLUE)[INFO]$(NC) Generating all modules from OpenAPI: $$OPENAPI_FILE"; \
+	go run -mod=mod tools/modgen/main.go --all --openapi=$$OPENAPI_FILE --force
+	@echo "$(GREEN)[SUCCESS]$(NC) All modules generated from OpenAPI"
+
+# 生成所有API模块和测试用例（从OpenAPI）
+gen-all-modules-tests:
+	@OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
+	echo "$(BLUE)[INFO]$(NC) Generating all modules with tests from OpenAPI: $$OPENAPI_FILE"; \
+	go run -mod=mod tools/modgen/main.go --all --openapi=$$OPENAPI_FILE --tests --force
+	@echo "$(GREEN)[SUCCESS]$(NC) All modules with tests generated from OpenAPI"
 
 # 生成模块（指定路由）
 gen-module-route:
@@ -312,6 +326,8 @@ help:
 	@echo "  $(GREEN)gen-module-openapi$(NC)          - 从OpenAPI生成模块 (NAME=name [OPENAPI=path])"
 	@echo "  $(GREEN)gen-module-openapi-tests$(NC)    - 从OpenAPI生成模块和测试 (NAME=name [OPENAPI=path])"
 	@echo "  $(GREEN)gen-module-route$(NC)            - 生成模块（指定路由） (NAME=name ROUTE=path)"
+	@echo "  $(GREEN)gen-all-modules$(NC)             - 生成所有API模块 (OPENAPI=path)"
+	@echo "  $(GREEN)gen-all-modules-tests$(NC)       - 生成所有API模块和测试 (OPENAPI=path)"
 	@echo "  $(GREEN)db-gen$(NC)                      - 生成数据库模型和查询"
 	@echo "  $(GREEN)db-gen-table$(NC)                - 生成指定表模型 (TABLE=table_name)"
 	@echo "  $(GREEN)db-gen-dynamic$(NC)              - 生成Dynamic SQL查询"
@@ -341,6 +357,8 @@ help:
 	@echo "  make gen-module-openapi NAME=article"
 	@echo "  make gen-module-openapi-tests NAME=user"
 	@echo "  make gen-module-route NAME=order ROUTE=/api/v1/orders"
+	@echo "  make gen-all-modules OPENAPI=doc/openapi.yaml"
+	@echo "  make gen-all-modules-tests OPENAPI=doc/openapi.yaml"
 	@echo "  make db-gen-table TABLE=users"
 	@echo "  make lint-dir DIR=./internal/api"
 	@echo "  make lint-fix"
