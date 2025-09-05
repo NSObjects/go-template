@@ -136,15 +136,47 @@ func toPascal(s string) string {
 
 // SplitWords 分割单词
 func splitWords(s string) []string {
+	// 先处理连字符和下划线
 	s = strings.ReplaceAll(s, "-", "_")
+	s = strings.ReplaceAll(s, " ", "_")
+
+	// 分割下划线
 	parts := strings.Split(s, "_")
 	out := make([]string, 0, len(parts))
+
 	for _, p := range parts {
-		if p != "" {
-			out = append(out, p)
+		if p == "" {
+			continue
 		}
+
+		// 处理驼峰命名：在大小写转换处分割
+		var words []string
+		var current strings.Builder
+
+		for i, r := range p {
+			if i > 0 && isUpper(r) && !isUpper(rune(p[i-1])) {
+				// 遇到大写字母且前一个字符不是大写字母，开始新单词
+				if current.Len() > 0 {
+					words = append(words, current.String())
+					current.Reset()
+				}
+			}
+			current.WriteRune(r)
+		}
+
+		if current.Len() > 0 {
+			words = append(words, current.String())
+		}
+
+		out = append(out, words...)
 	}
+
 	return out
+}
+
+// isUpper 检查字符是否为大写
+func isUpper(r rune) bool {
+	return r >= 'A' && r <= 'Z'
 }
 
 // GenerateRoute 生成路由
@@ -212,5 +244,87 @@ func GenerateGoTypeFromSchema(schema *Schema) string {
 		return "map[string]interface{}"
 	default:
 		return "interface{}"
+	}
+}
+
+// GenerateValidationRules 生成验证规则
+func GenerateValidationRules(schema *Schema) string {
+	if schema == nil {
+		return ""
+	}
+
+	var rules []string
+
+	// 字符串验证
+	if schema.Type == "string" {
+		if schema.MinLength != nil {
+			rules = append(rules, fmt.Sprintf("min=%d", *schema.MinLength))
+		}
+		if schema.MaxLength != nil {
+			rules = append(rules, fmt.Sprintf("max=%d", *schema.MaxLength))
+		}
+		if schema.Pattern != "" {
+			rules = append(rules, fmt.Sprintf("pattern=%s", schema.Pattern))
+		}
+	}
+
+	// 数值验证
+	if schema.Type == "integer" || schema.Type == "number" {
+		if schema.Minimum != nil {
+			rules = append(rules, fmt.Sprintf("min=%g", *schema.Minimum))
+		}
+		if schema.Maximum != nil {
+			rules = append(rules, fmt.Sprintf("max=%g", *schema.Maximum))
+		}
+	}
+
+	// 数组验证
+	if schema.Type == "array" {
+		if schema.MinItems != nil {
+			rules = append(rules, fmt.Sprintf("min=%d", *schema.MinItems))
+		}
+		if schema.MaxItems != nil {
+			rules = append(rules, fmt.Sprintf("max=%d", *schema.MaxItems))
+		}
+	}
+
+	// 邮箱验证
+	if schema.Format == "email" {
+		rules = append(rules, "email")
+	}
+
+	// URL验证
+	if schema.Format == "uri" {
+		rules = append(rules, "url")
+	}
+
+	if len(rules) == 0 {
+		return ""
+	}
+
+	return strings.Join(rules, ",")
+}
+
+// GenerateFieldName 生成字段名
+func GenerateFieldName(name string) string {
+	// 转换为PascalCase
+	parts := strings.Split(name, "_")
+	for i, part := range parts {
+		if part != "" {
+			parts[i] = strings.ToUpper(part[:1]) + strings.ToLower(part[1:])
+		}
+	}
+	return strings.Join(parts, "")
+}
+
+// GenerateField 生成字段信息
+func GenerateField(name string, schema *Schema, required bool) Field {
+	return Field{
+		Name:            name,
+		GoType:          GenerateGoTypeFromSchema(schema),
+		FieldName:       GenerateFieldName(name),
+		Description:     schema.Description,
+		Required:        required,
+		ValidationRules: GenerateValidationRules(schema),
 	}
 }

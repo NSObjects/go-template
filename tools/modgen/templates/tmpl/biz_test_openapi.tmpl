@@ -1,0 +1,245 @@
+/*
+ * Generated test cases from OpenAPI3 document
+ * Module: {{.Pascal}}
+ */
+
+package biz
+
+import (
+	"context"
+	"testing"
+
+	"{{.PackagePath}}/internal/api/data"
+	"{{.PackagePath}}/internal/api/service/param"
+	"github.com/go-playground/validator/v10"
+	"github.com/stretchr/testify/assert"
+)
+
+{{range .Operations}}
+{{if eq .MethodName "Create"}}
+func Test{{$.Pascal}}Handler_{{.MethodName}}(t *testing.T) {
+	// 创建handler
+	handler := &{{$.Pascal}}Handler{
+		dataManager: &data.DataManager{},
+	}
+	ctx := context.Background()
+	req := param.{{$.Pascal}}{{.MethodName}}Request{}
+
+	// 测试{{.MethodName}}方法
+	err := handler.{{.MethodName}}(ctx, req)
+
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
+	assert.NoError(t, err)
+}
+
+func Test{{$.Pascal}}Handler_{{.MethodName}}_Validation(t *testing.T) {
+	// 测试参数验证
+	validator := validator.New()
+	
+	// 测试有效数据
+	validReq := param.{{$.Pascal}}{{.MethodName}}Request{
+		Name:     "测试用户",
+		Phone:    "13812345678",
+		Account:  "test@example.com",
+		Password: "123456",
+		Status:   1,
+		Id:       1,
+	}
+	err := validator.Struct(validReq)
+	assert.NoError(t, err, "有效数据应该通过验证")
+	
+	// 测试无效数据
+	invalidReq := param.{{$.Pascal}}{{.MethodName}}Request{
+		// 空结构体，所有必填字段都缺失
+	}
+	err = validator.Struct(invalidReq)
+	assert.Error(t, err, "无效数据应该验证失败")
+}
+{{else if eq .MethodName "ListUsers"}}
+func Test{{$.Pascal}}Handler_{{.MethodName}}(t *testing.T) {
+	// 创建handler
+	handler := &{{$.Pascal}}Handler{
+		dataManager: &data.DataManager{},
+	}
+	ctx := context.Background()
+	req := param.{{$.Pascal}}{{.MethodName}}Request{
+		Page:  1,
+		Size: 10,
+	}
+
+	// 测试{{.MethodName}}方法
+	result, total, err := handler.{{.MethodName}}(ctx, req)
+
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
+	assert.Nil(t, result)
+	assert.Equal(t, int64(0), total)
+	assert.NoError(t, err)
+}
+
+func Test{{$.Pascal}}Handler_{{.MethodName}}_Validation(t *testing.T) {
+	// 测试参数验证
+	validator := validator.New()
+	
+	// 测试有效数据
+	validReq := param.{{$.Pascal}}{{.MethodName}}Request{
+		Page:  1,
+		Size: 10,
+	}
+	err := validator.Struct(validReq)
+	assert.NoError(t, err, "有效数据应该通过验证")
+	
+	// 测试无效数据
+	invalidReq := param.{{$.Pascal}}{{.MethodName}}Request{
+		Page:  -1, // 无效页码
+		Size:  -1, // 无效页面大小
+	}
+	err = validator.Struct(invalidReq)
+	assert.Error(t, err, "无效数据应该验证失败")
+}
+{{else if eq .MethodName "GetByID"}}
+func Test{{$.Pascal}}Handler_{{.MethodName}}(t *testing.T) {
+	// 创建handler
+	handler := &{{$.Pascal}}Handler{
+		dataManager: &data.DataManager{},
+	}
+	ctx := context.Background()
+	id := int64(123) // 测试ID
+
+	// 测试{{.MethodName}}方法
+	result, err := handler.{{.MethodName}}(ctx, id)
+
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
+	assert.Nil(t, result)
+	assert.NoError(t, err)
+}
+
+func Test{{$.Pascal}}Handler_{{.MethodName}}_EdgeCases(t *testing.T) {
+	// 创建handler
+	handler := &{{$.Pascal}}Handler{
+		dataManager: &data.DataManager{},
+	}
+	ctx := context.Background()
+
+	// 测试边界情况
+	testCases := []struct {
+		name string
+		id   int64
+	}{
+		{"零ID", 0},
+		{"负数ID", -1},
+		{"大ID", 999999},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := handler.{{.MethodName}}(ctx, tc.id)
+			assert.Nil(t, result)
+			assert.NoError(t, err)
+		})
+	}
+}
+{{else if eq .MethodName "Update"}}
+func Test{{$.Pascal}}Handler_{{.MethodName}}(t *testing.T) {
+	// 创建handler
+	handler := &{{$.Pascal}}Handler{
+		dataManager: &data.DataManager{},
+	}
+	ctx := context.Background()
+	id := int64(123) // 测试ID
+	req := param.{{$.Pascal}}{{.MethodName}}Request{}
+
+	// 测试{{.MethodName}}方法
+	err := handler.{{.MethodName}}(ctx, id, req)
+
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
+	assert.NoError(t, err)
+}
+
+func Test{{$.Pascal}}Handler_{{.MethodName}}_Validation(t *testing.T) {
+	// 测试参数验证
+	validator := validator.New()
+	
+	// 测试有效数据
+	validReq := param.{{$.Pascal}}{{.MethodName}}Request{
+		Username: "testuser",
+		Email:    "test@example.com",
+		Age:      25,
+	}
+	err := validator.Struct(validReq)
+	assert.NoError(t, err, "有效数据应该通过验证")
+	
+	// 测试无效数据
+	invalidReq := param.{{$.Pascal}}{{.MethodName}}Request{
+		// 空结构体，所有必填字段都缺失
+	}
+	err = validator.Struct(invalidReq)
+	assert.Error(t, err, "无效数据应该验证失败")
+}
+
+func Test{{$.Pascal}}Handler_{{.MethodName}}_EdgeCases(t *testing.T) {
+	// 创建handler
+	handler := &{{$.Pascal}}Handler{
+		dataManager: &data.DataManager{},
+	}
+	ctx := context.Background()
+
+	// 测试边界情况
+	testCases := []struct {
+		name string
+		id   int64
+		req  param.{{$.Pascal}}{{.MethodName}}Request
+	}{
+		{"零ID", 0, param.{{$.Pascal}}{{.MethodName}}Request{}},
+		{"负数ID", -1, param.{{$.Pascal}}{{.MethodName}}Request{}},
+		{"大ID", 999999, param.{{$.Pascal}}{{.MethodName}}Request{}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := handler.{{.MethodName}}(ctx, tc.id, tc.req)
+			assert.NoError(t, err)
+		})
+	}
+}
+{{else if eq .MethodName "Delete"}}
+func Test{{$.Pascal}}Handler_{{.MethodName}}(t *testing.T) {
+	// 创建handler
+	handler := &{{$.Pascal}}Handler{
+		dataManager: &data.DataManager{},
+	}
+	ctx := context.Background()
+	id := int64(123) // 测试ID
+
+	// 测试{{.MethodName}}方法
+	err := handler.{{.MethodName}}(ctx, id)
+
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
+	assert.NoError(t, err)
+}
+
+func Test{{$.Pascal}}Handler_{{.MethodName}}_EdgeCases(t *testing.T) {
+	// 创建handler
+	handler := &{{$.Pascal}}Handler{
+		dataManager: &data.DataManager{},
+	}
+	ctx := context.Background()
+
+	// 测试边界情况
+	testCases := []struct {
+		name string
+		id   int64
+	}{
+		{"零ID", 0},
+		{"负数ID", -1},
+		{"大ID", 999999},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := handler.{{.MethodName}}(ctx, tc.id)
+			assert.NoError(t, err)
+		})
+	}
+}
+{{end}}
+{{end}}

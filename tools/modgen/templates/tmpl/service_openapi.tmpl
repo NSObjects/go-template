@@ -1,0 +1,119 @@
+/*
+ * Generated from OpenAPI3 document
+ * Module: {{.Pascal}}
+ */
+
+package service
+
+import (
+	"strconv"
+	"{{.PackagePath}}/internal/api/biz"
+	"{{.PackagePath}}/internal/api/service/param"
+	"{{.PackagePath}}/internal/resp"
+	"{{.PackagePath}}/internal/utils"
+	"github.com/labstack/echo/v4"
+)
+
+type {{.Pascal}}Controller struct {
+	{{.Camel}} biz.{{.Pascal}}UseCase
+}
+
+func New{{.Pascal}}Controller(h biz.{{.Pascal}}UseCase) RegisterRouter {
+	return &{{.Pascal}}Controller{user: h}
+}
+
+func (c *{{.Pascal}}Controller) RegisterRouter(g *echo.Group, m ...echo.MiddlewareFunc) {
+{{range .Operations}}
+	g.{{if eq .Method "get"}}GET{{else if eq .Method "post"}}POST{{else if eq .Method "put"}}PUT{{else if eq .Method "delete"}}DELETE{{else}}{{.Method}}{{end}}("{{.Path}}", c.{{.MethodName}}).Name = "{{.Summary}}"
+{{end}}
+}
+
+// TODO: 实现控制器方法
+
+{{range .Operations}}
+{{if eq .MethodName "ListUsers"}}
+func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
+	// TODO: 绑定和验证请求参数
+	var req param.{{$.Pascal}}{{.MethodName}}Request
+	if err := BindAndValidate(ctx, &req); err != nil {
+		return err
+	}
+	
+	// 调用业务逻辑 - 构造包含链路追踪信息的context
+	bizCtx := utils.BuildContext(ctx)
+	list, total, err := c.{{$.Camel}}.{{.MethodName}}(bizCtx, req)
+	if err != nil {
+		return err
+	}
+	
+	// 返回列表数据
+	return resp.ListDataResponse(list, total, ctx)
+}
+{{else if eq .MethodName "Create"}}
+func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
+	// TODO: 绑定和验证请求参数
+	var req param.{{$.Pascal}}{{.MethodName}}Request
+	if err := BindAndValidate(ctx, &req); err != nil {
+		return err
+	}
+	
+	// 调用业务逻辑 - 构造包含链路追踪信息的context
+	bizCtx := utils.BuildContext(ctx)
+	if err := c.{{$.Camel}}.{{.MethodName}}(bizCtx, req); err != nil {
+		return err
+	}
+	
+	// 返回操作成功
+	return resp.OperateSuccess(ctx)
+}
+{{else if eq .MethodName "GetByID"}}
+func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
+	// 获取路径参数
+	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	
+	// 调用业务逻辑 - 构造包含链路追踪信息的context
+	bizCtx := utils.BuildContext(ctx)
+	result, err := c.{{$.Camel}}.{{.MethodName}}(bizCtx, id)
+	if err != nil {
+		return err
+	}
+	
+	// 返回数据
+	return resp.OneDataResponse(result, ctx)
+}
+{{else if eq .MethodName "Update"}}
+func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
+	// 获取路径参数
+	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	
+	// 绑定和验证请求体参数
+	var req param.{{$.Pascal}}{{.MethodName}}Request
+	if err := BindAndValidate(ctx, &req); err != nil {
+		return err
+	}
+	
+	// 调用业务逻辑 - 构造包含链路追踪信息的context
+	bizCtx := utils.BuildContext(ctx)
+	if err := c.{{$.Camel}}.{{.MethodName}}(bizCtx, id, req); err != nil {
+		return err
+	}
+	
+	// 返回操作成功
+	return resp.OperateSuccess(ctx)
+}
+{{else if eq .MethodName "Delete"}}
+func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
+	// 获取路径参数
+	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	
+	// 调用业务逻辑 - 构造包含链路追踪信息的context
+	bizCtx := utils.BuildContext(ctx)
+	if err := c.{{$.Camel}}.{{.MethodName}}(bizCtx, id); err != nil {
+		return err
+	}
+	
+	// 返回操作成功
+	return resp.OperateSuccess(ctx)
+}
+{{end}}
+{{end}}

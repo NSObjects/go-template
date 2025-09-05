@@ -1,0 +1,121 @@
+package biz
+
+import (
+	"context"
+	"{{.PackagePath}}/internal/api/data"
+	"{{.PackagePath}}/internal/api/data/model"
+	"{{.PackagePath}}/internal/api/service/param"
+)
+
+// {{.Pascal}}UseCase {{.Pascal}}业务用例接口
+type {{.Pascal}}UseCase interface {
+	List(ctx context.Context, p param.{{.Pascal}}Param) ([]param.{{.Pascal}}Response, int64, error)
+	Create(ctx context.Context, b param.{{.Pascal}}Body) error
+	Update(ctx context.Context, id int64, b param.{{.Pascal}}Body) error
+	Delete(ctx context.Context, id int64) error
+	Detail(ctx context.Context, id int64) (*param.{{.Pascal}}Response, error)
+}
+
+// {{.Pascal}}Handler {{.Pascal}}业务处理器
+type {{.Pascal}}Handler struct {
+	dm *data.DataManager
+}
+
+// New{{.Pascal}}Handler 创建{{.Pascal}}业务处理器
+func New{{.Pascal}}Handler(dm *data.DataManager) *{{.Pascal}}Handler {
+	return &{{.Pascal}}Handler{dm: dm}
+}
+
+// List 获取{{.Pascal}}列表
+func (h *{{.Pascal}}Handler) List(ctx context.Context, p param.{{.Pascal}}Param) ([]param.{{.Pascal}}Response, int64, error) {
+	// TODO: 实现列表查询逻辑
+	// 示例：
+	// var models []model.{{.Pascal}}
+	// if err := h.dm.MySQLWithContext(ctx).Offset(p.Offset()).Limit(p.Limit()).Find(&models).Error; err != nil {
+	//     return nil, 0, code.WrapDatabaseError(err, "query {{.Pascal}} list")
+	// }
+	// var total int64
+	// h.dm.MySQLWithContext(ctx).Model(&model.{{.Pascal}}{}).Count(&total)
+	// return convert{{.Pascal}}ToResponses(models), total, nil
+	return nil, 0, nil
+}
+
+// Create 创建{{.Pascal}}
+func (h *{{.Pascal}}Handler) Create(ctx context.Context, b param.{{.Pascal}}Body) error {
+	// TODO: 实现创建逻辑
+	// 示例：
+	// model := &model.{{.Pascal}}{
+	//     // 设置字段
+	//     CreatedAt: time.Now(),
+	// }
+	// if err := h.dm.MySQLWithContext(ctx).Create(model).Error; err != nil {
+	//     return nil, code.WrapDatabaseError(err, "create {{.Pascal}}")
+	// }
+	// 创建成功
+	return nil
+}
+
+// Update 更新{{.Pascal}}
+func (h *{{.Pascal}}Handler) Update(ctx context.Context, id int64, b param.{{.Pascal}}Body) error {
+	// TODO: 实现更新逻辑
+	// 示例：
+	// var model model.{{.Pascal}}
+	// if err := h.dm.MySQLWithContext(ctx).First(&model, id).Error; err != nil {
+	//     if errors.Is(err, gorm.ErrRecordNotFound) {
+	//         return nil, code.WrapNotFoundError(nil, "{{.Pascal}} not found")
+	//     }
+	//     return nil, code.WrapDatabaseError(err, "query {{.Pascal}}")
+	// }
+	// // 更新字段
+	// model.UpdatedAt = time.Now()
+	// if err := h.dm.MySQLWithContext(ctx).Save(&model).Error; err != nil {
+	//     return code.WrapDatabaseError(err, "update {{.Pascal}}")
+	// }
+	// 更新成功
+	return nil
+}
+
+// Delete 删除{{.Pascal}}
+func (h *{{.Pascal}}Handler) Delete(ctx context.Context, id int64) error {
+	// TODO: 实现删除逻辑
+	// 示例：
+	// if err := h.dm.MySQLWithContext(ctx).Delete(&model.{{.Pascal}}{}, id).Error; err != nil {
+	//     return code.WrapDatabaseError(err, "delete {{.Pascal}}")
+	// }
+	// return nil
+	return nil
+}
+
+// Detail 获取{{.Pascal}}详情
+func (h *{{.Pascal}}Handler) Detail(ctx context.Context, id int64) (*param.{{.Pascal}}Response, error) {
+	// TODO: 实现详情查询逻辑
+	// 示例：
+	// var model model.{{.Pascal}}
+	// if err := h.dm.MySQLWithContext(ctx).First(&model, id).Error; err != nil {
+	//     if errors.Is(err, gorm.ErrRecordNotFound) {
+	//         return nil, code.WrapNotFoundError(nil, "{{.Pascal}} not found")
+	//     }
+	//     return nil, code.WrapDatabaseError(err, "query {{.Pascal}}")
+	// }
+	// return convert{{.Pascal}}ToResponse(&model), nil
+	return nil, nil
+}
+
+// convert{{.Pascal}}ToResponse 转换为响应结构
+func convert{{.Pascal}}ToResponse(model *model.{{.Pascal}}) *param.{{.Pascal}}Response {
+	// TODO: 实现转换逻辑
+	return &param.{{.Pascal}}Response{
+		// ID: model.ID,
+		// CreatedAt: model.CreatedAt,
+		// UpdatedAt: model.UpdatedAt,
+	}
+}
+
+// convert{{.Pascal}}ToResponses 转换为响应结构列表
+func convert{{.Pascal}}ToResponses(models []model.{{.Pascal}}) []param.{{.Pascal}}Response {
+	responses := make([]param.{{.Pascal}}Response, len(models))
+	for i, model := range models {
+		responses[i] = *convert{{.Pascal}}ToResponse(&model)
+	}
+	return responses
+}

@@ -1,0 +1,69 @@
+package service
+
+import (
+	"strconv"
+	"{{.PackagePath}}/internal/api/biz"
+	"{{.PackagePath}}/internal/api/service/param"
+	"{{.PackagePath}}/internal/resp"
+	"{{.PackagePath}}/internal/utils"
+	"github.com/labstack/echo/v4"
+)
+
+type {{.Camel}}Controller struct {
+	{{.Camel}} biz.{{.Pascal}}UseCase
+}
+
+func New{{.Pascal}}Controller(h *biz.{{.Pascal}}Handler) RegisterRouter {
+	return &{{.Camel}}Controller{
+		{{.Camel}}: h,
+	}
+}
+
+func (c *{{.Camel}}Controller) RegisterRouter(g *echo.Group, m ...echo.MiddlewareFunc) {
+	g.GET("{{.Route}}", c.list).Name = "列表示例"
+	g.POST("{{.Route}}", c.create).Name = "创建示例"
+	g.GET("{{.Route}}/:id", c.detail).Name = "详情示例"
+	g.PUT("{{.Route}}/:id", c.update).Name = "更新示例"
+	g.DELETE("{{.Route}}/:id", c.remove).Name = "删除示例"
+}
+
+func (c *{{.Camel}}Controller) list(ctx echo.Context) error {
+	var p param.{{.Pascal}}Param
+	if err := BindAndValidate(ctx, &p); err != nil { return err }
+	bizCtx := utils.BuildContext(ctx)
+	items, total, err := c.{{.Camel}}.List(bizCtx, p)
+	if err != nil { return err }
+	return resp.ListDataResponse(items, total, ctx)
+}
+
+func (c *{{.Camel}}Controller) detail(ctx echo.Context) error {
+	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	bizCtx := utils.BuildContext(ctx)
+	item, err := c.{{.Camel}}.Detail(bizCtx, id)
+	if err != nil { return err }
+	return resp.OneDataResponse(item, ctx)
+}
+
+func (c *{{.Camel}}Controller) create(ctx echo.Context) error {
+	var b param.{{.Pascal}}Body
+	if err := BindAndValidate(ctx, &b); err != nil { return err }
+	bizCtx := utils.BuildContext(ctx)
+	if err := c.{{.Camel}}.Create(bizCtx, b); err != nil { return err }
+	return resp.OperateSuccess(ctx)
+}
+
+func (c *{{.Camel}}Controller) update(ctx echo.Context) error {
+	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	var b param.{{.Pascal}}Body
+	if err := BindAndValidate(ctx, &b); err != nil { return err }
+	bizCtx := utils.BuildContext(ctx)
+	if err := c.{{.Camel}}.Update(bizCtx, id, b); err != nil { return err }
+	return resp.OperateSuccess(ctx)
+}
+
+func (c *{{.Camel}}Controller) remove(ctx echo.Context) error {
+	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	bizCtx := utils.BuildContext(ctx)
+	if err := c.{{.Camel}}.Delete(bizCtx, id); err != nil { return err }
+	return resp.OperateSuccess(ctx)
+}

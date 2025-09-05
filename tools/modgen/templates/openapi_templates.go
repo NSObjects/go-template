@@ -13,155 +13,94 @@ import (
 
 // RenderBizFromOpenAPI 从OpenAPI3生成业务逻辑模板
 func RenderBizFromOpenAPI(module *openapi.APIModule, pascal, packagePath string) string {
-	var methods []string
-
-	// 为每个操作生成方法
-	for _, op := range module.Operations {
-		methodName := openapi.GenerateMethodName(op)
-		requestType := fmt.Sprintf("%s%sRequest", pascal, methodName)
-		returnType := generateInterfaceReturnType(methodName, pascal)
-		methods = append(methods, fmt.Sprintf(`
-	// %s %s
-	%s(ctx context.Context, req param.%s) %s`,
-			methodName, op.Summary, methodName, requestType, returnType))
+	// 使用新的模板渲染器
+	renderer, err := NewTemplateRenderer()
+	if err != nil {
+		return fmt.Sprintf("// 错误: %v", err)
 	}
 
-	return fmt.Sprintf(`/*
- * Generated from OpenAPI3 document
- * Module: %s
- */
-
-package biz
-
-import (
-	"context"
-	"%s/internal/api/data"
-	"%s/internal/api/service/param"
-)
-
-// %sUseCase 业务逻辑接口
-type %sUseCase interface {
-%s
-}
-
-// %sHandler 业务逻辑处理器
-type %sHandler struct {
-	dataManager *data.DataManager
-	// TODO: 注入其他依赖
-}
-
-// New%sHandler 创建业务逻辑处理器
-func New%sHandler(dataManager *data.DataManager) %sUseCase {
-	return &%sHandler{
-		dataManager: dataManager,
+	// 准备模板数据
+	data := TemplateData{
+		Pascal:      pascal,
+		PackagePath: packagePath,
+		Operations:  module.Operations,
 	}
-}
 
-// TODO: 实现业务逻辑方法
-%s
-`,
-		module.Name, packagePath, packagePath, pascal, pascal, strings.Join(methods, ""),
-		pascal, pascal, pascal, pascal, pascal, pascal, generateMethodImplementations(module, pascal))
+	// 渲染模板
+	content, err := renderer.Render("biz_openapi", data)
+	if err != nil {
+		return fmt.Sprintf("// 错误: %v", err)
+	}
+
+	return content
 }
 
 // RenderServiceFromOpenAPI 从OpenAPI3生成服务层模板
 func RenderServiceFromOpenAPI(module *openapi.APIModule, pascal, camel, baseRoute, packagePath string) string {
-	var routes []string
-
-	// 为每个操作生成路由
-	for _, op := range module.Operations {
-		route := openapi.GenerateRoute(op, baseRoute)
-		handler := openapi.GenerateHandlerName(op)
-		routes = append(routes, fmt.Sprintf(`	g.%s("%s", c.%s).Name = "%s"`,
-			strings.ToUpper(op.Method), route, handler, op.Summary))
+	// 使用新的模板渲染器
+	renderer, err := NewTemplateRenderer()
+	if err != nil {
+		return fmt.Sprintf("// 错误: %v", err)
 	}
 
-	return fmt.Sprintf(`/*
- * Generated from OpenAPI3 document
- * Module: %s
- */
+	// 准备模板数据
+	data := TemplateData{
+		Pascal:      pascal,
+		Camel:       camel,
+		PackagePath: packagePath,
+		Operations:  module.Operations,
+	}
 
-package service
+	// 渲染模板
+	content, err := renderer.Render("service_openapi", data)
+	if err != nil {
+		return fmt.Sprintf("// 错误: %v", err)
+	}
 
-import (
-	"%s/internal/api/biz"
-	"%s/internal/api/service/param"
-	"%s/internal/resp"
-	"%s/internal/utils"
-	"github.com/labstack/echo/v4"
-)
-
-type %sController struct {
-	%s biz.%sUseCase
-}
-
-func New%sController(h biz.%sUseCase) RegisterRouter {
-	return &%sController{%s: h}
-}
-
-func (c *%sController) RegisterRouter(g *echo.Group, m ...echo.MiddlewareFunc) {
-%s
-}
-
-// TODO: 实现控制器方法
-%s
-`,
-		module.Name, packagePath, packagePath, packagePath, packagePath,
-		pascal, camel, pascal, pascal, pascal, pascal, camel, pascal,
-		strings.Join(routes, "\n"), generateHandlerImplementations(module, pascal))
+	return content
 }
 
 // RenderParamFromOpenAPI 从OpenAPI3生成参数模板
 func RenderParamFromOpenAPI(module *openapi.APIModule, pascal, packagePath string) string {
-	var structs []string
-	needsTime := false
+	// 使用新的模板渲染器
+	renderer, err := NewTemplateRenderer()
+	if err != nil {
+		return fmt.Sprintf("// 错误: %v", err)
+	}
 
-	// 生成请求结构体
-	for _, op := range module.Operations {
-		methodName := openapi.GenerateMethodName(op)
-		structName := fmt.Sprintf("%s%sRequest", pascal, methodName)
+	// 准备模板数据
+	data := TemplateData{
+		Pascal:            pascal,
+		PackagePath:       packagePath,
+		Operations:        module.Operations,
+		ResponseDataTypes: deduplicateResponseData(module.Operations),
+	}
 
-		if op.RequestBody != nil {
-			// 有请求体的操作（如Create, Update）
-			structs = append(structs, generateRequestStruct(structName, op.RequestBody, module))
-		} else {
-			// 没有请求体的操作（如List, GetByID, Delete）
-			structs = append(structs, generateSimpleRequestStruct(structName, methodName, op, module))
+	// 渲染模板
+	content, err := renderer.Render("param_openapi", data)
+	if err != nil {
+		return fmt.Sprintf("// 错误: %v", err)
+	}
+
+	return content
+}
+
+// deduplicateResponseData 去重响应数据类型
+func deduplicateResponseData(operations []openapi.APIOperation) []openapi.ResponseData {
+	seen := make(map[string]bool)
+	var result []openapi.ResponseData
+
+	for _, op := range operations {
+		if op.ResponseData != nil {
+			key := op.ResponseData.GoType
+			if !seen[key] {
+				seen[key] = true
+				result = append(result, *op.ResponseData)
+			}
 		}
 	}
 
-	// 生成响应结构体
-	responseStruct := generateResponseStruct(pascal, module)
-	structs = append(structs, responseStruct)
-
-	// 生成查询参数结构体
-	queryStruct := generateQueryStruct(pascal, module)
-	structs = append(structs, queryStruct)
-
-	// 检查是否需要time包
-	for _, structStr := range structs {
-		if strings.Contains(structStr, "time.Time") {
-			needsTime = true
-			break
-		}
-	}
-
-	imports := ""
-	if needsTime {
-		imports = `import "time"`
-	}
-
-	return fmt.Sprintf(`/*
- * Generated from OpenAPI3 document
- * Module: %s
- */
-
-package param
-
-%s
-
-%s
-`, module.Name, imports, strings.Join(structs, "\n"))
+	return result
 }
 
 // RenderModelFromOpenAPI 从OpenAPI3生成数据模型模板
@@ -200,11 +139,28 @@ func generateMethodImplementations(module *openapi.APIModule, pascal string) str
 		methodName := openapi.GenerateMethodName(op)
 		requestType := fmt.Sprintf("%s%sRequest", pascal, methodName)
 		returnType, returnValue := generateBizReturnType(methodName, pascal)
-		implementations = append(implementations, fmt.Sprintf(`
+
+		// 根据方法类型决定参数
+		switch strings.ToLower(methodName) {
+		case "getbyid", "delete":
+			implementations = append(implementations, fmt.Sprintf(`
+func (h *%sHandler) %s(ctx context.Context, id int64) %s {
+	// TODO: 实现业务逻辑
+	%s
+}`, pascal, methodName, returnType, returnValue))
+		case "update":
+			implementations = append(implementations, fmt.Sprintf(`
+func (h *%sHandler) %s(ctx context.Context, id int64, req param.%s) %s {
+	// TODO: 实现业务逻辑
+	%s
+}`, pascal, methodName, requestType, returnType, returnValue))
+		default:
+			implementations = append(implementations, fmt.Sprintf(`
 func (h *%sHandler) %s(ctx context.Context, req param.%s) %s {
 	// TODO: 实现业务逻辑
 	%s
 }`, pascal, methodName, requestType, returnType, returnValue))
+		}
 	}
 
 	return strings.Join(implementations, "")
@@ -230,15 +186,17 @@ func generateInterfaceReturnType(methodName, pascal string) string {
 func generateBizReturnType(methodName, pascal string) (string, string) {
 	switch strings.ToLower(methodName) {
 	case "list":
-		return fmt.Sprintf("([]param.%sResponse, int64, error)", pascal), generateBizImplementation(methodName, pascal)
-	case "create", "update":
+		return fmt.Sprintf("([]param.%sResponse, int64, error)", pascal), fmt.Sprintf(generateBizImplementation(methodName, pascal), pascal, pascal)
+	case "create":
 		return "error", generateBizImplementation(methodName, pascal)
+	case "update":
+		return "error", fmt.Sprintf(generateBizImplementation(methodName, pascal), pascal)
 	case "getbyid":
-		return fmt.Sprintf("(*param.%sResponse, error)", pascal), generateBizImplementation(methodName, pascal)
+		return "(*param.%sResponse, error)", fmt.Sprintf(generateBizImplementation(methodName, pascal), pascal)
 	case "delete":
 		return "error", generateBizImplementation(methodName, pascal)
 	default:
-		return fmt.Sprintf("(*param.%sResponse, error)", pascal), generateBizImplementation(methodName, pascal)
+		return fmt.Sprintf("(*param.%sResponse, error)", pascal), fmt.Sprintf(generateBizImplementation(methodName, pascal), pascal)
 	}
 }
 
@@ -258,7 +216,7 @@ func generateBizImplementation(methodName, pascal string) string {
 	// // 构建查询条件
 	// query := h.dataManager.Query.User.WithContext(ctx)
 	// if req.Name != "" {
-	// 	query = query.Where(h.dataManager.Query.User.Name.Like("%" + req.Name + "%"))
+	// 	query = query.Where(h.dataManager.Query.User.Name.Like("%%" + req.Name + "%%"))
 	// }
 	// if req.Email != "" {
 	// 	query = query.Where(h.dataManager.Query.User.Account.Eq(req.Email))
@@ -308,7 +266,7 @@ func generateBizImplementation(methodName, pascal string) string {
 	// 
 	// 示例实现：
 	// var user model.User
-	// err := h.dataManager.Query.User.WithContext(ctx).Where(h.dataManager.Query.User.ID.Eq(req.ID)).First(&user)
+	// err := h.dataManager.Query.User.WithContext(ctx).Where(h.dataManager.Query.User.ID.Eq(id)).First(&user)
 	// if err != nil {
 	// 	return nil, err
 	// }
@@ -341,7 +299,7 @@ func generateBizImplementation(methodName, pascal string) string {
 	// 使用带context的数据库操作 - context包含链路追踪信息
 	// 
 	// 示例实现：
-	// err := h.dataManager.Query.User.WithContext(ctx).Where(h.dataManager.Query.User.ID.Eq(req.ID)).Delete(&model.User{})
+	// err := h.dataManager.Query.User.WithContext(ctx).Where(h.dataManager.Query.User.ID.Eq(id)).Delete(&model.User{})
 	// if err != nil {
 	// 	return err
 	// }
@@ -391,7 +349,7 @@ func (c *%sController) %s(ctx echo.Context) error {
 	// 返回列表数据
 	return resp.ListDataResponse(list, total, ctx)
 }`, pascal, handlerName, requestType, strings.ToLower(pascal[:1])+pascal[1:], methodName)
-	case "create", "update":
+	case "create":
 		return fmt.Sprintf(`
 func (c *%sController) %s(ctx echo.Context) error {
 	// TODO: 绑定和验证请求参数
@@ -409,10 +367,13 @@ func (c *%sController) %s(ctx echo.Context) error {
 	// 返回操作成功
 	return resp.OperateSuccess(ctx)
 }`, pascal, handlerName, requestType, strings.ToLower(pascal[:1])+pascal[1:], methodName)
-	case "getbyid":
+	case "update":
 		return fmt.Sprintf(`
 func (c *%sController) %s(ctx echo.Context) error {
-	// TODO: 绑定和验证请求参数
+	// 获取路径参数
+	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	
+	// 绑定和验证请求体参数
 	var req param.%s
 	if err := BindAndValidate(ctx, &req); err != nil {
 		return err
@@ -420,33 +381,45 @@ func (c *%sController) %s(ctx echo.Context) error {
 	
 	// 调用业务逻辑 - 构造包含链路追踪信息的context
 	bizCtx := utils.BuildContext(ctx)
-	result, err := c.%s.%s(bizCtx, req)
-	if err != nil {
-		return err
-	}
-	
-	// 返回单个数据
-	return resp.OneDataResponse(result, ctx)
-}`, pascal, handlerName, requestType, strings.ToLower(pascal[:1])+pascal[1:], methodName)
-	case "delete":
-		return fmt.Sprintf(`
-func (c *%sController) %s(ctx echo.Context) error {
-	// TODO: 绑定和验证请求参数
-	var req param.%s
-	if err := BindAndValidate(ctx, &req); err != nil {
-		return err
-	}
-	
-	// 调用业务逻辑 - 构造包含链路追踪信息的context
-	bizCtx := utils.BuildContext(ctx)
-	err := c.%s.%s(bizCtx, req)
-	if err != nil {
+	if err := c.%s.%s(bizCtx, id, req); err != nil {
 		return err
 	}
 	
 	// 返回操作成功
 	return resp.OperateSuccess(ctx)
 }`, pascal, handlerName, requestType, strings.ToLower(pascal[:1])+pascal[1:], methodName)
+	case "getbyid":
+		return fmt.Sprintf(`
+func (c *%sController) %s(ctx echo.Context) error {
+	// 获取路径参数
+	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	
+	// 调用业务逻辑 - 构造包含链路追踪信息的context
+	bizCtx := utils.BuildContext(ctx)
+	result, err := c.%s.%s(bizCtx, id)
+	if err != nil {
+		return err
+	}
+	
+	// 返回单个数据
+	return resp.OneDataResponse(result, ctx)
+}`, pascal, handlerName, strings.ToLower(pascal[:1])+pascal[1:], methodName)
+	case "delete":
+		return fmt.Sprintf(`
+func (c *%sController) %s(ctx echo.Context) error {
+	// 获取路径参数
+	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	
+	// 调用业务逻辑 - 构造包含链路追踪信息的context
+	bizCtx := utils.BuildContext(ctx)
+	err := c.%s.%s(bizCtx, id)
+	if err != nil {
+		return err
+	}
+	
+	// 返回操作成功
+	return resp.OperateSuccess(ctx)
+}`, pascal, handlerName, strings.ToLower(pascal[:1])+pascal[1:], methodName)
 	default:
 		return fmt.Sprintf(`
 func (c *%sController) %s(ctx echo.Context) error {

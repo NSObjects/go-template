@@ -50,12 +50,19 @@ type Parameter struct {
 	Required    bool    `yaml:"required,omitempty" json:"required,omitempty"`
 	Schema      *Schema `yaml:"schema,omitempty" json:"schema,omitempty"`
 	Ref         string  `yaml:"$ref,omitempty" json:"$ref,omitempty"`
+	// 生成相关字段
+	GoType          string `yaml:"-" json:"-"`
+	FieldName       string `yaml:"-" json:"-"`
+	ValidationRules string `yaml:"-" json:"-"`
 }
 
 type RequestBody struct {
 	Description string               `yaml:"description,omitempty" json:"description,omitempty"`
 	Required    bool                 `yaml:"required,omitempty" json:"required,omitempty"`
 	Content     map[string]MediaType `yaml:"content" json:"content"`
+	Ref         string               `yaml:"$ref,omitempty" json:"$ref,omitempty"`
+	// 生成相关字段
+	Fields []Field `yaml:"-" json:"-"`
 }
 
 type Response struct {
@@ -119,4 +126,24 @@ type APIOperation struct {
 	RequestBody *RequestBody
 	Responses   map[string]Response
 	Tag         string
+	// 生成相关字段
+	MethodName            string
+	ResponseData          *ResponseData
+	HasRequestBodyOrQuery bool
+	QueryParameters       []Parameter
+}
+
+type ResponseData struct {
+	GoType      string
+	Description string
+	Fields      []Field
+}
+
+type Field struct {
+	Name            string
+	GoType          string
+	FieldName       string
+	Description     string
+	Required        bool
+	ValidationRules string
 }

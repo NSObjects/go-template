@@ -1,0 +1,123 @@
+/*
+ * Generated test cases from OpenAPI3 document
+ * Module: {{.Pascal}}
+ */
+
+package service
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"{{.PackagePath}}/internal/api/biz"
+	"{{.PackagePath}}/internal/api/service/param"
+	"{{.PackagePath}}/internal/resp"
+	"github.com/labstack/echo/v4"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+// Mock{{.Pascal}}UseCase 模拟业务逻辑接口
+type Mock{{.Pascal}}UseCase struct {
+	mock.Mock
+}
+
+{{range .Operations}}
+{{if eq .MethodName "Create"}}
+func (m *Mock{{$.Pascal}}UseCase) {{.MethodName}}(ctx context.Context, req param.{{$.Pascal}}{{.MethodName}}Request) error {
+	args := m.Called(ctx, req)
+	return args.Error(0)
+}
+{{else if eq .MethodName "ListUsers"}}
+func (m *Mock{{$.Pascal}}UseCase) {{.MethodName}}(ctx context.Context, req param.{{$.Pascal}}{{.MethodName}}Request) ([]param.{{$.Pascal}}ListItem, int64, error) {
+	args := m.Called(ctx, req)
+	return args.Get(0).([]param.{{$.Pascal}}ListItem), args.Get(1).(int64), args.Error(2)
+}
+{{else if eq .MethodName "GetByID"}}
+func (m *Mock{{$.Pascal}}UseCase) {{.MethodName}}(ctx context.Context, id int64) (*param.{{$.Pascal}}Data, error) {
+	args := m.Called(ctx, id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*param.{{$.Pascal}}Data), args.Error(1)
+}
+{{else if eq .MethodName "Update"}}
+func (m *Mock{{$.Pascal}}UseCase) {{.MethodName}}(ctx context.Context, id int64, req param.{{$.Pascal}}{{.MethodName}}Request) error {
+	args := m.Called(ctx, id, req)
+	return args.Error(0)
+}
+{{else if eq .MethodName "Delete"}}
+func (m *Mock{{$.Pascal}}UseCase) {{.MethodName}}(ctx context.Context, id int64) error {
+	args := m.Called(ctx, id)
+	return args.Error(0)
+}
+{{end}}
+{{end}}
+
+{{range .Operations}}
+func Test{{$.Pascal}}Controller_{{.MethodName}}(t *testing.T) {
+	// 创建模拟对象
+	mockUseCase := new(Mock{{$.Pascal}}UseCase)
+	controller := &{{$.Pascal}}Controller{user: mockUseCase}
+
+	// 创建测试请求
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	// 设置模拟期望
+	{{if eq .MethodName "Create"}}
+	mockUseCase.On("{{.MethodName}}", mock.Anything, mock.Anything).Return(nil)
+	{{else if eq .MethodName "ListUsers"}}
+	mockUseCase.On("{{.MethodName}}", mock.Anything, mock.Anything).Return([]param.{{$.Pascal}}ListItem{}, int64(0), nil)
+	{{else if eq .MethodName "GetByID"}}
+	mockUseCase.On("{{.MethodName}}", mock.Anything, mock.Anything).Return(nil, nil)
+	{{else if eq .MethodName "Update"}}
+	mockUseCase.On("{{.MethodName}}", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	{{else if eq .MethodName "Delete"}}
+	mockUseCase.On("{{.MethodName}}", mock.Anything, mock.Anything).Return(nil)
+	{{end}}
+
+	// 执行测试
+	err := controller.{{.MethodName}}(c)
+
+	// 验证结果
+	assert.NoError(t, err)
+	mockUseCase.AssertExpectations(t)
+}
+
+func Test{{$.Pascal}}Controller_{{.MethodName}}_Error(t *testing.T) {
+	// 创建模拟对象
+	mockUseCase := new(Mock{{$.Pascal}}UseCase)
+	controller := &{{$.Pascal}}Controller{user: mockUseCase}
+
+	// 创建测试请求
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	// 设置模拟期望返回错误
+	{{if eq .MethodName "Create"}}
+	mockUseCase.On("{{.MethodName}}", mock.Anything, mock.Anything).Return(assert.AnError)
+	{{else if eq .MethodName "ListUsers"}}
+	mockUseCase.On("{{.MethodName}}", mock.Anything, mock.Anything).Return([]param.{{$.Pascal}}ListItem{}, int64(0), assert.AnError)
+	{{else if eq .MethodName "GetByID"}}
+	mockUseCase.On("{{.MethodName}}", mock.Anything, mock.Anything).Return(nil, assert.AnError)
+	{{else if eq .MethodName "Update"}}
+	mockUseCase.On("{{.MethodName}}", mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+	{{else if eq .MethodName "Delete"}}
+	mockUseCase.On("{{.MethodName}}", mock.Anything, mock.Anything).Return(assert.AnError)
+	{{end}}
+
+	// 执行测试
+	err := controller.{{.MethodName}}(c)
+
+	// 验证结果
+	assert.Error(t, err)
+	mockUseCase.AssertExpectations(t)
+}
+{{end}}

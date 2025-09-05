@@ -1,0 +1,35 @@
+/*
+ * Generated from OpenAPI3 document
+ * Module: {{.Pascal}}
+ */
+
+package param
+
+import (
+	"time"
+)
+
+{{range .Operations}}
+{{if .HasRequestBodyOrQuery}}
+// {{$.Pascal}}{{.MethodName}}Request {{.Summary}}
+type {{$.Pascal}}{{.MethodName}}Request struct {
+{{range .QueryParameters}}
+	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if .Required}} validate:"required"{{end}}` // {{.Description}}
+{{end}}
+{{if .RequestBody}}
+{{range .RequestBody.Fields}}
+	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if .Required}} validate:"required"{{end}}{{if .ValidationRules}} validate:"{{.ValidationRules}}"{{end}}` // {{.Description}}
+{{end}}
+{{end}}
+}
+{{end}}
+{{end}}
+
+{{range .ResponseDataTypes}}
+// {{$.Pascal}}{{.GoType}} {{.Description}}
+type {{$.Pascal}}{{.GoType}} struct {
+{{range .Fields}}
+	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"` // {{.Description}}
+{{end}}
+}
+{{end}}

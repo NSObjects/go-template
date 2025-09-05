@@ -126,24 +126,232 @@ func parseOperation(method, path string, operation *Operation, openapi *OpenAPI3
 	}
 
 	// 处理参数
+	var queryParams []Parameter
 	for _, param := range operation.Parameters {
 		// 处理引用参数
 		if param.Ref != "" {
 			refParam := resolveParameterRef(param.Ref, openapi)
 			if refParam != nil {
-				op.Parameters = append(op.Parameters, *refParam)
+				param = *refParam
 			}
-		} else {
-			op.Parameters = append(op.Parameters, param)
 		}
+
+		// 添加生成相关字段
+		param.GoType = GenerateGoTypeFromParam(param)
+		param.FieldName = GenerateFieldName(param.Name)
+		param.ValidationRules = GenerateValidationRules(param.Schema)
+
+		// 分离路径参数和查询参数
+		if param.In == "query" {
+			queryParams = append(queryParams, param)
+		}
+
+		op.Parameters = append(op.Parameters, param)
 	}
+
+	// 设置查询参数
+	op.QueryParameters = queryParams
+
+	// 判断是否有请求体或查询参数
+	op.HasRequestBodyOrQuery = len(queryParams) > 0 || operation.RequestBody != nil
 
 	// 确定标签
 	if len(operation.Tags) > 0 {
 		op.Tag = operation.Tags[0]
 	}
 
+	// 生成方法名
+	op.MethodName = GenerateMethodName(op)
+
+	// 处理响应数据
+	op.ResponseData = parseResponseData(operation.Responses, openapi)
+
+	// 处理请求体字段
+	if operation.RequestBody != nil {
+		op.RequestBody = parseRequestBodyFields(operation.RequestBody, openapi)
+	}
+
 	return op
+}
+
+// parseResponseData 解析响应数据
+func parseResponseData(responses map[string]Response, openapi *OpenAPI3) *ResponseData {
+	// 查找200响应
+	if response200, ok := responses["200"]; ok {
+		if response200.Content != nil {
+			if jsonContent, ok := response200.Content["application/json"]; ok && jsonContent.Schema != nil {
+				return parseSchemaToResponseData(jsonContent.Schema, openapi)
+			}
+		}
+	}
+	return nil
+}
+
+// parseSchemaToResponseData 将Schema转换为ResponseData
+func parseSchemaToResponseData(schema *Schema, openapi *OpenAPI3) *ResponseData {
+	if schema == nil {
+		return nil
+	}
+
+	// 处理引用
+	if schema.Ref != "" {
+		refSchema := ResolveSchemaRef(schema.Ref, openapi)
+		if refSchema != nil {
+			return parseSchemaToResponseData(refSchema, openapi)
+		}
+		return nil
+	}
+
+	// 处理对象类型，查找 data 字段
+	if schema.Type == "object" && schema.Properties != nil {
+		// 查找 data 字段
+		if dataSchema, ok := schema.Properties["data"]; ok {
+			return parseDataSchema(dataSchema, openapi)
+		}
+	}
+
+	return nil
+}
+
+// parseDataSchema 解析 data 字段的 Schema
+func parseDataSchema(schema *Schema, openapi *OpenAPI3) *ResponseData {
+	if schema == nil {
+		return nil
+	}
+
+	// 处理引用
+	if schema.Ref != "" {
+		refSchema := ResolveSchemaRef(schema.Ref, openapi)
+		if refSchema != nil {
+			return parseDataSchema(refSchema, openapi)
+		}
+		return nil
+	}
+
+	// 处理数组类型（list 结构）
+	if schema.Type == "array" && schema.Items != nil {
+		itemSchema := schema.Items
+		if itemSchema.Ref != "" {
+			refSchema := ResolveSchemaRef(itemSchema.Ref, openapi)
+			if refSchema != nil {
+				itemSchema = refSchema
+			}
+		}
+
+		if itemSchema != nil && itemSchema.Type == "object" && itemSchema.Properties != nil {
+			var fields []Field
+			for name, propSchema := range itemSchema.Properties {
+				required := false
+				for _, req := range itemSchema.Required {
+					if req == name {
+						required = true
+						break
+					}
+				}
+				fields = append(fields, GenerateField(name, propSchema, required))
+			}
+
+			return &ResponseData{
+				GoType:      "ListItem", // 列表项类型
+				Description: itemSchema.Description,
+				Fields:      fields,
+			}
+		}
+	}
+
+	// 处理对象类型（单个对象）
+	if schema.Type == "object" && schema.Properties != nil {
+		var fields []Field
+		for name, propSchema := range schema.Properties {
+			required := false
+			for _, req := range schema.Required {
+				if req == name {
+					required = true
+					break
+				}
+			}
+			fields = append(fields, GenerateField(name, propSchema, required))
+		}
+
+		return &ResponseData{
+			GoType:      "Data", // 单个数据对象
+			Description: schema.Description,
+			Fields:      fields,
+		}
+	}
+
+	return nil
+}
+
+// parseSchemaToFields 将Schema转换为字段列表
+func parseSchemaToFields(schema *Schema, openapi *OpenAPI3) []Field {
+	if schema == nil {
+		return nil
+	}
+
+	// 处理引用
+	if schema.Ref != "" {
+		refSchema := ResolveSchemaRef(schema.Ref, openapi)
+		if refSchema != nil {
+			return parseSchemaToFields(refSchema, openapi)
+		}
+		return nil
+	}
+
+	// 处理对象类型
+	if schema.Type == "object" && schema.Properties != nil {
+		var fields []Field
+		for name, propSchema := range schema.Properties {
+			required := false
+			for _, req := range schema.Required {
+				if req == name {
+					required = true
+					break
+				}
+			}
+			fields = append(fields, GenerateField(name, propSchema, required))
+		}
+		return fields
+	}
+
+	return nil
+}
+
+// parseRequestBodyFields 解析请求体字段
+func parseRequestBodyFields(requestBody *RequestBody, openapi *OpenAPI3) *RequestBody {
+	if requestBody == nil {
+		return nil
+	}
+
+	// 处理引用
+	if requestBody.Ref != "" {
+		refRequestBody := resolveRequestBodyRef(requestBody.Ref, openapi)
+		if refRequestBody != nil {
+			return parseRequestBodyFields(refRequestBody, openapi)
+		}
+		return requestBody
+	}
+
+	// 处理JSON内容
+	if jsonContent, ok := requestBody.Content["application/json"]; ok && jsonContent.Schema != nil {
+		// 解析请求体字段
+		requestBody.Fields = parseSchemaToFields(jsonContent.Schema, openapi)
+		return requestBody
+	}
+
+	return requestBody
+}
+
+// resolveRequestBodyRef 解析请求体引用
+func resolveRequestBodyRef(ref string, openapi *OpenAPI3) *RequestBody {
+	// 移除 #/components/requestBodies/ 前缀
+	if strings.HasPrefix(ref, "#/components/requestBodies/") {
+		bodyName := strings.TrimPrefix(ref, "#/components/requestBodies/")
+		if body, exists := openapi.Components.RequestBodies[bodyName]; exists {
+			return body
+		}
+	}
+	return nil
 }
 
 // resolveParameterRef 解析参数引用

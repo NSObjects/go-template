@@ -1,0 +1,247 @@
+openapi: 3.0.0
+info:
+  title: User API
+  description: 用户管理API
+  version: 1.0.0
+tags:
+  - name: user
+    description: 用户管理
+paths:
+  /users:
+    get:
+      tags:
+        - user
+      summary: 获取用户列表
+      description: 获取所有用户列表
+      operationId: listUsers
+      parameters:
+        - name: page
+          in: query
+          description: 页码
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: size
+          in: query
+          description: 每页数量
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+    post:
+      tags:
+        - user
+      summary: 创建用户
+      description: 创建新用户
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/User'
+  /users/{id}:
+    get:
+      tags:
+        - user
+      summary: 获取用户详情
+      description: 根据ID获取用户详情
+      operationId: getUserById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 用户ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/User'
+    put:
+      tags:
+        - user
+      summary: 更新用户
+      description: 更新用户信息
+      operationId: updateUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 用户ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/User'
+    delete:
+      tags:
+        - user
+      summary: 删除用户
+      description: 根据ID删除用户
+      operationId: deleteUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 用户ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: 用户ID
+        username:
+          type: string
+          description: 用户名
+          minLength: 3
+          maxLength: 20
+        email:
+          type: string
+          format: email
+          description: 邮箱
+        age:
+          type: integer
+          description: 年龄
+          minimum: 0
+          maximum: 150
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+      required:
+        - id
+        - username
+        - email
+    CreateUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          description: 用户名
+          minLength: 3
+          maxLength: 20
+        email:
+          type: string
+          format: email
+          description: 邮箱
+        age:
+          type: integer
+          description: 年龄
+          minimum: 0
+          maximum: 150
+      required:
+        - username
+        - email
+    UpdateUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          description: 用户名
+          minLength: 3
+          maxLength: 20
+        email:
+          type: string
+          format: email
+          description: 邮箱
+        age:
+          type: integer
+          description: 年龄
+          minimum: 0
+          maximum: 150
