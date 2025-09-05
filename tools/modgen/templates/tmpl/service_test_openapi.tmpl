@@ -60,7 +60,7 @@ func (m *Mock{{$.Pascal}}UseCase) {{.MethodName}}(ctx context.Context, id int64)
 func Test{{$.Pascal}}Controller_{{.MethodName}}(t *testing.T) {
 	// 创建模拟对象
 	mockUseCase := new(Mock{{$.Pascal}}UseCase)
-	controller := &{{$.Pascal}}Controller{user: mockUseCase}
+	controller := &{{$.Pascal}}Controller{ {{$.Camel}}: mockUseCase }
 
 	// 创建测试请求
 	e := echo.New()
@@ -92,7 +92,7 @@ func Test{{$.Pascal}}Controller_{{.MethodName}}(t *testing.T) {
 func Test{{$.Pascal}}Controller_{{.MethodName}}_Error(t *testing.T) {
 	// 创建模拟对象
 	mockUseCase := new(Mock{{$.Pascal}}UseCase)
-	controller := &{{$.Pascal}}Controller{user: mockUseCase}
+	controller := &{{$.Pascal}}Controller{ {{$.Camel}}: mockUseCase }
 
 	// 创建测试请求
 	e := echo.New()

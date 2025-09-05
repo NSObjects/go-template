@@ -9,11 +9,7 @@ import (
 	"go.uber.org/fx"
 )
 
-var Model = fx.Options(fx.Provide(AsRoute(NewUserController),
-
-	AsRoute(NewProductController),
-),
-)
+var Model = fx.Options()
 
 func AsRoute(f any) any {
 	return fx.Annotate(

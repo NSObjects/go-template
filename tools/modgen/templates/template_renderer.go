@@ -37,35 +37,24 @@ func NewTemplateRenderer() (*TemplateRenderer, error) {
 		templates: make(map[string]*template.Template),
 	}
 
+	// 获取当前工作目录
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("无法获取工作目录: %v", err)
+	}
+
+	// 构建模板目录路径
+	templateDir := filepath.Join(wd, "tools", "modgen", "templates", "tmpl")
+
 	// 加载所有模板
-	templates := []string{"biz", "service", "param", "model", "code", "biz_test", "service_test", "param_openapi", "service_test_openapi", "biz_openapi", "service_openapi", "biz_test_openapi", "service_test_openapi"}
+	templates := []string{"biz", "service", "param", "model", "code", "biz_test", "service_test", "param_openapi", "service_test_openapi", "biz_openapi", "service_openapi", "biz_test_openapi"}
 	for _, name := range templates {
-		// 尝试多个可能的路径
-		paths := []string{
-			filepath.Join("tools", "modgen", "templates", "tmpl", name+".tmpl"),
-			filepath.Join("tmpl", name+".tmpl"),
-			name + ".tmpl",
-			filepath.Join("..", "templates", "tmpl", name+".tmpl"),
-			filepath.Join("..", "..", "templates", "tmpl", name+".tmpl"),
-		}
+		// 使用计算出的模板目录
+		templatePath := filepath.Join(templateDir, name+".tmpl")
 
-		// 添加绝对路径
-		if wd, err := os.Getwd(); err == nil {
-			absPath := filepath.Join(wd, "tools", "modgen", "templates", "tmpl", name+".tmpl")
-			paths = append([]string{absPath}, paths...)
-		}
-
-		var tmpl *template.Template
-		var err error
-		for _, path := range paths {
-			tmpl, err = template.ParseFiles(path)
-			if err == nil {
-				break
-			}
-		}
-
+		tmpl, err := template.ParseFiles(templatePath)
 		if err != nil {
-			return nil, fmt.Errorf("加载模板 %s 失败，尝试的路径: %v, 错误: %v", name, paths, err)
+			return nil, fmt.Errorf("加载模板 %s 失败，路径: %s, 错误: %v", name, templatePath, err)
 		}
 		tr.templates[name] = tmpl
 	}

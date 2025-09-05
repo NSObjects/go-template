@@ -6,6 +6,7 @@ package templates
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/NSObjects/go-template/tools/modgen/openapi"
 )
@@ -21,6 +22,7 @@ func RenderBizTestFromOpenAPI(module *openapi.APIModule, pascal, packagePath str
 	// 准备模板数据
 	data := TemplateData{
 		Pascal:      pascal,
+		Camel:       strings.ToLower(pascal[:1]) + pascal[1:], // 转换为camelCase
 		PackagePath: packagePath,
 		Operations:  module.Operations,
 	}
@@ -45,6 +47,7 @@ func RenderServiceTestFromOpenAPI(module *openapi.APIModule, pascal, packagePath
 	// 准备模板数据
 	data := TemplateData{
 		Pascal:      pascal,
+		Camel:       strings.ToLower(pascal[:1]) + pascal[1:], // 转换为camelCase
 		PackagePath: packagePath,
 		Operations:  module.Operations,
 	}
