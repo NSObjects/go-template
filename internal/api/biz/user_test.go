@@ -8,12 +8,11 @@ package biz
 
 import (
 	"context"
-	"testing"
-
 	"github.com/NSObjects/go-template/internal/api/data"
 	"github.com/NSObjects/go-template/internal/api/service/param"
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestUserHandler_ListUsers(t *testing.T) {
@@ -656,11 +655,11 @@ func TestUserHandler_Update(t *testing.T) {
 				id := int64(1)
 				req := param.UserUpdateRequest{
 
-					Username: "testUsername",
-
 					Email: "testEmail",
 
 					Age: 1,
+
+					Username: "testUsername",
 				}
 				return ctx, id, req
 			},
@@ -757,29 +756,13 @@ func TestUserHandler_Update_Validation(t *testing.T) {
 		},
 
 		{
-			name: "Username验证失败",
-			setupReq: func() param.UserUpdateRequest {
-				return param.UserUpdateRequest{
-
-					Email: "validEmail",
-
-					Age: 1,
-
-					Username: "a", // 无效值
-				}
-			},
-			expectError: true,
-			errorFields: []string{"Username"},
-		},
-
-		{
 			name: "Email验证失败",
 			setupReq: func() param.UserUpdateRequest {
 				return param.UserUpdateRequest{
 
-					Username: "validUsername",
-
 					Age: 1,
+
+					Username: "validUsername",
 
 					Email: "invalid-email", // 无效值
 				}
@@ -793,15 +776,31 @@ func TestUserHandler_Update_Validation(t *testing.T) {
 			setupReq: func() param.UserUpdateRequest {
 				return param.UserUpdateRequest{
 
-					Username: "validUsername",
-
 					Email: "validEmail",
+
+					Username: "validUsername",
 
 					Age: -1, // 无效值
 				}
 			},
 			expectError: true,
 			errorFields: []string{"Age"},
+		},
+
+		{
+			name: "Username验证失败",
+			setupReq: func() param.UserUpdateRequest {
+				return param.UserUpdateRequest{
+
+					Email: "validEmail",
+
+					Age: 1,
+
+					Username: "a", // 无效值
+				}
+			},
+			expectError: true,
+			errorFields: []string{"Username"},
 		},
 	}
 
@@ -905,11 +904,12 @@ func TestUserHandler_Update_EdgeCases(t *testing.T) {
 			setupReq: func() param.UserUpdateRequest {
 				return param.UserUpdateRequest{
 
-					Username: "a", // 最小长度
-
 					Email: "a", // 最小长度
 
 					Age: 1,
+
+					Username: "a", // 最小长度
+
 				}
 			},
 			description: "测试字符串字段的最小长度",
@@ -919,11 +919,12 @@ func TestUserHandler_Update_EdgeCases(t *testing.T) {
 			setupReq: func() param.UserUpdateRequest {
 				return param.UserUpdateRequest{
 
-					Username: "a", // 这里应该根据实际的最大长度设置
-
 					Email: "a", // 这里应该根据实际的最大长度设置
 
 					Age: 1,
+
+					Username: "a", // 这里应该根据实际的最大长度设置
+
 				}
 			},
 			description: "测试字符串字段的最大长度",

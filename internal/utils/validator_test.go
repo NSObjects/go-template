@@ -323,5 +323,3 @@ func TestValidator_FieldValidation(t *testing.T) {
 		})
 	}
 }
-
-

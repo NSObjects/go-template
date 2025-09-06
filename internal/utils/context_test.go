@@ -320,5 +320,3 @@ func TestExtractTraceContext_ResponseHeader(t *testing.T) {
 	// 验证从响应头中提取的RequestID
 	assert.Equal(t, "resp-req-123", trace.RequestID)
 }
-
-

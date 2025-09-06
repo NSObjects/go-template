@@ -104,5 +104,3 @@ func TestServerConfigFields(t *testing.T) {
 	assert.False(t, config.HideBanner)
 	assert.True(t, config.Debug)
 }
-
-

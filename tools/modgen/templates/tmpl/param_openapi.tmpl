@@ -16,11 +16,11 @@ import (
 // {{$.Pascal}}{{.MethodName}}Request {{.Summary}}
 type {{$.Pascal}}{{.MethodName}}Request struct {
 {{range .QueryParameters}}
-	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if .Required}} validate:"required"{{end}}{{if .ValidationRules}} validate:"{{.ValidationRules}}"{{end}}` // {{.Description}}
+	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}` // {{.Description}}
 {{end}}
 {{if .RequestBody}}
 {{range .RequestBody.Fields}}
-	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if .Required}} validate:"required"{{end}}{{if .ValidationRules}} validate:"{{.ValidationRules}}"{{end}}` // {{.Description}}
+	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}` // {{.Description}}
 {{end}}
 {{end}}
 }
