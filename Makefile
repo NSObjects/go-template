@@ -145,6 +145,7 @@ test-coverage:
 # 生成错误码和文档
 gen-code:
 	@echo "$(BLUE)[INFO]$(NC) Generating error codes and documentation..."
+	@go run tools/codegen/codegen.go -type=int ./internal/code
 	@go run tools/codegen/codegen.go -type=int -doc -output ./internal/code/error_code_generated.md ./internal/code
 	@echo "$(GREEN)[SUCCESS]$(NC) Error code generation completed"
 

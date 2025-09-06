@@ -6,12 +6,13 @@ package openapi
 
 // OpenAPI3 结构定义
 type OpenAPI3 struct {
-	OpenAPI    string              `yaml:"openapi" json:"openapi"`
-	Info       Info                `yaml:"info" json:"info"`
-	Servers    []Server            `yaml:"servers,omitempty" json:"servers,omitempty"`
-	Paths      map[string]PathItem `yaml:"paths" json:"paths"`
-	Components Components          `yaml:"components,omitempty" json:"components,omitempty"`
-	Tags       []Tag               `yaml:"tags,omitempty" json:"tags,omitempty"`
+	OpenAPI     string              `yaml:"openapi" json:"openapi"`
+	Info        Info                `yaml:"info" json:"info"`
+	Servers     []Server            `yaml:"servers,omitempty" json:"servers,omitempty"`
+	Paths       map[string]PathItem `yaml:"paths" json:"paths"`
+	Components  Components          `yaml:"components,omitempty" json:"components,omitempty"`
+	Tags        []Tag               `yaml:"tags,omitempty" json:"tags,omitempty"`
+	XErrorCodes *XErrorCodes        `yaml:"x-error-codes,omitempty" json:"x-error-codes,omitempty"`
 }
 
 type Info struct {
@@ -41,6 +42,7 @@ type Operation struct {
 	Parameters  []Parameter         `yaml:"parameters,omitempty" json:"parameters,omitempty"`
 	RequestBody *RequestBody        `yaml:"requestBody,omitempty" json:"requestBody,omitempty"`
 	Responses   map[string]Response `yaml:"responses" json:"responses"`
+	XErrorCodes []ErrorCode         `yaml:"x-error-codes,omitempty" json:"x-error-codes,omitempty"`
 }
 
 type Parameter struct {
@@ -84,6 +86,16 @@ type Schema struct {
 	Required    []string           `yaml:"required,omitempty" json:"required,omitempty"`
 	Ref         string             `yaml:"$ref,omitempty" json:"$ref,omitempty"`
 	Default     interface{}        `yaml:"default,omitempty" json:"default,omitempty"`
+	// OpenAPI 3.1 组合模式支持
+	AllOf []*Schema `yaml:"allOf,omitempty" json:"allOf,omitempty"`
+	OneOf []*Schema `yaml:"oneOf,omitempty" json:"oneOf,omitempty"`
+	AnyOf []*Schema `yaml:"anyOf,omitempty" json:"anyOf,omitempty"`
+	Not   *Schema   `yaml:"not,omitempty" json:"not,omitempty"`
+	// OpenAPI 3.1 新增字段
+	Nullable *bool    `yaml:"nullable,omitempty" json:"nullable,omitempty"`
+	Enum     []string `yaml:"enum,omitempty" json:"enum,omitempty"`
+	Const    string   `yaml:"const,omitempty" json:"const,omitempty"`
+	Examples []string `yaml:"examples,omitempty" json:"examples,omitempty"`
 	// 验证相关字段
 	MinLength *int     `yaml:"minLength,omitempty" json:"minLength,omitempty"`
 	MaxLength *int     `yaml:"maxLength,omitempty" json:"maxLength,omitempty"`
@@ -126,6 +138,7 @@ type APIOperation struct {
 	RequestBody *RequestBody
 	Responses   map[string]Response
 	Tag         string
+	XErrorCodes []ErrorCode
 	// 生成相关字段
 	MethodName            string
 	ResponseData          *ResponseData
@@ -147,4 +160,41 @@ type Field struct {
 	Description     string
 	Required        bool
 	ValidationRules string
+}
+
+// XErrorCodes 错误码注册表
+type XErrorCodes struct {
+	Meta       ErrorCodeMeta            `yaml:"meta" json:"meta"`
+	Categories map[string]ErrorCategory `yaml:"categories" json:"categories"`
+	Services   map[string]ErrorService  `yaml:"services" json:"services"`
+}
+
+// ErrorCodeMeta 错误码元信息
+type ErrorCodeMeta struct {
+	Name             string `yaml:"name" json:"name"`
+	Version          string `yaml:"version" json:"version"`
+	UpdatedAt        string `yaml:"updated_at" json:"updated_at"`
+	Pattern          string `yaml:"pattern" json:"pattern"`
+	PatternDesc      string `yaml:"pattern_desc" json:"pattern_desc"`
+	HTTPStatusPolicy string `yaml:"http_status_policy" json:"http_status_policy"`
+}
+
+// ErrorCategory 错误类别
+type ErrorCategory struct {
+	Key        string `yaml:"key" json:"key"`
+	Name       string `yaml:"name" json:"name"`
+	HTTPStatus int    `yaml:"http_status" json:"http_status"`
+}
+
+// ErrorService 错误服务
+type ErrorService struct {
+	Key  string `yaml:"key" json:"key"`
+	Name string `yaml:"name" json:"name"`
+}
+
+// ErrorCode 错误码
+type ErrorCode struct {
+	Code       int    `yaml:"code" json:"code"`
+	Message    string `yaml:"message" json:"message"`
+	HTTPStatus int    `yaml:"http_status,omitempty" json:"http_status,omitempty"`
 }

@@ -873,3 +873,33 @@ func RenderServiceTestEnhancedFromOpenAPI(module *openapi.APIModule, pascal, cam
 
 	return content
 }
+
+// RenderCodeFromOpenAPI 从OpenAPI3生成错误码模板
+func RenderCodeFromOpenAPI(module *openapi.APIModule, pascal, packagePath string) string {
+	// 使用新的模板渲染器
+	renderer, err := NewTemplateRenderer()
+	if err != nil {
+		return fmt.Sprintf("// 错误: %v", err)
+	}
+
+	// 收集所有操作中的错误码
+	var allErrorCodes []openapi.ErrorCode
+	for _, op := range module.Operations {
+		allErrorCodes = append(allErrorCodes, op.XErrorCodes...)
+	}
+
+	// 准备模板数据
+	data := TemplateData{
+		Pascal:      pascal,
+		PackagePath: packagePath,
+		ErrorCodes:  allErrorCodes,
+	}
+
+	// 渲染错误码模板
+	content, err := renderer.RenderCodeFromOpenAPI(data)
+	if err != nil {
+		return fmt.Sprintf("// 错误: %v", err)
+	}
+
+	return content
+}

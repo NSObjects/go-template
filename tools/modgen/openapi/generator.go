@@ -216,35 +216,49 @@ func GenerateGoTypeFromSchema(schema *Schema) string {
 		return refName
 	}
 
+	// 生成基础类型
+	var baseType string
 	switch schema.Type {
 	case "string":
 		if schema.Format == "date-time" {
-			return "time.Time"
+			baseType = "time.Time"
+		} else {
+			baseType = "string"
 		}
-		return "string"
 	case "integer":
 		if schema.Format == "int64" {
-			return "int64"
+			baseType = "int64"
+		} else {
+			baseType = "int"
 		}
-		return "int"
 	case "number":
 		if schema.Format == "float" {
-			return "float32"
+			baseType = "float32"
+		} else {
+			baseType = "float64"
 		}
-		return "float64"
 	case "boolean":
-		return "bool"
+		baseType = "bool"
 	case "array":
 		if schema.Items != nil {
 			itemType := GenerateGoTypeFromSchema(schema.Items)
-			return "[]" + itemType
+			baseType = "[]" + itemType
+		} else {
+			baseType = "[]interface{}"
 		}
-		return "[]interface{}"
 	case "object":
-		return "map[string]interface{}"
+		baseType = "map[string]interface{}"
 	default:
-		return "interface{}"
+		baseType = "interface{}"
 	}
+
+	// OpenAPI 3.1 支持 nullable 字段
+	if schema.Nullable != nil && *schema.Nullable {
+		// 对于可空字段，使用指针类型
+		return "*" + baseType
+	}
+
+	return baseType
 }
 
 // GenerateValidationRules 生成验证规则
@@ -296,6 +310,12 @@ func GenerateValidationRules(schema *Schema) string {
 	// URL验证
 	if schema.Format == "uri" {
 		rules = append(rules, "url")
+	}
+
+	// OpenAPI 3.1 enum 验证
+	if len(schema.Enum) > 0 {
+		enumValues := strings.Join(schema.Enum, ",")
+		rules = append(rules, fmt.Sprintf("oneof=%s", enumValues))
 	}
 
 	if len(rules) == 0 {

@@ -1,0 +1,34 @@
+package code
+
+//go:generate codegen -type=int
+//go:generate codegen -type=int -doc -output ./error_code_generated.md
+
+{{if .ErrorCodes}}
+// {{.Pascal}}相关错误码
+const (
+{{range .ErrorCodes}}
+	// Err{{$.Pascal}}{{.Code}} - {{.HTTPStatus}}: {{.Message}}.
+	Err{{$.Pascal}}{{.Code}} int = {{.Code}}
+{{end}}
+)
+{{else}}
+// {{.Pascal}}相关错误码
+const (
+	// Err{{$.Pascal}}NotFound - 404: {{.Pascal}} not found.
+	Err{{$.Pascal}}NotFound int = iota + 100000
+	// Err{{$.Pascal}}AlreadyExists - 400: {{$.Pascal}} already exists.
+	Err{{$.Pascal}}AlreadyExists
+	// Err{{$.Pascal}}InvalidData - 400: {{$.Pascal}} invalid data.
+	Err{{$.Pascal}}InvalidData
+	// Err{{$.Pascal}}PermissionDenied - 403: {{.Pascal}} permission denied.
+	Err{{$.Pascal}}PermissionDenied
+	// Err{{$.Pascal}}InUse - 400: {{.Pascal}} is in use.
+	Err{{$.Pascal}}InUse
+	// Err{{$.Pascal}}CreateFailed - 500: {{.Pascal}} create failed.
+	Err{{$.Pascal}}CreateFailed
+	// Err{{$.Pascal}} - 500: {{$.Pascal}} update failed.
+	Err{{$.Pascal}}UpdateFailed
+	// Err{{$.Pascal}}DeleteFailed - 500: {{$.Pascal}} delete failed.
+	Err{{$.Pascal}}DeleteFailed
+)
+{{end}}

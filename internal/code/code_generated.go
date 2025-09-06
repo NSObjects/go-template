@@ -8,11 +8,7 @@ package code
 
 // init register error codes defines in this source code to `github.com/marmotedu/errors`
 func init() {
-	register(ErrAuthNotFound, 404, "Auth not found")
-	register(ErrAuthAlreadyExists, 400, "Auth already exists")
-	register(ErrAuthInvalidData, 400, "Auth invalid data")
-	register(ErrAuthPermissionDenied, 403, "Auth permission denied")
-	register(ErrAuthInUse, 400, "Auth is in use")
+
 	register(ErrSuccess, 200, "OK")
 	register(ErrUnknown, 500, "Internal server error")
 	register(ErrBind, 400, "Error occurred while binding the request body to the struct")
@@ -45,4 +41,5 @@ func init() {
 	register(ErrInvalidYaml, 500, "Data is not valid Yaml")
 	register(ErrEncodingYaml, 500, "Yaml data could not be encoded")
 	register(ErrDecodingYaml, 500, "Yaml data could not be decoded")
+	
 }

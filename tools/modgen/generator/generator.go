@@ -235,7 +235,7 @@ func (g *Generator) generateSingleModuleFromOpenAPI() error {
 	utils.MustWrite(bizFile, templates.RenderBizFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
 	utils.MustWrite(svcFile, templates.RenderServiceFromOpenAPI(module, pascal, camel, baseRoute, g.config.PackagePath), g.config.Force)
 	utils.MustWrite(paramFile, templates.RenderParamFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
-	utils.MustWrite(codeFile, templates.RenderCode(pascal, g.config.Name, g.config.PackagePath), g.config.Force)
+	utils.MustWrite(codeFile, templates.RenderCodeFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
 
 	// 生成测试用例（如果启用）
 	if g.config.GenerateTests {
@@ -276,7 +276,7 @@ func (g *Generator) generateFromOpenAPIDoc(pascal, camel, baseRoute string) erro
 	utils.MustWrite(bizFile, templates.RenderBizFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
 	utils.MustWrite(svcFile, templates.RenderServiceFromOpenAPI(module, pascal, camel, baseRoute, g.config.PackagePath), g.config.Force)
 	utils.MustWrite(paramFile, templates.RenderParamFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
-	utils.MustWrite(codeFile, templates.RenderCode(pascal, g.config.Name, g.config.PackagePath), g.config.Force)
+	utils.MustWrite(codeFile, templates.RenderCodeFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
 
 	// 生成测试用例（如果启用）
 	if g.config.GenerateTests {

@@ -185,6 +185,9 @@ func parseOperation(method, path string, operation *Operation, openapi *OpenAPI3
 		op.RequestBody = parseRequestBodyFields(operation.RequestBody, openapi)
 	}
 
+	// 处理错误码
+	op.XErrorCodes = operation.XErrorCodes
+
 	return op
 }
 
@@ -225,6 +228,35 @@ func parseSchemaToResponseData(schema *Schema, openapi *OpenAPI3) *ResponseData 
 		return nil
 	}
 
+	// 处理 OpenAPI 3.1 组合模式
+	if len(schema.AllOf) > 0 {
+		// 合并 allOf 中的所有 schema
+		mergedSchema := mergeAllOfSchemas(schema.AllOf, openapi)
+		if mergedSchema != nil {
+			return parseSchemaToResponseData(mergedSchema, openapi)
+		}
+	}
+
+	// 处理 oneOf 组合模式
+	if len(schema.OneOf) > 0 {
+		// 对于 oneOf，我们选择第一个有效的 schema
+		for _, subSchema := range schema.OneOf {
+			if result := parseSchemaToResponseData(subSchema, openapi); result != nil {
+				return result
+			}
+		}
+	}
+
+	// 处理 anyOf 组合模式
+	if len(schema.AnyOf) > 0 {
+		// 对于 anyOf，我们选择第一个有效的 schema
+		for _, subSchema := range schema.AnyOf {
+			if result := parseSchemaToResponseData(subSchema, openapi); result != nil {
+				return result
+			}
+		}
+	}
+
 	// 处理对象类型，查找 data 字段
 	if schema.Type == "object" && schema.Properties != nil {
 		// 查找 data 字段
@@ -234,6 +266,81 @@ func parseSchemaToResponseData(schema *Schema, openapi *OpenAPI3) *ResponseData 
 	}
 
 	return nil
+}
+
+// mergeAllOfSchemas 合并 allOf 中的所有 schema
+func mergeAllOfSchemas(allOf []*Schema, openapi *OpenAPI3) *Schema {
+	if len(allOf) == 0 {
+		return nil
+	}
+
+	merged := &Schema{
+		Type:       "object",
+		Properties: make(map[string]*Schema),
+		Required:   []string{},
+	}
+
+	for _, schema := range allOf {
+		if schema == nil {
+			continue
+		}
+
+		// 处理引用
+		resolvedSchema := schema
+		if schema.Ref != "" {
+			resolvedSchema = ResolveSchemaRef(schema.Ref, openapi)
+			if resolvedSchema == nil {
+				continue
+			}
+		}
+
+		// 合并 properties
+		if resolvedSchema.Properties != nil {
+			for name, propSchema := range resolvedSchema.Properties {
+				merged.Properties[name] = propSchema
+			}
+		}
+
+		// 合并 required 字段
+		if resolvedSchema.Required != nil {
+			for _, req := range resolvedSchema.Required {
+				// 避免重复添加
+				found := false
+				for _, existing := range merged.Required {
+					if existing == req {
+						found = true
+						break
+					}
+				}
+				if !found {
+					merged.Required = append(merged.Required, req)
+				}
+			}
+		}
+
+		// 合并其他属性
+		if resolvedSchema.Type != "" && merged.Type == "" {
+			merged.Type = resolvedSchema.Type
+		}
+		if resolvedSchema.Description != "" && merged.Description == "" {
+			merged.Description = resolvedSchema.Description
+		}
+		// 合并 OpenAPI 3.1 字段
+		if len(resolvedSchema.Enum) > 0 && len(merged.Enum) == 0 {
+			merged.Enum = resolvedSchema.Enum
+		}
+		if resolvedSchema.Nullable != nil && merged.Nullable == nil {
+			merged.Nullable = resolvedSchema.Nullable
+		}
+		if resolvedSchema.Const != "" && merged.Const == "" {
+			merged.Const = resolvedSchema.Const
+		}
+		if len(resolvedSchema.Examples) > 0 && len(merged.Examples) == 0 {
+			merged.Examples = resolvedSchema.Examples
+		}
+	}
+
+	return merged
 }
 
 // parseDataSchema 解析 data 字段的 Schema

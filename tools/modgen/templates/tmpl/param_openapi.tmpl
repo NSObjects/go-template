@@ -13,14 +13,23 @@ import (
 
 {{range .Operations}}
 {{if .HasRequestBodyOrQuery}}
-// {{$.Pascal}}{{.MethodName}}Request {{.Summary}}
-type {{$.Pascal}}{{.MethodName}}Request struct {
+// {{$.Pascal}}{{.MethodName}}Request
+{{if .Summary}}// {{.Summary}}{{end}}
 {{range .QueryParameters}}
-	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}` // {{.Description}}
+{{if .Description}}// {{.FieldName}} {{.Description}}{{end}}
 {{end}}
 {{if .RequestBody}}
 {{range .RequestBody.Fields}}
-	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}` // {{.Description}}
+{{if .Description}}// {{.FieldName}} {{.Description}}{{end}}
+{{end}}
+{{end}}
+type {{$.Pascal}}{{.MethodName}}Request struct {
+{{range .QueryParameters}}
+	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}`
+{{end}}
+{{if .RequestBody}}
+{{range .RequestBody.Fields}}
+	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}`
 {{end}}
 {{end}}
 }
@@ -28,10 +37,14 @@ type {{$.Pascal}}{{.MethodName}}Request struct {
 {{end}}
 
 {{range .ResponseDataTypes}}
-// {{$.Pascal}}{{.GoType}} {{.Description}}
+// {{$.Pascal}}{{.GoType}}
+{{if .Description}}// {{.Description}}{{end}}
+{{range .Fields}}
+{{if .Description}}// {{.FieldName}} {{.Description}}{{end}}
+{{end}}
 type {{$.Pascal}}{{.GoType}} struct {
 {{range .Fields}}
-	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"` // {{.Description}}
+	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}`
 {{end}}
 }
 {{end}}

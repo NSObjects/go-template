@@ -28,6 +28,7 @@ type TemplateData struct {
 	HasTimeFields         bool                   // 是否包含时间字段
 	HasPathParams         bool                   // 是否包含路径参数
 	HasRequestBodyOrQuery bool                   // 是否包含请求体或查询参数
+	ErrorCodes            []openapi.ErrorCode    // 错误码列表
 }
 
 // TemplateRenderer 模板渲染器
@@ -51,7 +52,7 @@ func NewTemplateRenderer() (*TemplateRenderer, error) {
 	templateDir := filepath.Join(wd, "tools", "modgen", "templates", "tmpl")
 
 	// 加载所有模板
-	templates := []string{"biz", "service", "param", "model", "code", "biz_test", "service_test", "param_openapi", "service_test_openapi", "biz_openapi", "service_openapi", "biz_test_openapi", "service_test_enhanced", "biz_test_enhanced"}
+	templates := []string{"biz", "service", "param", "model", "code", "biz_test", "service_test", "param_openapi", "service_test_openapi", "biz_openapi", "service_openapi", "biz_test_openapi", "service_test_enhanced", "biz_test_enhanced", "code_openapi"}
 	for _, name := range templates {
 		// 使用计算出的模板目录
 		templatePath := filepath.Join(templateDir, name+".tmpl")
@@ -168,4 +169,9 @@ func (tr *TemplateRenderer) RenderServiceTestEnhanced(data TemplateData) (string
 // RenderBizTestEnhanced 生成增强的业务逻辑测试模板
 func (tr *TemplateRenderer) RenderBizTestEnhanced(data TemplateData) (string, error) {
 	return tr.Render("biz_test_enhanced", data)
+}
+
+// RenderCodeFromOpenAPI 从OpenAPI数据渲染错误码模板
+func (tr *TemplateRenderer) RenderCodeFromOpenAPI(data TemplateData) (string, error) {
+	return tr.Render("code_openapi", data)
 }
