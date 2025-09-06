@@ -99,9 +99,9 @@ make test-coverage            # 生成测试覆盖率报告
 ```bash
 # 生成API模块
 make gen-module NAME=user                    # 生成基础模块
-make gen-module-tests NAME=user              # 生成模块和测试用例
+make gen-module-tests NAME=user              # 生成模块和测试用例（Table-driven测试）
 make gen-module-openapi NAME=user            # 从OpenAPI生成模块（使用默认文档）
-make gen-module-openapi-tests NAME=user      # 从OpenAPI生成模块和测试
+make gen-module-openapi-tests NAME=user      # 从OpenAPI生成模块和测试（Table-driven测试）
 make gen-module-route NAME=order ROUTE=/api/v1/orders  # 生成自定义路由模块
 
 # 生成数据库映射
@@ -158,7 +158,7 @@ make gen-module-openapi NAME=user
 # 使用自定义OpenAPI文档
 make gen-module-openapi NAME=user OPENAPI=custom.yaml
 
-# 生成模块并包含测试用例
+# 生成模块并包含测试用例（Table-driven测试）
 make gen-module-openapi-tests NAME=user
 ```
 
@@ -242,11 +242,22 @@ type ISearchQuery interface {
 ### 3. 完整的开发流程
 
 1. **设计API接口** - 在 `doc/openapi.yaml` 中定义API规范
-2. **生成API模块** - 使用 `make gen-module-openapi-tests NAME=user` 生成完整的业务模块
+2. **生成API模块** - 使用 `make gen-module-openapi-tests NAME=user` 生成完整的业务模块和测试用例
 3. **生成数据库映射** - 使用 `make db-gen-dynamic` 生成Dynamic SQL查询
 4. **实现业务逻辑** - 在生成的 `biz` 层实现具体的业务逻辑
 5. **运行测试** - 使用 `make test` 验证功能
 6. **启动服务** - 使用 `make run` 启动服务
+
+### 4. 测试用例特性
+
+测试用例提供以下功能：
+
+- **Table-driven测试**: 使用Go标准的table-driven测试模式
+- **全面覆盖**: 自动生成成功场景、错误场景、边界值测试
+- **参数验证**: 自动测试OpenAPI定义的参数验证规则
+- **Mock支持**: 自动生成Mock对象和测试数据
+- **Echo框架兼容**: 正确处理Echo框架的请求和响应
+- **类型安全**: 所有测试代码都是类型安全的，编译时检查
 
 ## 📚 使用示例
 
@@ -356,7 +367,7 @@ users, err := q.User.GetByField("email", "admin@example.com")
 
 - **OpenAPI3支持**: 从OpenAPI3文档自动生成完整的API模块
 - **默认模板**: 快速生成标准的CRUD API模块
-- **测试用例**: 自动生成业务逻辑和服务层测试用例
+- **测试用例**: 自动生成Table-driven测试用例，全面覆盖OpenAPI定义的所有场景
 - **依赖注入**: 自动注册到fx.Options
 - **默认值支持**: OpenAPI命令支持默认文档路径
 

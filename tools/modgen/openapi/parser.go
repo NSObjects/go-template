@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/NSObjects/go-template/tools/modgen/utils"
 	"gopkg.in/yaml.v2"
 )
 
@@ -43,13 +44,16 @@ func ParseOpenAPI3(filePath string) (*OpenAPI3, error) {
 
 // GenerateFromOpenAPI 从OpenAPI3文档生成API模块
 func GenerateFromOpenAPI(openapi *OpenAPI3, moduleName string) (*APIModule, error) {
+	// 清理模块名
+	cleanModuleName := utils.CleanModuleName(moduleName)
+
 	// 验证模块名称是否在OpenAPI文档中存在
 	if !validateModuleExists(openapi, moduleName) {
 		return nil, fmt.Errorf("OpenAPI文档中没有找到模块 '%s' 的相关接口。请检查OpenAPI文档中的tags或确保模块名称正确", moduleName)
 	}
 
 	module := &APIModule{
-		Name:          moduleName,
+		Name:          cleanModuleName,
 		Operations:    []APIOperation{},
 		Schemas:       make(map[string]*Schema),
 		Parameters:    make(map[string]*Parameter),
@@ -155,6 +159,16 @@ func parseOperation(method, path string, operation *Operation, openapi *OpenAPI3
 	// 判断是否有请求体或查询参数
 	op.HasRequestBodyOrQuery = len(queryParams) > 0 || operation.RequestBody != nil
 
+	// 判断是否有路径参数
+	hasPathParams := false
+	for _, param := range operation.Parameters {
+		if param.In == "path" {
+			hasPathParams = true
+			break
+		}
+	}
+	op.HasPathParams = hasPathParams
+
 	// 确定标签
 	if len(operation.Tags) > 0 {
 		op.Tag = operation.Tags[0]
@@ -178,6 +192,15 @@ func parseOperation(method, path string, operation *Operation, openapi *OpenAPI3
 func parseResponseData(responses map[string]Response, openapi *OpenAPI3) *ResponseData {
 	// 查找200响应
 	if response200, ok := responses["200"]; ok {
+		// 处理 $ref 引用
+		if response200.Ref != "" {
+			// 解析引用
+			refResponse := resolveResponseRef(response200.Ref, openapi)
+			if refResponse != nil {
+				return parseResponseData(map[string]Response{"200": *refResponse}, openapi)
+			}
+		}
+
 		if response200.Content != nil {
 			if jsonContent, ok := response200.Content["application/json"]; ok && jsonContent.Schema != nil {
 				return parseSchemaToResponseData(jsonContent.Schema, openapi)
@@ -256,11 +279,39 @@ func parseDataSchema(schema *Schema, openapi *OpenAPI3) *ResponseData {
 				Description: itemSchema.Description,
 				Fields:      fields,
 			}
+		} else if itemSchema != nil && itemSchema.Type == "object" && itemSchema.Properties == nil {
+			// 处理空的 object 类型，生成默认的 ListItem
+			return &ResponseData{
+				GoType:      "ListItem", // 列表项类型
+				Description: "列表项",
+				Fields:      []Field{}, // 空字段列表
+			}
+		} else if itemSchema != nil {
+			// 处理其他类型，生成默认的 ListItem
+			return &ResponseData{
+				GoType:      "ListItem", // 列表项类型
+				Description: "列表项",
+				Fields:      []Field{}, // 空字段列表
+			}
 		}
 	}
 
 	// 处理对象类型（单个对象）
-	if schema.Type == "object" && schema.Properties != nil {
+	if (schema.Type == "object" || schema.Type == "") && (schema.Properties != nil || len(schema.Properties) == 0) {
+		// 检查是否有 list 字段（列表响应）
+		if listSchema, ok := schema.Properties["list"]; ok {
+			return parseDataSchema(listSchema, openapi)
+		}
+
+		// 检查是否有 total 字段（列表响应结构）
+		if _, hasTotal := schema.Properties["total"]; hasTotal {
+			// 这是一个列表响应结构，查找 list 字段
+			if listSchema, ok := schema.Properties["list"]; ok {
+				return parseDataSchema(listSchema, openapi)
+			}
+		}
+
+		// 普通对象类型
 		var fields []Field
 		for name, propSchema := range schema.Properties {
 			required := false
@@ -271,6 +322,18 @@ func parseDataSchema(schema *Schema, openapi *OpenAPI3) *ResponseData {
 				}
 			}
 			fields = append(fields, GenerateField(name, propSchema, required))
+		}
+
+		// 如果对象为空（如 SingleResponse 的 data: {}），生成一个默认的 Data 类型
+		if len(fields) == 0 {
+			fields = []Field{
+				{
+					Name:      "ID",
+					GoType:    "int64",
+					FieldName: "ID",
+					Required:  false,
+				},
+			}
 		}
 
 		return &ResponseData{
@@ -378,11 +441,27 @@ func ResolveSchemaRef(ref string, openapi *OpenAPI3) *Schema {
 	return nil
 }
 
+// resolveResponseRef 解析Response引用
+func resolveResponseRef(ref string, openapi *OpenAPI3) *Response {
+	// 移除 #/components/responses/ 前缀
+	if strings.HasPrefix(ref, "#/components/responses/") {
+		responseName := strings.TrimPrefix(ref, "#/components/responses/")
+		if response, exists := openapi.Components.Responses[responseName]; exists {
+			return response
+		}
+	}
+	return nil
+}
+
 // validateModuleExists 验证模块是否在OpenAPI文档中存在
 func validateModuleExists(openapi *OpenAPI3, moduleName string) bool {
 	// 检查tags中是否有对应的模块名称
 	for _, tag := range openapi.Tags {
 		if strings.EqualFold(tag.Name, moduleName) {
+			return true
+		}
+		// 也检查清理后的名称是否匹配
+		if strings.EqualFold(utils.CleanModuleName(tag.Name), moduleName) {
 			return true
 		}
 	}
@@ -394,6 +473,10 @@ func validateModuleExists(openapi *OpenAPI3, moduleName string) bool {
 			if op != nil {
 				for _, tag := range op.Tags {
 					if strings.EqualFold(tag, moduleName) {
+						return true
+					}
+					// 也检查清理后的名称是否匹配
+					if strings.EqualFold(utils.CleanModuleName(tag), moduleName) {
 						return true
 					}
 				}
@@ -429,10 +512,11 @@ func ExtractAllModuleNames(openapi *OpenAPI3) ([]string, error) {
 		}
 	}
 
-	// 转换为切片
+	// 转换为切片，并清理模块名
 	var moduleNames []string
 	for moduleName := range moduleSet {
-		moduleNames = append(moduleNames, moduleName)
+		cleanName := utils.CleanModuleName(moduleName)
+		moduleNames = append(moduleNames, cleanName)
 	}
 
 	if len(moduleNames) == 0 {

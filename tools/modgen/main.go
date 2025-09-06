@@ -26,7 +26,7 @@ func main() {
 	flag.StringVar(&route, "route", "", "基础路由前缀，例如: /articles (默认使用 name 的复数形式)")
 	flag.BoolVar(&force, "force", false, "若目标文件已存在则覆盖")
 	flag.StringVar(&openapiFile, "openapi", "", "OpenAPI3文档路径，例如: doc/openapi.yaml")
-	flag.BoolVar(&generateTests, "tests", false, "同时生成测试用例")
+	flag.BoolVar(&generateTests, "tests", false, "同时生成测试用例（Table-driven测试）")
 	flag.BoolVar(&generateAll, "all", false, "生成所有API模块（需要指定OpenAPI文档）")
 	flag.Parse()
 

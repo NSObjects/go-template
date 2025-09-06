@@ -19,11 +19,15 @@ func RenderBizFromOpenAPI(module *openapi.APIModule, pascal, packagePath string)
 		return fmt.Sprintf("// 错误: %v", err)
 	}
 
+	// 检查是否有请求体或查询参数
+	hasRequestBodyOrQuery := checkHasRequestBodyOrQuery(module.Operations)
+
 	// 准备模板数据
 	data := TemplateData{
-		Pascal:      pascal,
-		PackagePath: packagePath,
-		Operations:  module.Operations,
+		Pascal:                pascal,
+		PackagePath:           packagePath,
+		Operations:            module.Operations,
+		HasRequestBodyOrQuery: hasRequestBodyOrQuery,
 	}
 
 	// 渲染模板
@@ -43,12 +47,19 @@ func RenderServiceFromOpenAPI(module *openapi.APIModule, pascal, camel, baseRout
 		return fmt.Sprintf("// 错误: %v", err)
 	}
 
+	// 检查是否有路径参数
+	hasPathParams := checkHasPathParams(module.Operations)
+	// 检查是否有请求体或查询参数
+	hasRequestBodyOrQuery := checkHasRequestBodyOrQuery(module.Operations)
+
 	// 准备模板数据
 	data := TemplateData{
-		Pascal:      pascal,
-		Camel:       camel,
-		PackagePath: packagePath,
-		Operations:  module.Operations,
+		Pascal:                pascal,
+		Camel:                 camel,
+		PackagePath:           packagePath,
+		Operations:            module.Operations,
+		HasPathParams:         hasPathParams,
+		HasRequestBodyOrQuery: hasRequestBodyOrQuery,
 	}
 
 	// 渲染模板
@@ -68,20 +79,23 @@ func RenderParamFromOpenAPI(module *openapi.APIModule, pascal, packagePath strin
 		return fmt.Sprintf("// 错误: %v", err)
 	}
 
-	// 检查是否包含时间字段
-	hasTimeFields := checkHasTimeFields(module.Operations)
+	// 检查是否包含时间字段（包括所有字段）
+	hasTimeFields := checkHasTimeFieldsAll(module.Operations)
 
 	// 检查是否有路径参数
 	hasPathParams := checkHasPathParams(module.Operations)
+	// 检查是否有请求体或查询参数
+	hasRequestBodyOrQuery := checkHasRequestBodyOrQuery(module.Operations)
 
 	// 准备模板数据
 	data := TemplateData{
-		Pascal:            pascal,
-		PackagePath:       packagePath,
-		Operations:        module.Operations,
-		ResponseDataTypes: deduplicateResponseData(module.Operations),
-		HasTimeFields:     hasTimeFields,
-		HasPathParams:     hasPathParams,
+		Pascal:                pascal,
+		PackagePath:           packagePath,
+		Operations:            module.Operations,
+		ResponseDataTypes:     deduplicateResponseData(module.Operations),
+		HasTimeFields:         hasTimeFields,
+		HasPathParams:         hasPathParams,
+		HasRequestBodyOrQuery: hasRequestBodyOrQuery,
 	}
 
 	// 渲染模板
@@ -725,12 +739,12 @@ func generateValidationTags(schema *openapi.Schema, isRequired bool) string {
 	return fmt.Sprintf("validate:\"%s\"", strings.Join(tags, ","))
 }
 
-// checkHasTimeFields 检查操作中是否包含时间字段
+// checkHasTimeFields 检查操作中是否包含时间字段（仅检查请求体和查询参数，不检查响应数据）
 func checkHasTimeFields(operations []openapi.APIOperation) bool {
 	for _, op := range operations {
 		// 检查查询参数
 		for _, param := range op.QueryParameters {
-			if strings.Contains(strings.ToLower(param.GoType), "time") {
+			if param.GoType == "time.Time" {
 				return true
 			}
 		}
@@ -738,7 +752,29 @@ func checkHasTimeFields(operations []openapi.APIOperation) bool {
 		// 检查请求体字段
 		if op.RequestBody != nil {
 			for _, field := range op.RequestBody.Fields {
-				if strings.Contains(strings.ToLower(field.GoType), "time") {
+				if field.GoType == "time.Time" {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// checkHasTimeFieldsAll 检查操作中是否包含时间字段（包括所有字段：请求体、查询参数、响应数据）
+func checkHasTimeFieldsAll(operations []openapi.APIOperation) bool {
+	for _, op := range operations {
+		// 检查查询参数
+		for _, param := range op.QueryParameters {
+			if param.GoType == "time.Time" {
+				return true
+			}
+		}
+
+		// 检查请求体字段
+		if op.RequestBody != nil {
+			for _, field := range op.RequestBody.Fields {
+				if field.GoType == "time.Time" {
 					return true
 				}
 			}
@@ -747,7 +783,7 @@ func checkHasTimeFields(operations []openapi.APIOperation) bool {
 		// 检查响应数据字段
 		if op.ResponseData != nil {
 			for _, field := range op.ResponseData.Fields {
-				if strings.Contains(strings.ToLower(field.GoType), "time") {
+				if field.GoType == "time.Time" {
 					return true
 				}
 			}
@@ -759,12 +795,81 @@ func checkHasTimeFields(operations []openapi.APIOperation) bool {
 // checkHasPathParams 检查操作中是否包含路径参数
 func checkHasPathParams(operations []openapi.APIOperation) bool {
 	for _, op := range operations {
-		// 检查是否有需要路径参数的方法（GetByID, Update, Delete等）
-		if strings.HasPrefix(op.MethodName, "Get") ||
-			strings.HasPrefix(op.MethodName, "Update") ||
-			strings.HasPrefix(op.MethodName, "Delete") {
+		if op.HasPathParams {
 			return true
 		}
 	}
 	return false
+}
+
+// checkHasRequestBodyOrQuery 检查操作中是否包含请求体或查询参数
+func checkHasRequestBodyOrQuery(operations []openapi.APIOperation) bool {
+	for _, op := range operations {
+		if op.HasRequestBodyOrQuery {
+			return true
+		}
+	}
+	return false
+}
+
+// RenderBizTestEnhancedFromOpenAPI 从OpenAPI3生成增强的业务逻辑测试模板
+func RenderBizTestEnhancedFromOpenAPI(module *openapi.APIModule, pascal, camel, packagePath string) string {
+	// 使用新的模板渲染器
+	renderer, err := NewTemplateRenderer()
+	if err != nil {
+		return fmt.Sprintf("// 错误: %v", err)
+	}
+
+	// 检查是否包含时间字段
+	hasTimeFields := checkHasTimeFields(module.Operations)
+
+	// 准备模板数据
+	data := TemplateData{
+		Pascal:                pascal,
+		Camel:                 camel,
+		PackagePath:           packagePath,
+		Operations:            module.Operations,
+		HasTimeFields:         hasTimeFields,
+		HasPathParams:         checkHasPathParams(module.Operations),
+		HasRequestBodyOrQuery: checkHasRequestBodyOrQuery(module.Operations),
+	}
+
+	// 渲染增强模板
+	content, err := renderer.RenderBizTestEnhanced(data)
+	if err != nil {
+		return fmt.Sprintf("// 错误: %v", err)
+	}
+
+	return content
+}
+
+// RenderServiceTestEnhancedFromOpenAPI 从OpenAPI3生成增强的服务层测试模板
+func RenderServiceTestEnhancedFromOpenAPI(module *openapi.APIModule, pascal, camel, packagePath string) string {
+	// 使用新的模板渲染器
+	renderer, err := NewTemplateRenderer()
+	if err != nil {
+		return fmt.Sprintf("// 错误: %v", err)
+	}
+
+	// 检查是否包含时间字段
+	hasTimeFields := checkHasTimeFields(module.Operations)
+
+	// 准备模板数据
+	data := TemplateData{
+		Pascal:                pascal,
+		Camel:                 camel,
+		PackagePath:           packagePath,
+		Operations:            module.Operations,
+		HasTimeFields:         hasTimeFields,
+		HasPathParams:         checkHasPathParams(module.Operations),
+		HasRequestBodyOrQuery: checkHasRequestBodyOrQuery(module.Operations),
+	}
+
+	// 渲染增强模板
+	content, err := renderer.RenderServiceTestEnhanced(data)
+	if err != nil {
+		return fmt.Sprintf("// 错误: %v", err)
+	}
+
+	return content
 }

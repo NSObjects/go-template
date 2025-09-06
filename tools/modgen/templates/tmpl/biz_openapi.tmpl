@@ -6,16 +6,16 @@
 package biz
 
 import (
-	"context"
+	{{if .Operations}}"context"{{end}}
 	"{{.PackagePath}}/internal/api/data"
-	"{{.PackagePath}}/internal/api/service/param"
+	{{if .Operations}}"{{.PackagePath}}/internal/api/service/param"{{end}}
 )
 
 // {{.Pascal}}UseCase 业务逻辑接口
 type {{.Pascal}}UseCase interface {
 {{range .Operations}}
 	// {{.MethodName}} {{.Summary}}
-	{{.MethodName}}(ctx context.Context{{if eq .MethodName "Update"}}, id int64, req param.{{$.Pascal}}{{.MethodName}}Request{{else if .HasRequestBodyOrQuery}}, req param.{{$.Pascal}}{{.MethodName}}Request{{end}}{{if eq .MethodName "GetByID" "Delete"}}, id int64{{end}}) {{if hasPrefix .MethodName "List"}}([]param.{{$.Pascal}}ListItem, int64, error){{else if eq .MethodName "GetByID"}}(*param.{{$.Pascal}}Data, error){{else}}error{{end}}
+	{{.MethodName}}(ctx context.Context{{if .HasPathParams}}, id int64{{end}}{{if .HasRequestBodyOrQuery}}, req param.{{$.Pascal}}{{.MethodName}}Request{{end}}) {{if and .ResponseData (eq .ResponseData.GoType "ListItem")}}([]param.{{$.Pascal}}ListItem, int64, error){{else if .ResponseData}}({{if eq .ResponseData.GoType "Data"}}*{{end}}param.{{$.Pascal}}{{.ResponseData.GoType}}, error){{else}}error{{end}}
 {{end}}
 }
 
@@ -35,9 +35,9 @@ func New{{.Pascal}}Handler(dataManager *data.DataManager) {{.Pascal}}UseCase {
 // TODO: 实现业务逻辑方法
 
 {{range .Operations}}
-func (h *{{$.Pascal}}Handler) {{.MethodName}}(ctx context.Context{{if eq .MethodName "Update"}}, id int64, req param.{{$.Pascal}}{{.MethodName}}Request{{else if .HasRequestBodyOrQuery}}, req param.{{$.Pascal}}{{.MethodName}}Request{{end}}{{if eq .MethodName "GetByID" "Delete"}}, id int64{{end}}) {{if hasPrefix .MethodName "List"}}([]param.{{$.Pascal}}ListItem, int64, error){{else if eq .MethodName "GetByID"}}(*param.{{$.Pascal}}Data, error){{else}}error{{end}} {
+func (h *{{$.Pascal}}Handler) {{.MethodName}}(ctx context.Context{{if .HasPathParams}}, id int64{{end}}{{if .HasRequestBodyOrQuery}}, req param.{{$.Pascal}}{{.MethodName}}Request{{end}}) {{if and .ResponseData (eq .ResponseData.GoType "ListItem")}}([]param.{{$.Pascal}}ListItem, int64, error){{else if .ResponseData}}({{if eq .ResponseData.GoType "Data"}}*{{end}}param.{{$.Pascal}}{{.ResponseData.GoType}}, error){{else}}error{{end}} {
 	// TODO: 实现业务逻辑
-	{{if hasPrefix .MethodName "List"}}
+	{{if and .ResponseData (eq .ResponseData.GoType "ListItem")}}
 	// TODO: 实现查询逻辑
 	// 使用带context的数据库查询 - context包含链路追踪信息
 	// db := h.dataManager.MySQLWithContext(ctx)
@@ -89,12 +89,15 @@ func (h *{{$.Pascal}}Handler) {{.MethodName}}(ctx context.Context{{if eq .Method
 	// 
 	// err := h.dataManager.Query.{{$.Pascal}}.WithContext(ctx).Create(&user)
 	// if err != nil {
-	// 	return err
+	// 	return nil, err
 	// }
 	// 
-	// return nil
-	return nil
-	{{else if eq .MethodName "GetByID"}}
+	// return &param.{{$.Pascal}}Data{
+	// 	ID:   user.ID,
+	// 	Name: user.Name,
+	// }, nil
+	return nil, nil
+	{{else if .ResponseData}}
 	// TODO: 实现根据ID查询逻辑
 	// 使用带context的数据库查询 - context包含链路追踪信息
 	// 
@@ -105,7 +108,7 @@ func (h *{{$.Pascal}}Handler) {{.MethodName}}(ctx context.Context{{if eq .Method
 	// 	return nil, err
 	// }
 	// 
-	// return &param.{{$.Pascal}}Response{
+	// return &param.{{$.Pascal}}Data{
 	// 	ID:   user.ID,
 	// 	Name: user.Name,
 	// }, nil

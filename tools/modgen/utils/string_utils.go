@@ -82,3 +82,53 @@ func ToSnakeCase(str string) string {
 	}
 	return strings.ToLower(string(result))
 }
+
+// CleanModuleName 清理模块名，移除或替换特殊字符
+func CleanModuleName(name string) string {
+	// 替换常见的特殊字符
+	name = strings.ReplaceAll(name, "&", "And")
+	name = strings.ReplaceAll(name, " ", "")
+	name = strings.ReplaceAll(name, "-", "")
+	name = strings.ReplaceAll(name, "_", "")
+	name = strings.ReplaceAll(name, ".", "")
+	name = strings.ReplaceAll(name, "(", "")
+	name = strings.ReplaceAll(name, ")", "")
+	name = strings.ReplaceAll(name, "[", "")
+	name = strings.ReplaceAll(name, "]", "")
+	name = strings.ReplaceAll(name, "{", "")
+	name = strings.ReplaceAll(name, "}", "")
+	name = strings.ReplaceAll(name, "@", "")
+	name = strings.ReplaceAll(name, "#", "")
+	name = strings.ReplaceAll(name, "$", "")
+	name = strings.ReplaceAll(name, "%", "")
+	name = strings.ReplaceAll(name, "^", "")
+	name = strings.ReplaceAll(name, "*", "")
+	name = strings.ReplaceAll(name, "+", "")
+	name = strings.ReplaceAll(name, "=", "")
+	name = strings.ReplaceAll(name, "|", "")
+	name = strings.ReplaceAll(name, "\\", "")
+	name = strings.ReplaceAll(name, "/", "")
+	name = strings.ReplaceAll(name, ":", "")
+	name = strings.ReplaceAll(name, ";", "")
+	name = strings.ReplaceAll(name, "'", "")
+	name = strings.ReplaceAll(name, "\"", "")
+	name = strings.ReplaceAll(name, ",", "")
+	name = strings.ReplaceAll(name, "<", "")
+	name = strings.ReplaceAll(name, ">", "")
+	name = strings.ReplaceAll(name, "?", "")
+	name = strings.ReplaceAll(name, "!", "")
+	name = strings.ReplaceAll(name, "~", "")
+	name = strings.ReplaceAll(name, "`", "")
+
+	// 确保以字母开头
+	if len(name) > 0 && !((name[0] >= 'a' && name[0] <= 'z') || (name[0] >= 'A' && name[0] <= 'Z')) {
+		name = "Module" + name
+	}
+
+	// 如果为空，使用默认名称
+	if name == "" {
+		name = "Module"
+	}
+
+	return name
+}

@@ -116,12 +116,23 @@ func (g *Generator) generateFromDefaultTemplate(pascal, camel, baseRoute string)
 		bizTestFile := filepath.Join(g.config.RepoRoot, "internal", "api", "biz", fmt.Sprintf("%s_test.go", g.config.Name))
 		svcTestFile := filepath.Join(g.config.RepoRoot, "internal", "api", "service", fmt.Sprintf("%s_test.go", g.config.Name))
 
-		bizTestContent, err := renderer.RenderBizTest(pascal, g.config.PackagePath)
+		// 使用增强测试模板作为默认
+		data := templates.TemplateData{
+			Pascal:      pascal,
+			PackagePath: g.config.PackagePath,
+		}
+		bizTestContent, err := renderer.RenderBizTestEnhanced(data)
 		if err != nil {
 			return fmt.Errorf("渲染业务逻辑测试模板失败: %v", err)
 		}
 
-		svcTestContent, err := renderer.RenderServiceTest(pascal, camel, baseRoute, g.config.PackagePath)
+		svcTestData := templates.TemplateData{
+			Pascal:      pascal,
+			Camel:       camel,
+			Route:       baseRoute,
+			PackagePath: g.config.PackagePath,
+		}
+		svcTestContent, err := renderer.RenderServiceTestEnhanced(svcTestData)
 		if err != nil {
 			return fmt.Errorf("渲染服务层测试模板失败: %v", err)
 		}
@@ -230,8 +241,8 @@ func (g *Generator) generateSingleModuleFromOpenAPI() error {
 	if g.config.GenerateTests {
 		bizTestFile := filepath.Join(g.config.RepoRoot, "internal", "api", "biz", fmt.Sprintf("%s_test.go", g.config.Name))
 		svcTestFile := filepath.Join(g.config.RepoRoot, "internal", "api", "service", fmt.Sprintf("%s_test.go", g.config.Name))
-		utils.MustWrite(bizTestFile, templates.RenderBizTestFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
-		utils.MustWrite(svcTestFile, templates.RenderServiceTestFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
+		utils.MustWrite(bizTestFile, templates.RenderBizTestEnhancedFromOpenAPI(module, pascal, camel, g.config.PackagePath), g.config.Force)
+		utils.MustWrite(svcTestFile, templates.RenderServiceTestEnhancedFromOpenAPI(module, pascal, camel, g.config.PackagePath), g.config.Force)
 	}
 
 	// 注入到 fx.Options
@@ -272,8 +283,9 @@ func (g *Generator) generateFromOpenAPIDoc(pascal, camel, baseRoute string) erro
 		utils.PrintInfo("🧪 生成测试用例...")
 		bizTestFile := filepath.Join(g.config.RepoRoot, "internal", "api", "biz", fmt.Sprintf("%s_test.go", g.config.Name))
 		svcTestFile := filepath.Join(g.config.RepoRoot, "internal", "api", "service", fmt.Sprintf("%s_test.go", g.config.Name))
-		utils.MustWrite(bizTestFile, templates.RenderBizTestFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
-		utils.MustWrite(svcTestFile, templates.RenderServiceTestFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
+		// 使用增强测试模板作为默认
+		utils.MustWrite(bizTestFile, templates.RenderBizTestEnhancedFromOpenAPI(module, pascal, camel, g.config.PackagePath), g.config.Force)
+		utils.MustWrite(svcTestFile, templates.RenderServiceTestEnhancedFromOpenAPI(module, pascal, camel, g.config.PackagePath), g.config.Force)
 	}
 
 	utils.PrintInfo("📊 从OpenAPI文档解析到 %d 个操作", len(module.Operations))

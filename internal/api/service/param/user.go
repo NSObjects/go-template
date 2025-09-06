@@ -6,6 +6,10 @@
 package param
 
 
+import (
+	"time"
+)
+
 
 
 
@@ -26,14 +30,34 @@ type UserCreateRequest struct {
 
 
 
-	Age int `json:"age" validate:"min=0,max=150"` // 
+	Username string `json:"username" validate:"required" validate:"min=3,max=20"` // 用户名
 
-	Username string `json:"username" validate:"required" validate:"min=3,max=20"` // 
+	Email string `json:"email" validate:"required" validate:"email"` // 邮箱
 
-	Email string `json:"email" validate:"required" validate:"email"` // 
+	Age int `json:"age" validate:"min=0,max=150"` // 年龄
 
 
 }
+
+
+
+
+
+// UserUpdateRequest 更新用户
+type UserUpdateRequest struct {
+
+
+
+	Username string `json:"username" validate:"min=3,max=20"` // 用户名
+
+	Email string `json:"email" validate:"email"` // 邮箱
+
+	Age int `json:"age" validate:"min=0,max=150"` // 年龄
+
+
+}
+
+
 
 
 
@@ -41,22 +65,34 @@ type UserCreateRequest struct {
 // UserListItem 
 type UserListItem struct {
 
-	Username string `json:"username"` // 
+	Id int64 `json:"id"` // 用户ID
 
-	Email string `json:"email"` // 
+	Username string `json:"username"` // 用户名
 
-	Id int `json:"id"` // 
+	Email string `json:"email"` // 邮箱
+
+	Age int `json:"age"` // 年龄
+
+	CreatedAt time.Time `json:"created_at"` // 创建时间
+
+	UpdatedAt time.Time `json:"updated_at"` // 更新时间
 
 }
 
 // UserData 
 type UserData struct {
 
-	Id int `json:"id"` // 
+	Id int64 `json:"id"` // 用户ID
 
-	Username string `json:"username"` // 
+	Username string `json:"username"` // 用户名
 
-	Email string `json:"email"` // 
+	Email string `json:"email"` // 邮箱
+
+	Age int `json:"age"` // 年龄
+
+	CreatedAt time.Time `json:"created_at"` // 创建时间
+
+	UpdatedAt time.Time `json:"updated_at"` // 更新时间
 
 }
 

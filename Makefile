@@ -179,7 +179,7 @@ gen-module-openapi:
 	go run tools/modgen/main.go --name=$(NAME) --openapi=$$OPENAPI_FILE --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) generated from OpenAPI"
 
-# 从OpenAPI生成模块和测试用例
+# 从OpenAPI生成模块和测试用例（Table-driven测试）
 gen-module-openapi-tests:
 	@if [ -z "$(NAME)" ]; then \
 		echo "$(RED)[ERROR]$(NC) Usage: make gen-module-openapi-tests NAME=module_name [OPENAPI=doc/openapi.yaml]"; \

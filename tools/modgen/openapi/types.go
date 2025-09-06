@@ -130,6 +130,7 @@ type APIOperation struct {
 	MethodName            string
 	ResponseData          *ResponseData
 	HasRequestBodyOrQuery bool
+	HasPathParams         bool
 	QueryParameters       []Parameter
 }
 

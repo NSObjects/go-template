@@ -17,16 +17,17 @@ import (
 
 // TemplateData 模板数据
 type TemplateData struct {
-	Pascal            string                 // 大驼峰命名
-	Camel             string                 // 小驼峰命名
-	Table             string                 // 表名
-	Route             string                 // 基础路由
-	PackagePath       string                 // 包路径
-	BaseCode          int                    // 错误码基础值
-	Operations        []openapi.APIOperation // OpenAPI 操作列表
-	ResponseDataTypes []openapi.ResponseData // 去重的响应数据类型
-	HasTimeFields     bool                   // 是否包含时间字段
-	HasPathParams     bool                   // 是否包含路径参数
+	Pascal                string                 // 大驼峰命名
+	Camel                 string                 // 小驼峰命名
+	Table                 string                 // 表名
+	Route                 string                 // 基础路由
+	PackagePath           string                 // 包路径
+	BaseCode              int                    // 错误码基础值
+	Operations            []openapi.APIOperation // OpenAPI 操作列表
+	ResponseDataTypes     []openapi.ResponseData // 去重的响应数据类型
+	HasTimeFields         bool                   // 是否包含时间字段
+	HasPathParams         bool                   // 是否包含路径参数
+	HasRequestBodyOrQuery bool                   // 是否包含请求体或查询参数
 }
 
 // TemplateRenderer 模板渲染器
@@ -50,13 +51,14 @@ func NewTemplateRenderer() (*TemplateRenderer, error) {
 	templateDir := filepath.Join(wd, "tools", "modgen", "templates", "tmpl")
 
 	// 加载所有模板
-	templates := []string{"biz", "service", "param", "model", "code", "biz_test", "service_test", "param_openapi", "service_test_openapi", "biz_openapi", "service_openapi", "biz_test_openapi"}
+	templates := []string{"biz", "service", "param", "model", "code", "biz_test", "service_test", "param_openapi", "service_test_openapi", "biz_openapi", "service_openapi", "biz_test_openapi", "service_test_enhanced", "biz_test_enhanced"}
 	for _, name := range templates {
 		// 使用计算出的模板目录
 		templatePath := filepath.Join(templateDir, name+".tmpl")
 
 		tmpl, err := template.New(filepath.Base(templatePath)).Funcs(template.FuncMap{
 			"hasPrefix": strings.HasPrefix,
+			"contains":  strings.Contains,
 		}).ParseFiles(templatePath)
 		if err != nil {
 			return nil, fmt.Errorf("加载模板 %s 失败，路径: %s, 错误: %v", name, templatePath, err)
@@ -156,4 +158,14 @@ func (tr *TemplateRenderer) RenderServiceTest(pascal, camel, route, packagePath 
 		PackagePath: packagePath,
 	}
 	return tr.Render("service_test", data)
+}
+
+// RenderServiceTestEnhanced 生成增强的服务层测试模板
+func (tr *TemplateRenderer) RenderServiceTestEnhanced(data TemplateData) (string, error) {
+	return tr.Render("service_test_enhanced", data)
+}
+
+// RenderBizTestEnhanced 生成增强的业务逻辑测试模板
+func (tr *TemplateRenderer) RenderBizTestEnhanced(data TemplateData) (string, error) {
+	return tr.Render("biz_test_enhanced", data)
 }

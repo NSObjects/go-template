@@ -6,15 +6,16 @@
 package biz
 
 import (
-	"context"
+	{{if .Operations}}"context"
 	"testing"
-
-	"{{.PackagePath}}/internal/api/data"
+	{{if .HasTimeFields}}"time"
+	{{end}}"{{.PackagePath}}/internal/api/data"
 	"{{.PackagePath}}/internal/api/service/param"
-	"github.com/go-playground/validator/v10"
-	"github.com/stretchr/testify/assert"
+	{{if .HasRequestBodyOrQuery}}"github.com/go-playground/validator/v10"
+	{{end}}"github.com/stretchr/testify/assert"{{end}}
 )
 
+{{if .Operations}}
 {{range .Operations}}
 {{if or (eq .MethodName "Create") (hasPrefix .MethodName "Create")}}
 func Test{{$.Pascal}}Handler_{{.MethodName}}(t *testing.T) {
@@ -26,7 +27,10 @@ func Test{{$.Pascal}}Handler_{{.MethodName}}(t *testing.T) {
 	req := param.{{$.Pascal}}{{.MethodName}}Request{}
 
 	// 测试{{.MethodName}}方法
-	err := handler.{{.MethodName}}(ctx, req)
+	{{if and .ResponseData (eq .ResponseData.GoType "ListItem")}}{{if and .HasPathParams .HasRequestBodyOrQuery}}_, _, err := handler.{{.MethodName}}(ctx, int64(1), req){{else if .HasRequestBodyOrQuery}}_, _, err := handler.{{.MethodName}}(ctx, req){{else if .HasPathParams}}_, _, err := handler.{{.MethodName}}(ctx, int64(1)){{else}}_, _, err := handler.{{.MethodName}}(ctx){{end}}
+	{{else if and .ResponseData (eq .ResponseData.GoType "Data")}}{{if and .HasPathParams .HasRequestBodyOrQuery}}_, err := handler.{{.MethodName}}(ctx, int64(1), req){{else if .HasRequestBodyOrQuery}}_, err := handler.{{.MethodName}}(ctx, req){{else if .HasPathParams}}_, err := handler.{{.MethodName}}(ctx, int64(1)){{else}}_, err := handler.{{.MethodName}}(ctx){{end}}
+	{{else}}{{if and .HasPathParams .HasRequestBodyOrQuery}}err := handler.{{.MethodName}}(ctx, int64(1), req){{else if .HasRequestBodyOrQuery}}err := handler.{{.MethodName}}(ctx, req){{else if .HasPathParams}}err := handler.{{.MethodName}}(ctx, int64(1)){{else}}err := handler.{{.MethodName}}(ctx){{end}}
+	{{end}}
 
 	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
 	assert.NoError(t, err)
@@ -40,7 +44,7 @@ func Test{{$.Pascal}}Handler_{{.MethodName}}_Validation(t *testing.T) {
 	validReq := param.{{$.Pascal}}{{.MethodName}}Request{
 {{if .RequestBody}}
 {{range .RequestBody.Fields}}
-		{{.FieldName}}: {{if eq .GoType "string"}}"测试{{.FieldName}}"{{else if eq .GoType "int" "int64"}}1{{else if eq .GoType "float64"}}1.0{{else if eq .GoType "bool"}}true{{else}}nil{{end}}, // {{.Description}}
+		{{.FieldName}}: {{if eq .GoType "string"}}"测试{{.FieldName}}"{{else if eq .GoType "int" "int64"}}1{{else if eq .GoType "float64"}}1.0{{else if eq .GoType "bool"}}true{{else if eq .GoType "time.Time"}}time.Time{}{{else}}nil{{end}}, // {{.Description}}
 {{end}}
 {{end}}
 	}
@@ -240,5 +244,24 @@ func Test{{$.Pascal}}Handler_{{.MethodName}}_EdgeCases(t *testing.T) {
 		})
 	}
 }
+{{else}}
+func Test{{$.Pascal}}Handler_{{.MethodName}}(t *testing.T) {
+	// 创建handler
+	handler := &{{$.Pascal}}Handler{
+		dataManager: &data.DataManager{},
+	}
+	ctx := context.Background()
+	{{if .HasRequestBodyOrQuery}}req := param.{{$.Pascal}}{{.MethodName}}Request{}{{end}}
+
+	// 测试{{.MethodName}}方法
+	{{if and .ResponseData (eq .ResponseData.GoType "ListItem")}}{{if and .HasPathParams .HasRequestBodyOrQuery}}_, _, err := handler.{{.MethodName}}(ctx, int64(1), req){{else if .HasRequestBodyOrQuery}}_, _, err := handler.{{.MethodName}}(ctx, req){{else if .HasPathParams}}_, _, err := handler.{{.MethodName}}(ctx, int64(1)){{else}}_, _, err := handler.{{.MethodName}}(ctx){{end}}
+	{{else if and .ResponseData (eq .ResponseData.GoType "Data")}}{{if and .HasPathParams .HasRequestBodyOrQuery}}_, err := handler.{{.MethodName}}(ctx, int64(1), req){{else if .HasRequestBodyOrQuery}}_, err := handler.{{.MethodName}}(ctx, req){{else if .HasPathParams}}_, err := handler.{{.MethodName}}(ctx, int64(1)){{else}}_, err := handler.{{.MethodName}}(ctx){{end}}
+	{{else}}{{if and .HasPathParams .HasRequestBodyOrQuery}}err := handler.{{.MethodName}}(ctx, int64(1), req){{else if .HasRequestBodyOrQuery}}err := handler.{{.MethodName}}(ctx, req){{else if .HasPathParams}}err := handler.{{.MethodName}}(ctx, int64(1)){{else}}err := handler.{{.MethodName}}(ctx){{end}}
+	{{end}}
+
+	// 由于biz层实现只是返回默认值，这里只测试方法调用不panic
+	assert.NoError(t, err)
+}
+{{end}}
 {{end}}
 {{end}}
