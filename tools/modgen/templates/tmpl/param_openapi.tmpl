@@ -25,11 +25,11 @@ import (
 {{end}}
 type {{$.Pascal}}{{.MethodName}}Request struct {
 {{range .QueryParameters}}
-	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}`
+	{{.FieldName}} {{.GoType}} `param:"{{.Name}}" query:"{{.Name}}" form:"{{.Name}}" json:"{{.Name}}" xml:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}`
 {{end}}
 {{if .RequestBody}}
 {{range .RequestBody.Fields}}
-	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}`
+	{{.FieldName}} {{.GoType}} `param:"{{.Name}}" query:"{{.Name}}" form:"{{.Name}}" json:"{{.Name}}" xml:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}`
 {{end}}
 {{end}}
 }

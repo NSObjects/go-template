@@ -305,7 +305,7 @@ func (g *Generator) generateDocs(typeName string) {
 	_ = tmpl.Execute(&buf, "`")
 
 	// Generate code that will fail if the constants change value.
-	g.Printf(buf.String())
+	g.Printf("%s", buf.String())
 	for _, v := range values {
 		code, description := v.ParseComment()
 		// g.Printf("\tregister(%s, %s, \"%s\")\n", v.originalName, code, description)
