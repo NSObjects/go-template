@@ -30,6 +30,7 @@ services:
       - api-net
   db:
     image: mysql:8.0.14
+    platform: linux/amd64
     container_name: echo-admin-mysql
     restart: always
     command: --default-authentication-plugin=mysql_native_password

@@ -8,6 +8,7 @@ package code
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/marmotedu/errors"
 	"github.com/novalagung/gubrak"
@@ -59,6 +60,11 @@ func (coder *ErrCode) HTTPStatus() int {
 	return coder.HTTP
 }
 
+var (
+	codeRegistry   = map[int]*ErrCode{}
+	codeRegistryMu sync.RWMutex
+)
+
 func register(code int, httpStatus int, message string, refs ...string) {
 	found, _ := gubrak.Includes([]int{200, 201, 400, 401, 403, 404, 500}, httpStatus)
 	if !found {
@@ -77,5 +83,17 @@ func register(code int, httpStatus int, message string, refs ...string) {
 		Ref:  reference,
 	}
 
+	codeRegistryMu.Lock()
+	codeRegistry[code] = coder
+	codeRegistryMu.Unlock()
+
 	errors.MustRegister(coder)
+}
+
+// Lookup 返回注册的错误码描述
+func Lookup(code int) (*ErrCode, bool) {
+	codeRegistryMu.RLock()
+	defer codeRegistryMu.RUnlock()
+	coder, ok := codeRegistry[code]
+	return coder, ok
 }

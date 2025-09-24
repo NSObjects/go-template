@@ -15,8 +15,10 @@ port = "3306"
 database = "test"
 user = "root"
 password = "12345678"
-max_idle_conns = 20
-max_open_conns = 20
+max_idle_conns = 50
+max_open_conns = 100
+conn_max_lifetime = "1h"
+conn_max_idle_time = "30m"
 
 [mongodb]
 host = ""
@@ -56,7 +58,7 @@ timeout = "5s"
 [jwt]
 secret = "tn)M^P<j,/6$Gr/Wrs"
 expire = 3600
-skip_paths = []
+skip_paths = ["/api/v1/health","/api/v1/info","/api/v1/auth/login","/api/v1/users"]
 
 [cors]
 allow_origins = ["*"]

@@ -10,6 +10,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -103,12 +104,15 @@ func (s *EchoServer) loadMiddleware(enforce *casbin.Enforcer) {
 func (s *EchoServer) createMiddlewareConfig() *middlewares.MiddlewareConfig {
 	cur := s.store.Current()
 
-	// 创建JWT配置
+	// 创建JWT配置 - 禁用JWT用于演示
 	jwtConfig := middlewares.CreateJWTConfig(
 		cur.JWT.Secret,
 		cur.JWT.SkipPaths,
-		len(cur.JWT.SkipPaths) > 0, // 如果有跳过路径，则启用JWT
+		false, // 禁用JWT
 	)
+
+	// 调试日志
+	fmt.Printf("DEBUG: JWT Config - Enabled: %v, SkipPaths: %v\n", jwtConfig.Enabled, jwtConfig.SkipPaths)
 
 	// 创建Casbin配置
 	casbinConfig := middlewares.CreateCasbinConfig(

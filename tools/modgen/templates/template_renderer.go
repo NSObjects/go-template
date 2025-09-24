@@ -48,8 +48,27 @@ func NewTemplateRenderer() (*TemplateRenderer, error) {
 		return nil, fmt.Errorf("无法获取工作目录: %v", err)
 	}
 
-	// 构建模板目录路径
-	templateDir := filepath.Join(wd, "tools", "modgen", "templates", "tmpl")
+	// 构建模板目录路径 - 修复路径问题
+	var templateDir string
+
+	// 尝试多个可能的路径
+	possiblePaths := []string{
+		filepath.Join(wd, "tools", "modgen", "templates", "tmpl"),
+		filepath.Join(wd, "tmpl"),
+		filepath.Join(filepath.Dir(wd), "tmpl"),
+		"tmpl", // 相对路径
+	}
+
+	for _, path := range possiblePaths {
+		if _, err := os.Stat(path); err == nil {
+			templateDir = path
+			break
+		}
+	}
+
+	if templateDir == "" {
+		return nil, fmt.Errorf("无法找到模板目录，尝试的路径: %v", possiblePaths)
+	}
 
 	// 加载所有模板
 	templates := []string{"biz", "service", "param", "model", "code", "biz_test", "service_test", "param_openapi", "service_test_openapi", "biz_openapi", "service_openapi", "biz_test_openapi", "service_test_enhanced", "biz_test_enhanced", "code_openapi"}

@@ -1,10 +1,6 @@
 package code
 
-import (
-	"fmt"
-
-	"github.com/marmotedu/errors"
-)
+import "github.com/marmotedu/errors"
 
 // NewError 创建带错误码的错误
 func NewError(code int, message string) error {
@@ -18,14 +14,32 @@ func NewErrorf(code int, format string, args ...interface{}) error {
 
 // WrapError 包装错误并添加错误码
 func WrapError(err error, code int, message string) error {
+	return wrapOrNew(err, code, message)
+}
+
+// WrapErrorf 包装错误并添加错误码（格式化）
+func WrapErrorf(err error, code int, format string, args ...interface{}) error {
+	return wrapOrNewf(err, code, format, args...)
+}
+
+func wrapIfError(err error, code int, format string, args ...interface{}) error {
+	if err == nil {
+		return nil
+	}
+	return errors.WrapC(err, code, format, args...)
+}
+
+func wrapOrNew(err error, code int, message string) error {
 	if err == nil {
 		return NewError(code, message)
 	}
 	return errors.WrapC(err, code, "%s", message)
 }
 
-// WrapErrorf 包装错误并添加错误码（格式化）
-func WrapErrorf(err error, code int, format string, args ...interface{}) error {
+func wrapOrNewf(err error, code int, format string, args ...interface{}) error {
+	if err == nil {
+		return NewErrorf(code, format, args...)
+	}
 	return errors.WrapC(err, code, format, args...)
 }
 
@@ -33,80 +47,49 @@ func WrapErrorf(err error, code int, format string, args ...interface{}) error {
 
 // WrapDatabaseError 包装数据库错误
 func WrapDatabaseError(err error, operation string) error {
-	if err == nil {
-		return nil
-	}
-	message := fmt.Sprintf("database %s failed", operation)
-	return errors.WrapC(err, ErrDatabase, "%s", message)
+	return wrapIfError(err, ErrDatabase, "database %s failed", operation)
 }
 
 // WrapRedisError 包装Redis错误
 func WrapRedisError(err error, operation string) error {
-	if err == nil {
-		return nil
-	}
-	message := fmt.Sprintf("redis %s failed", operation)
-	return errors.WrapC(err, ErrRedis, "%s", message)
+	return wrapIfError(err, ErrRedis, "redis %s failed", operation)
 }
 
 // WrapKafkaError 包装Kafka错误
 func WrapKafkaError(err error, operation string) error {
-	if err == nil {
-		return nil
-	}
-	message := fmt.Sprintf("kafka %s failed", operation)
-	return errors.WrapC(err, ErrKafka, "%s", message)
+	return wrapIfError(err, ErrKafka, "kafka %s failed", operation)
 }
 
 // WrapExternalError 包装第三方服务错误
 func WrapExternalError(err error, service, operation string) error {
-	if err == nil {
-		return nil
-	}
-	message := fmt.Sprintf("external service %s %s failed", service, operation)
-	return errors.WrapC(err, ErrExternalService, "%s", message)
+	return wrapIfError(err, ErrExternalService, "external service %s %s failed", service, operation)
 }
 
 // ========== biz层HTTP错误包装函数 ==========
 
 // WrapBadRequestError 包装400错误
 func WrapBadRequestError(err error, message string) error {
-	if err == nil {
-		return NewError(ErrBadRequest, message)
-	}
-	return errors.WrapC(err, ErrBadRequest, "%s", message)
+	return wrapOrNew(err, ErrBadRequest, message)
 }
 
 // WrapUnauthorizedError 包装401错误
 func WrapUnauthorizedError(err error, message string) error {
-	if err == nil {
-		return NewError(ErrUnauthorized, message)
-	}
-	return errors.WrapC(err, ErrUnauthorized, "%s", message)
+	return wrapOrNew(err, ErrUnauthorized, message)
 }
 
 // WrapForbiddenError 包装403错误
 func WrapForbiddenError(err error, message string) error {
-	if err == nil {
-		return NewError(ErrForbidden, message)
-	}
-	return errors.WrapC(err, ErrForbidden, "%s", message)
+	return wrapOrNew(err, ErrForbidden, message)
 }
 
 // WrapNotFoundError 包装404错误
 func WrapNotFoundError(err error, message string) error {
-	if err == nil {
-		return NewError(ErrNotFound, message)
-	}
-	return errors.WrapC(err, ErrNotFound, "%s", message)
+	return wrapOrNew(err, ErrNotFound, message)
 }
 
 // WrapInternalServerError 包装500错误
 func WrapInternalServerError(err error, message string) error {
-	if err == nil {
-		return NewError(ErrInternalServer, message)
-	}
-	return errors.WrapC(err, ErrInternalServer, "%s", message)
+	return wrapOrNew(err, ErrInternalServer, message)
 }
 
 // ========== 框架通用错误创建函数 ==========

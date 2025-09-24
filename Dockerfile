@@ -3,7 +3,7 @@
 ############################
 
 # 指定 GO 版本号
-ARG GO_VERSION=1.14
+ARG GO_VERSION=1.24.0
 ARG PROJECT_NAME=echo-admin
 
 # 指定构建环境
@@ -24,7 +24,7 @@ RUN adduser -D -g '' appuser
 
 # 复制源码并指定工作目录
 RUN mkdir -p /src/$PROJECT_NAME
-COPY api /src/$PROJECT_NAME
+COPY . /src/$PROJECT_NAME
 WORKDIR /src/$PROJECT_NAME
 
 # 为 go build 设置环境变量:
@@ -35,8 +35,9 @@ WORKDIR /src/$PROJECT_NAME
 ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOFLAGS=-mod=vendor
 
 # 构建可执行文件
-# RUN go mod tidy && go mod vendor && go build  -a -installsuffix cgo -ldflags="-w -s" -o api ./cmd/api
-RUN go build  -a -installsuffix cgo -ldflags="-w -s" -o api ./cmd/api
+RUN go mod tidy && go mod download && go build -a -installsuffix cgo \
+    -ldflags="-w -s -X main.version=$(git describe --tags --always --dirty) -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    -o app main.go
 ############################
 # STEP 2 构建镜像
 ############################
@@ -57,11 +58,15 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /etc/passwd /etc/passwd
 
 # 将构建的可执行文件复制到新镜像中
-COPY --from=builder /src/$PROJECT_NAME/config.toml /config.toml
-COPY --from=builder /src/$PROJECT_NAME/api /api
+COPY --from=builder /src/$PROJECT_NAME/configs/config.toml /config.toml
+COPY --from=builder /src/$PROJECT_NAME/app /app
 
 # 端口申明
 EXPOSE 9322
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:9322/api/health || exit 1
 
 # 运行
 ENTRYPOINT [ "/app" ]

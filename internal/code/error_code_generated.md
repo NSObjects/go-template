@@ -41,14 +41,6 @@
 
 | Identifier | Code | HTTP Code | Description |
 | ---------- | ---- | --------- | ----------- |
-| ErrAuth1020201 | 1020201 | 401 | 刷新令牌无效或已过期 |
-| ErrAuth1020102 | 1020102 | 400 | 刷新令牌格式错误 |
-| ErrAuth1010201 | 1010201 | 401 | 用户名或密码错误 |
-| ErrAuth1010602 | 1010602 | 400 | 账号已禁用 |
-| ErrAuth1010603 | 1010603 | 400 | 租户已停用，禁止登录 |
-| ErrAuth1010804 | 1010804 | 400 | 登录失败次数过多，请稍后重试 |
-| ErrAuth1010105 | 1010105 | 400 | 缺少 device_id |
-| ErrAuth1030201 | 1030201 | 401 | 未登录或会话已失效 |
 | ErrSuccess | 100001 | 200 | OK |
 | ErrUnknown | 100002 | 500 | Internal server error |
 | ErrBind | 100003 | 400 | Error occurred while binding the request body to the struct |
@@ -81,50 +73,12 @@
 | ErrInvalidYaml | 100306 | 500 | Data is not valid Yaml |
 | ErrEncodingYaml | 100307 | 500 | Yaml data could not be encoded |
 | ErrDecodingYaml | 100308 | 500 | Yaml data could not be decoded |
-| ErrBilling15010601 | 15010601 | 400 | 该账期账单已生成 |
-| ErrInbound8010101 | 8010101 | 400 | 运单号列表为空 |
-| ErrInbound8010102 | 8010102 | 400 | 入库明细为空 |
-| ErrInbound8010403 | 8010403 | 404 | SKU 不存在 |
-| ErrInbound8030604 | 8030604 | 400 | 入库单状态非 receiving，不可新增批次 |
-| ErrInbound8030405 | 8030405 | 404 | 库位不存在 |
-| ErrInbound8030106 | 8030106 | 400 | 收货件数必须为正数 |
-| ErrIntegrations13010501 | 13010501 | 400 | 该店铺已绑定 |
-| ErrIntegrations13010702 | 13010702 | 500 | 授权码无效或过期 |
-| ErrIntegrations13030503 | 13030503 | 400 | SKU 映射已存在 |
-| ErrIntegrations13030404 | 13030404 | 404 | 本地SKU不存在 |
-| ErrInventory9010101 | 9010101 | 400 | 分页参数不合法 |
-| ErrLocations6020501 | 6020501 | 400 | 库位编码在仓库内已存在 |
-| ErrLocations6020104 | 6020104 | 400 | 库位体积填写不合法 |
-| ErrMe2020101 | 2020101 | 400 | 新密码不符合安全策略 |
-| ErrMe2020202 | 2020202 | 401 | 旧密码错误 |
-| ErrOrders10010501 | 10010501 | 400 | 平台订单号已存在 |
-| ErrOrders10010102 | 10010102 | 400 | 订单明细为空 |
-| ErrOrders10010903 | 10010903 | 400 | 平台SKU未映射到本地SKU |
-| ErrRates14010601 | 14010601 | 400 | 存在已生效/待生效版本，禁止重叠 |
-| ErrRates14010102 | 14010102 | 400 | 费率参数不合法 |
-| ErrReconNotFound | 100000 | 404 | Recon not found |
-| ErrReconAlreadyExists | 100001 | 400 | Recon already exists |
-| ErrReconInvalidData | 100002 | 400 | Recon invalid data |
-| ErrReconPermissionDenied | 100003 | 403 | Recon permission denied |
-| ErrReconInUse | 100004 | 400 | Recon is in use |
-| ErrReconCreateFailed | 100005 | 500 | Recon create failed |
-| ErrReconUpdateFailed | 100006 | 500 | Recon update failed |
-| ErrReconDeleteFailed | 100007 | 500 | Recon delete failed |
-| ErrReservations11010601 | 11010601 | 400 | 库存不足，无法预占 |
-| ErrReservations11010602 | 11010602 | 400 | 订单状态不允许预占 |
-| ErrReservations11010503 | 11010503 | 400 | 该订单与SKU已存在预占记录 |
-| ErrRoles4020501 | 4020501 | 400 | 角色编码已存在 |
-| ErrShipments12010501 | 12010501 | 400 | 运单号已存在 |
-| ErrShipments12010602 | 12010602 | 400 | 订单未完成预占或预占不足 |
-| ErrSku7020501 | 7020501 | 400 | 商品编码已存在 |
-| ErrSku7020103 | 7020103 | 400 | 包装规格不合法 |
-| ErrSystem17010101 | 17010101 | 400 | IP/CIDR 格式不合法 |
-| ErrSystem17010502 | 17010502 | 400 | IP 白名单已存在 |
-| ErrUsers3020501 | 3020501 | 400 | 登录名已存在 |
-| ErrUsers3020502 | 3020502 | 400 | 邮箱已存在 |
-| ErrUsers3020503 | 3020503 | 400 | 手机号已存在 |
-| ErrUsers3020104 | 3020104 | 400 | 角色代码无效 |
-| ErrUsers4030303 | 4030303 | 403 | 无权绑定该角色范围 |
-| ErrUsers3010401 | 3010401 | 404 | 用户不存在 |
-| ErrWarehouses5020501 | 5020501 | 400 | 仓库名称已存在 |
+| ErrUserNotFound | 200000 | 404 | User not found |
+| ErrUserAlreadyExists | 200001 | 400 | User already exists |
+| ErrUserInvalidData | 200002 | 400 | User invalid data |
+| ErrUserPermissionDenied | 200003 | 403 | User permission denied |
+| ErrUserInUse | 200004 | 400 | User is in use |
+| ErrUserCreateFailed | 200005 | 500 | User create failed |
+| ErrUserUpdateFailed | 200006 | 500 | User update failed |
+| ErrUserDeleteFailed | 200007 | 500 | User delete failed |
 

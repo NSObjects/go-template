@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-template
+  labels:
+    app: go-template
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: go-template
+  template:
+    metadata:
+      labels:
+        app: go-template
+    spec:
+      containers:
+      - name: go-template
+        image: go-template:latest
+        ports:
+        - containerPort: 9322
+        env:
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: password
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: password
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 9322
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 9322
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: config
+          mountPath: /app/configs
+      volumes:
+      - name: config
+        configMap:
+          name: go-template-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-template-service
+spec:
+  selector:
+    app: go-template
+  ports:
+  - port: 80
+    targetPort: 9322
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: go-template-config
+data:
+  config.toml: |
+    port = ":9322"
+    level = 1
+    env = "prod"
+    
+    [mysql]
+    host = "mysql-service"
+    port = "3306"
+    database = "test"
+    user = "root"
+    max_idle_conns = 50
+    max_open_conns = 100
+    conn_max_lifetime = "1h"
+    conn_max_idle_time = "30m"
+    
+    [redis]
+    host = "redis-service"
+    port = "6379"
+    db = 0
+    
+    [log]
+    level = "info"
+    format = "json"
+    
+    [jwt]
+    secret = "your-secret-key"
+    expire = 3600
+    skip_paths = ["/api/health","/api/info","/api/auth/login"]

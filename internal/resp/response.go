@@ -15,6 +15,7 @@ import (
 
 	"github.com/NSObjects/go-template/internal/code"
 	"github.com/NSObjects/go-template/internal/log"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/marmotedu/errors"
 )
@@ -52,6 +53,14 @@ func APIError(err error, c echo.Context) error {
 
 	// 解析错误码
 	codeError := errors.ParseCoder(err)
+	if codeError == nil {
+		err = code.WrapInternalServerError(err, "internal server error")
+		codeError = errors.ParseCoder(err)
+	}
+	if codeError == nil {
+		err = errors.WithCode(code.ErrInternalServer, "%s", "internal server error")
+		codeError = errors.ParseCoder(err)
+	}
 	errorCode := codeError.Code()
 
 	// 获取HTTP状态码（只支持200,400,401,403,404,500）
@@ -151,15 +160,5 @@ func getRequestID(c echo.Context) string {
 
 // generateRequestID 生成请求ID
 func generateRequestID() string {
-	return time.Now().Format("20060102150405") + "-" + randomString(8)
-}
-
-// randomString 生成随机字符串
-func randomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
-	}
-	return string(b)
+	return uuid.NewString()
 }

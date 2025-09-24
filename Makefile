@@ -37,6 +37,16 @@ run:
 	@echo "$(BLUE)[INFO]$(NC) Starting application..."
 	@go run main.go --config configs/config.toml
 
+# 运行应用（开发模式）
+run-dev:
+	@echo "$(BLUE)[INFO]$(NC) Starting application in development mode..."
+	@export RUN_ENVIRONMENT=dev && go run main.go --config configs/config.toml
+
+# 运行应用（测试模式）
+run-test:
+	@echo "$(BLUE)[INFO]$(NC) Starting application in test mode..."
+	@export RUN_ENVIRONMENT=test && go run main.go --config configs/config.toml
+
 # 整理依赖
 tidy:
 	@echo "$(BLUE)[INFO]$(NC) Tidying dependencies..."
@@ -292,6 +302,97 @@ clean-all: clean
 	@echo "$(GREEN)[SUCCESS]$(NC) Deep clean completed"
 
 # =============================================================================
+# Docker 相关命令
+# =============================================================================
+
+.PHONY: docker-build docker-run docker-stop docker-clean
+
+# 构建Docker镜像
+docker-build:
+	@echo "$(BLUE)[INFO]$(NC) Building Docker image..."
+	@docker build -t go-template:latest .
+	@echo "$(GREEN)[SUCCESS]$(NC) Docker image built: go-template:latest"
+
+# 运行Docker容器
+docker-run:
+	@echo "$(BLUE)[INFO]$(NC) Starting Docker container..."
+	@docker-compose up -d
+	@echo "$(GREEN)[SUCCESS]$(NC) Docker container started"
+
+# 停止Docker容器
+docker-stop:
+	@echo "$(BLUE)[INFO]$(NC) Stopping Docker container..."
+	@docker-compose down
+	@echo "$(GREEN)[SUCCESS]$(NC) Docker container stopped"
+
+# 清理Docker资源
+docker-clean: docker-stop
+	@echo "$(BLUE)[INFO]$(NC) Cleaning Docker resources..."
+	@docker system prune -f
+	@echo "$(GREEN)[SUCCESS]$(NC) Docker resources cleaned"
+
+# =============================================================================
+# 代码质量相关命令
+# =============================================================================
+
+.PHONY: lint-fix test-coverage security-scan
+
+# 修复代码格式问题
+lint-fix:
+	@echo "$(BLUE)[INFO]$(NC) Fixing code format issues..."
+	@golangci-lint run --fix
+	@echo "$(GREEN)[SUCCESS]$(NC) Code format issues fixed"
+
+# 生成测试覆盖率报告
+test-coverage:
+	@echo "$(BLUE)[INFO]$(NC) Generating test coverage report..."
+	@go test -coverprofile=coverage.out ./...
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "$(GREEN)[SUCCESS]$(NC) Coverage report generated: coverage.html"
+
+# 安全扫描
+security-scan:
+	@echo "$(BLUE)[INFO]$(NC) Running security scan..."
+	@gosec ./...
+	@echo "$(GREEN)[SUCCESS]$(NC) Security scan completed"
+
+# =============================================================================
+# 文档生成相关命令
+# =============================================================================
+
+.PHONY: docs-swagger docs-api
+
+# 生成Swagger文档
+docs-swagger:
+	@echo "$(BLUE)[INFO]$(NC) Generating Swagger documentation..."
+	@go run tools/docs/swagger_generator.go
+	@echo "$(GREEN)[SUCCESS]$(NC) Swagger documentation generated"
+
+# 生成API文档
+docs-api: docs-swagger
+	@echo "$(BLUE)[INFO]$(NC) Generating API documentation..."
+	@echo "$(GREEN)[SUCCESS]$(NC) API documentation generated"
+
+# =============================================================================
+# 性能测试相关命令
+# =============================================================================
+
+.PHONY: bench-load-test
+
+# 性能基准测试
+bench:
+	@echo "$(BLUE)[INFO]$(NC) Running performance benchmarks..."
+	@go test -bench=. -benchmem ./...
+	@echo "$(GREEN)[SUCCESS]$(NC) Performance benchmarks completed"
+
+# 负载测试
+load-test:
+	@echo "$(BLUE)[INFO]$(NC) Running load tests..."
+	@echo "Please install hey: go install github.com/rakyll/hey@latest"
+	@hey -n 1000 -c 10 http://localhost:9322/api/users
+	@echo "$(GREEN)[SUCCESS]$(NC) Load tests completed"
+
+# =============================================================================
 # 帮助信息
 # =============================================================================
 
@@ -303,6 +404,8 @@ help:
 	@echo "$(YELLOW)基础命令:$(NC)"
 	@echo "  $(GREEN)build$(NC)              - 构建应用程序"
 	@echo "  $(GREEN)run$(NC)                - 运行应用程序"
+	@echo "  $(GREEN)run-dev$(NC)            - 运行应用程序（开发模式）"
+	@echo "  $(GREEN)run-test$(NC)           - 运行应用程序（测试模式）"
 	@echo "  $(GREEN)tidy$(NC)               - 整理Go模块依赖"
 	@echo "  $(GREEN)push$(NC)               - 提交代码 (需要设置 m=commit_message)"
 	@echo ""
@@ -343,6 +446,12 @@ help:
 	@echo "  $(GREEN)clean$(NC)              - 清理生成的文件"
 	@echo "  $(GREEN)clean-all$(NC)          - 深度清理"
 	@echo "  $(GREEN)help$(NC)               - 显示此帮助信息"
+	@echo ""
+	@echo "$(YELLOW)Docker 命令:$(NC)"
+	@echo "  $(GREEN)docker-build$(NC)       - 构建Docker镜像"
+	@echo "  $(GREEN)docker-run$(NC)         - 运行Docker容器"
+	@echo "  $(GREEN)docker-stop$(NC)        - 停止Docker容器"
+	@echo "  $(GREEN)docker-clean$(NC)       - 清理Docker资源"
 	@echo ""
 	@echo "$(YELLOW)环境变量:$(NC)"
 	@echo "  $(GREEN)NAME$(NC)               - 模块名 (用于gen-module)"

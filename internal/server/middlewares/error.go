@@ -1,10 +1,12 @@
 package middlewares
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/NSObjects/go-template/internal/code"
 	"github.com/NSObjects/go-template/internal/log"
 	"github.com/NSObjects/go-template/internal/resp"
 	"github.com/labstack/echo/v4"
@@ -16,13 +18,31 @@ func ErrorHandler(err error, c echo.Context) {
 	// 记录错误开始时间
 	start := time.Now()
 
+	// 记录所有错误信息用于调试
+	log.Debug("Error received",
+		slog.String("error", err.Error()),
+		slog.String("type", fmt.Sprintf("%T", err)),
+	)
+
+	// 检查是否是业务错误
+	if codeError := errors.ParseCoder(err); codeError != nil {
+		log.Debug("Business error detected",
+			slog.Int("code", codeError.Code()),
+		)
+	} else {
+		log.Debug("No business error code found")
+	}
+
 	// 处理不同类型的错误
 	switch e := err.(type) {
 	case *echo.HTTPError:
+		log.Debug("HTTP Error detected")
 		handleHTTPError(e, c)
 	case *ValidationError:
+		log.Debug("Validation Error detected")
 		handleValidationError(e, c)
 	default:
+		// 其他错误
 		handleGenericError(err, c)
 	}
 
@@ -50,17 +70,18 @@ func (e *ValidationError) Error() string {
 func handleHTTPError(err *echo.HTTPError, c echo.Context) {
 	// 将Echo HTTP错误转换为业务错误
 	var bizErr error
+	message := extractErrorMessage(err.Message)
 	switch err.Code {
 	case http.StatusBadRequest:
-		bizErr = errors.WithCode(100400, "%s", err.Message.(string))
+		bizErr = errors.WithCode(code.ErrBadRequest, "%s", message)
 	case http.StatusUnauthorized:
-		bizErr = errors.WithCode(100401, "%s", err.Message.(string))
+		bizErr = errors.WithCode(code.ErrUnauthorized, "%s", message)
 	case http.StatusForbidden:
-		bizErr = errors.WithCode(100403, "%s", err.Message.(string))
+		bizErr = errors.WithCode(code.ErrForbidden, "%s", message)
 	case http.StatusNotFound:
-		bizErr = errors.WithCode(100404, "%s", err.Message.(string))
+		bizErr = errors.WithCode(code.ErrNotFound, "%s", message)
 	default:
-		bizErr = errors.WithCode(100500, "%s", err.Message.(string))
+		bizErr = errors.WithCode(code.ErrInternalServer, "%s", message)
 	}
 
 	// 返回标准错误响应
@@ -79,21 +100,42 @@ func handleValidationError(err *ValidationError, c echo.Context) {
 	)
 
 	// 创建业务错误
-	bizErr := errors.WithCode(100400, "validation failed") // 使用验证错误码
+	bizErr := code.NewValidationError(err.Field, err.Message)
 	_ = resp.APIError(bizErr, c)
 }
 
 // handleGenericError 处理通用错误
 func handleGenericError(err error, c echo.Context) {
-	// 记录通用错误
+	if codeError := errors.ParseCoder(err); codeError != nil {
+		log.Debug("Business error detected",
+			slog.Int("code", codeError.Code()),
+			slog.String("error", err.Error()),
+		)
+		_ = resp.APIError(err, c)
+		return
+	}
+
+	// 记录通用错误并返回标准化的内部错误响应
 	log.Error("Generic Error",
 		slog.String("error", err.Error()),
 		slog.String("method", c.Request().Method),
 		slog.String("uri", c.Request().RequestURI),
 	)
 
-	// 返回标准错误响应
-	_ = resp.APIError(err, c)
+	wrapped := code.WrapInternalServerError(err, "internal server error")
+	_ = resp.APIError(wrapped, c)
+}
+
+// extractErrorMessage 将 Echo 错误消息转换为字符串
+func extractErrorMessage(message interface{}) string {
+	switch v := message.(type) {
+	case string:
+		return v
+	case error:
+		return v.Error()
+	default:
+		return fmt.Sprint(v)
+	}
 }
 
 // ErrorRecovery 错误恢复中间件
