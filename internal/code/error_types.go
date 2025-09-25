@@ -1,5 +1,11 @@
 package code
 
+import (
+	"fmt"
+
+	errorslib "github.com/marmotedu/errors"
+)
+
 // ErrorType 错误类型枚举
 type ErrorType int
 
@@ -40,6 +46,47 @@ type ErrorInfo struct {
 	Details  string        `json:"details"`  // 详细错误信息（内部错误时记录）
 }
 
+// NewErrorInfo 根据错误实例构造标准错误信息
+func NewErrorInfo(err error) ErrorInfo {
+	if err == nil {
+		return ErrorInfo{}
+	}
+
+	info := ErrorInfo{
+		Type:     InternalError,
+		Category: CategorySystem,
+		Message:  err.Error(),
+		Details:  fmt.Sprintf("%+v", err),
+	}
+
+	coder := errorslib.ParseCoder(err)
+	if coder == nil {
+		return info
+	}
+
+	code := coder.Code()
+	if _, ok := Lookup(code); !ok {
+		info.Code = ErrUnknown
+		if unknown, ok := Lookup(ErrUnknown); ok {
+			info.Message = unknown.String()
+		} else {
+			info.Message = coder.String()
+		}
+		return info
+	}
+
+	info.Code = code
+	info.Message = coder.String()
+	info.Type = classifyErrorType(code)
+	info.Category = classifyErrorCategory(code)
+
+	if info.Type == BusinessError {
+		info.Details = ""
+	}
+
+	return info
+}
+
 // IsInternal 判断是否为内部错误
 func (e *ErrorInfo) IsInternal() bool {
 	return e.Type == InternalError
@@ -48,4 +95,52 @@ func (e *ErrorInfo) IsInternal() bool {
 // IsBusiness 判断是否为业务错误
 func (e *ErrorInfo) IsBusiness() bool {
 	return e.Type == BusinessError
+}
+
+func classifyErrorType(code int) ErrorType {
+	status := HTTPStatus(code)
+	if status >= 500 {
+		return InternalError
+	}
+	return BusinessError
+}
+
+func classifyErrorCategory(code int) ErrorCategory {
+	if _, ok := Lookup(code); !ok {
+		return CategorySystem
+	}
+
+	switch {
+	case code == ErrDatabase:
+		return CategoryDatabase
+	case code == ErrRedis:
+		return CategoryRedis
+	case code == ErrKafka:
+		return CategoryKafka
+	case code == ErrExternalService:
+		return CategoryExternal
+	case code == ErrUnknown,
+		code == ErrInternalServer,
+		code >= 100301 && code <= 100399:
+		return CategorySystem
+	case in(code, ErrValidation, ErrBind, ErrBadRequest, ErrUserInvalidData, ErrUserAlreadyExists, ErrUserInUse):
+		return CategoryValidation
+	case in(code, ErrUnauthorized, ErrTokenInvalid, ErrExpired, ErrInvalidAuthHeader, ErrMissingHeader, ErrSignatureInvalid, ErrPasswordIncorrect):
+		return CategoryAuth
+	case in(code, ErrForbidden, ErrPermissionDenied, ErrAccountLocked, ErrAccountDisabled, ErrTooManyAttempts, ErrUserPermissionDenied):
+		return CategoryPermission
+	case code >= 200000 && code < 300000:
+		return CategoryBusiness
+	default:
+		return CategoryBusiness
+	}
+}
+
+func in(code int, candidates ...int) bool {
+	for _, c := range candidates {
+		if code == c {
+			return true
+		}
+	}
+	return false
 }

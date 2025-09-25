@@ -11,16 +11,17 @@ import (
 
 // HotReloader 配置热重载器
 type HotReloader struct {
-	watcher   *fsnotify.Watcher
-	store     *Store
-	callbacks []func(*Config)
-	mu        sync.RWMutex
-	ctx       context.Context
-	cancel    context.CancelFunc
+	watcher    *fsnotify.Watcher
+	store      *Store
+	callbacks  []func(*Config)
+	mu         sync.RWMutex
+	ctx        context.Context
+	cancel     context.CancelFunc
+	configPath string
 }
 
 // NewHotReloader 创建配置热重载器
-func NewHotReloader(store *Store) (*HotReloader, error) {
+func NewHotReloader(store *Store, configPath string) (*HotReloader, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -29,11 +30,12 @@ func NewHotReloader(store *Store) (*HotReloader, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &HotReloader{
-		watcher:   watcher,
-		store:     store,
-		callbacks: make([]func(*Config), 0),
-		ctx:       ctx,
-		cancel:    cancel,
+		watcher:    watcher,
+		store:      store,
+		callbacks:  make([]func(*Config), 0),
+		ctx:        ctx,
+		cancel:     cancel,
+		configPath: configPath,
 	}, nil
 }
 
@@ -99,10 +101,7 @@ func (hr *HotReloader) handleEvent(event fsnotify.Event) {
 // reloadConfig 重新加载配置
 func (hr *HotReloader) reloadConfig() error {
 	// 重新加载配置
-	config, err := LoadConfig(hr.store.configPath)
-	if err != nil {
-		return err
-	}
+	config := NewCfg(hr.configPath)
 
 	// 更新存储
 	hr.store.Update(config)
@@ -120,7 +119,7 @@ func (hr *HotReloader) reloadConfig() error {
 					slog.Error("config callback panic", slog.Any("panic", r))
 				}
 			}()
-			cb(config)
+			cb(&config)
 		}(callback)
 	}
 
@@ -138,5 +137,11 @@ type ConfigReloadCallback func(*Config)
 
 // RegisterConfigReloadCallback 注册配置重载回调
 func (s *Store) RegisterConfigReloadCallback(callback ConfigReloadCallback) {
-	// 这里可以添加回调注册逻辑
+	// 通过订阅机制实现配置重载回调
+	ch := s.Subscribe("*")
+	go func() {
+		for config := range ch {
+			callback(&config)
+		}
+	}()
 }
