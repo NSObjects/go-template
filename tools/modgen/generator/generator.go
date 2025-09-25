@@ -27,7 +27,9 @@ type Config struct {
 
 // Generator 代码生成器
 type Generator struct {
-	config *Config
+	config     *Config
+	openAPIDoc *openapi.OpenAPI3
+	renderer   *templates.TemplateRenderer
 }
 
 // NewGenerator 创建新的代码生成器
@@ -49,39 +51,33 @@ func (g *Generator) Generate() error {
 		return fmt.Errorf("模块名不能为空")
 	}
 
-	pascal := utils.ToPascal(g.config.Name)
-	camel := utils.ToCamel(g.config.Name)
-	plural := utils.Pluralize(g.config.Name)
-	baseRoute := g.config.Route
-	if baseRoute == "" {
-		baseRoute = "/" + plural
-	}
-
 	utils.PrintInfo("🚀 开始生成 %s 模块...", g.config.Name)
 
 	// 根据是否提供OpenAPI文档选择生成方式
 	if g.config.OpenAPIFile != "" {
 		utils.PrintInfo("📄 从OpenAPI3文档生成: %s", g.config.OpenAPIFile)
-		return g.generateFromOpenAPIDoc(pascal, camel, baseRoute)
-	} else {
-		utils.PrintInfo("📝 使用默认模板生成")
-		return g.generateFromDefaultTemplate(pascal, camel, baseRoute)
+		doc, err := g.loadOpenAPIDoc()
+		if err != nil {
+			return err
+		}
+		return g.generateOpenAPIModule(doc, g.config.Name, true)
 	}
+
+	utils.PrintInfo("📝 使用默认模板生成")
+	return g.generateFromDefaultTemplate()
 }
 
 // generateFromDefaultTemplate 使用默认模板生成
-func (g *Generator) generateFromDefaultTemplate(pascal, camel, baseRoute string) error {
-	// 创建模板渲染器
-	renderer, err := templates.NewTemplateRenderer()
+func (g *Generator) generateFromDefaultTemplate() error {
+	pascal, camel, baseRoute := g.naming(g.config.Name)
+
+	renderer, err := g.templateRenderer()
 	if err != nil {
 		return fmt.Errorf("创建模板渲染器失败: %v", err)
 	}
 
 	// 生成目标文件路径
-	bizFile := filepath.Join(g.config.RepoRoot, "internal", "api", "biz", fmt.Sprintf("%s.go", g.config.Name))
-	svcFile := filepath.Join(g.config.RepoRoot, "internal", "api", "service", fmt.Sprintf("%s.go", g.config.Name))
-	paramFile := filepath.Join(g.config.RepoRoot, "internal", "api", "service", "param", fmt.Sprintf("%s.go", g.config.Name))
-	codeFile := filepath.Join(g.config.RepoRoot, "internal", "code", fmt.Sprintf("%s.go", g.config.Name))
+	bizFile, svcFile, paramFile, codeFile := g.moduleFilePaths(g.config.Name)
 
 	// 生成模板内容
 	bizContent, err := renderer.RenderBiz(pascal, g.config.PackagePath)
@@ -113,8 +109,7 @@ func (g *Generator) generateFromDefaultTemplate(pascal, camel, baseRoute string)
 	// 生成测试用例（如果启用）
 	if g.config.GenerateTests {
 		utils.PrintInfo("🧪 生成测试用例...")
-		bizTestFile := filepath.Join(g.config.RepoRoot, "internal", "api", "biz", fmt.Sprintf("%s_test.go", g.config.Name))
-		svcTestFile := filepath.Join(g.config.RepoRoot, "internal", "api", "service", fmt.Sprintf("%s_test.go", g.config.Name))
+		bizTestFile, svcTestFile := g.moduleTestFilePaths(g.config.Name)
 
 		// 使用增强测试模板作为默认
 		data := templates.TemplateData{
@@ -146,7 +141,7 @@ func (g *Generator) generateFromDefaultTemplate(pascal, camel, baseRoute string)
 	_ = utils.TryInject(filepath.Join(g.config.RepoRoot, "internal", "api", "service", "service.go"), "AsRoute(New"+pascal+"Controller)")
 
 	utils.PrintSuccess("✅ %s 模块生成完成！", g.config.Name)
-	g.printGeneratedFiles(pascal)
+	g.printGeneratedFiles(g.config.Name)
 	utils.PrintUsageInstructions(g.config.Name, pascal)
 
 	return nil
@@ -158,9 +153,9 @@ func (g *Generator) generateAllModules() error {
 	utils.PrintInfo("📄 从OpenAPI3文档生成: %s", g.config.OpenAPIFile)
 
 	// 解析OpenAPI文档
-	openapiDoc, err := openapi.ParseOpenAPI3(g.config.OpenAPIFile)
+	openapiDoc, err := g.loadOpenAPIDoc()
 	if err != nil {
-		return fmt.Errorf("解析OpenAPI文档失败: %v", err)
+		return err
 	}
 
 	// 提取所有模块名
@@ -181,16 +176,7 @@ func (g *Generator) generateAllModules() error {
 	for _, moduleName := range moduleNames {
 		utils.PrintInfo("\n🔄 正在生成模块: %s", moduleName)
 
-		// 创建临时配置
-		tempConfig := *g.config
-		tempConfig.Name = moduleName
-		tempConfig.GenerateAll = false
-
-		// 创建临时生成器
-		tempGen := &Generator{config: &tempConfig}
-
-		// 生成模块
-		if err := tempGen.generateSingleModuleFromOpenAPI(); err != nil {
+		if err := g.generateOpenAPIModule(openapiDoc, moduleName, false); err != nil {
 			utils.PrintError("❌ 生成模块 %s 失败: %v", moduleName, err)
 			continue
 		}
@@ -203,109 +189,144 @@ func (g *Generator) generateAllModules() error {
 	return nil
 }
 
-// generateSingleModuleFromOpenAPI 生成单个模块（从OpenAPI）
-func (g *Generator) generateSingleModuleFromOpenAPI() error {
-	// 解析OpenAPI文档
-	openapiDoc, err := openapi.ParseOpenAPI3(g.config.OpenAPIFile)
+// generateOpenAPIModule 使用 OpenAPI 文档生成模块
+func (g *Generator) generateOpenAPIModule(doc *openapi.OpenAPI3, moduleName string, showSummary bool) error {
+	renderer, err := g.templateRenderer()
 	if err != nil {
-		return fmt.Errorf("解析OpenAPI文档失败: %v", err)
+		return fmt.Errorf("创建模板渲染器失败: %w", err)
 	}
 
 	// 生成API模块
-	module, err := openapi.GenerateFromOpenAPI(openapiDoc, g.config.Name)
+	module, err := openapi.GenerateFromOpenAPI(doc, moduleName)
 	if err != nil {
-		return fmt.Errorf("生成API模块失败: %v", err)
+		return fmt.Errorf("生成API模块失败: %w", err)
 	}
 
-	pascal := utils.ToPascal(g.config.Name)
-	camel := utils.ToCamel(g.config.Name)
-	plural := utils.Pluralize(g.config.Name)
-	baseRoute := g.config.Route
-	if baseRoute == "" {
-		baseRoute = "/" + plural
-	}
-
-	// 生成文件路径
-	bizFile := filepath.Join(g.config.RepoRoot, "internal", "api", "biz", fmt.Sprintf("%s.go", g.config.Name))
-	svcFile := filepath.Join(g.config.RepoRoot, "internal", "api", "service", fmt.Sprintf("%s.go", g.config.Name))
-	paramFile := filepath.Join(g.config.RepoRoot, "internal", "api", "service", "param", fmt.Sprintf("%s.go", g.config.Name))
-	codeFile := filepath.Join(g.config.RepoRoot, "internal", "code", fmt.Sprintf("%s.go", g.config.Name))
+	pascal, camel, baseRoute := g.naming(moduleName)
+	bizFile, svcFile, paramFile, codeFile := g.moduleFilePaths(moduleName)
 
 	// 生成代码
-	utils.MustWrite(bizFile, templates.RenderBizFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
-	utils.MustWrite(svcFile, templates.RenderServiceFromOpenAPI(module, pascal, camel, baseRoute, g.config.PackagePath), g.config.Force)
-	utils.MustWrite(paramFile, templates.RenderParamFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
-	utils.MustWrite(codeFile, templates.RenderCodeFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
+	bizContent, err := renderer.RenderOpenAPIBiz(module, pascal, g.config.PackagePath)
+	if err != nil {
+		return fmt.Errorf("渲染业务逻辑模板失败: %w", err)
+	}
+	utils.MustWrite(bizFile, bizContent, g.config.Force)
+
+	svcContent, err := renderer.RenderOpenAPIService(module, pascal, camel, baseRoute, g.config.PackagePath)
+	if err != nil {
+		return fmt.Errorf("渲染服务层模板失败: %w", err)
+	}
+	utils.MustWrite(svcFile, svcContent, g.config.Force)
+
+	paramContent, err := renderer.RenderOpenAPIParam(module, pascal, g.config.PackagePath)
+	if err != nil {
+		return fmt.Errorf("渲染参数模板失败: %w", err)
+	}
+	utils.MustWrite(paramFile, paramContent, g.config.Force)
+
+	codeContent, err := renderer.RenderOpenAPICode(module, pascal, g.config.PackagePath)
+	if err != nil {
+		return fmt.Errorf("渲染错误码模板失败: %w", err)
+	}
+	utils.MustWrite(codeFile, codeContent, g.config.Force)
 
 	// 生成测试用例（如果启用）
 	if g.config.GenerateTests {
-		bizTestFile := filepath.Join(g.config.RepoRoot, "internal", "api", "biz", fmt.Sprintf("%s_test.go", g.config.Name))
-		svcTestFile := filepath.Join(g.config.RepoRoot, "internal", "api", "service", fmt.Sprintf("%s_test.go", g.config.Name))
-		utils.MustWrite(bizTestFile, templates.RenderBizTestEnhancedFromOpenAPI(module, pascal, camel, g.config.PackagePath), g.config.Force)
-		utils.MustWrite(svcTestFile, templates.RenderServiceTestEnhancedFromOpenAPI(module, pascal, camel, g.config.PackagePath), g.config.Force)
+		bizTestFile, svcTestFile := g.moduleTestFilePaths(moduleName)
+		bizTestContent, err := renderer.RenderOpenAPIBizTests(module, pascal, camel, g.config.PackagePath)
+		if err != nil {
+			return fmt.Errorf("渲染业务逻辑测试模板失败: %w", err)
+		}
+		utils.MustWrite(bizTestFile, bizTestContent, g.config.Force)
+
+		svcTestContent, err := renderer.RenderOpenAPIServiceTests(module, pascal, camel, g.config.PackagePath)
+		if err != nil {
+			return fmt.Errorf("渲染服务层测试模板失败: %w", err)
+		}
+		utils.MustWrite(svcTestFile, svcTestContent, g.config.Force)
 	}
 
 	// 注入到 fx.Options
 	_ = utils.TryInject(filepath.Join(g.config.RepoRoot, "internal", "api", "biz", "biz.go"), "New"+pascal+"Handler")
 	_ = utils.TryInject(filepath.Join(g.config.RepoRoot, "internal", "api", "service", "service.go"), "AsRoute(New"+pascal+"Controller)")
+
+	if showSummary {
+		utils.PrintInfo("📊 从OpenAPI文档解析到 %d 个操作", len(module.Operations))
+		utils.PrintSuccess("✅ %s 模块生成完成！", moduleName)
+		g.printGeneratedFiles(moduleName)
+		utils.PrintUsageInstructions(moduleName, pascal)
+	}
 
 	return nil
 }
 
-// generateFromOpenAPIDoc 从OpenAPI3文档生成
-func (g *Generator) generateFromOpenAPIDoc(pascal, camel, baseRoute string) error {
-	// 解析OpenAPI文档
-	openapiDoc, err := openapi.ParseOpenAPI3(g.config.OpenAPIFile)
+// loadOpenAPIDoc 解析并缓存 OpenAPI 文档
+func (g *Generator) loadOpenAPIDoc() (*openapi.OpenAPI3, error) {
+	if g.config.OpenAPIFile == "" {
+		return nil, fmt.Errorf("未指定OpenAPI文档路径")
+	}
+
+	if g.openAPIDoc != nil {
+		return g.openAPIDoc, nil
+	}
+
+	doc, err := openapi.ParseOpenAPI3(g.config.OpenAPIFile)
 	if err != nil {
-		return fmt.Errorf("解析OpenAPI文档失败: %v", err)
+		return nil, fmt.Errorf("解析OpenAPI文档失败: %w", err)
 	}
 
-	// 生成API模块
-	module, err := openapi.GenerateFromOpenAPI(openapiDoc, g.config.Name)
-	if err != nil {
-		return fmt.Errorf("生成API模块失败: %v", err)
+	g.openAPIDoc = doc
+	return g.openAPIDoc, nil
+}
+
+// naming 生成命名相关信息
+func (g *Generator) naming(moduleName string) (pascal, camel, baseRoute string) {
+	pascal = utils.ToPascal(moduleName)
+	camel = utils.ToCamel(moduleName)
+	baseRoute = g.config.Route
+	if baseRoute == "" {
+		baseRoute = "/" + utils.Pluralize(moduleName)
 	}
+	return
+}
 
-	// 生成文件路径
-	bizFile := filepath.Join(g.config.RepoRoot, "internal", "api", "biz", fmt.Sprintf("%s.go", g.config.Name))
-	svcFile := filepath.Join(g.config.RepoRoot, "internal", "api", "service", fmt.Sprintf("%s.go", g.config.Name))
-	paramFile := filepath.Join(g.config.RepoRoot, "internal", "api", "service", "param", fmt.Sprintf("%s.go", g.config.Name))
-	codeFile := filepath.Join(g.config.RepoRoot, "internal", "code", fmt.Sprintf("%s.go", g.config.Name))
+// moduleFilePaths 返回模块相关文件路径
+func (g *Generator) moduleFilePaths(moduleName string) (biz, svc, param, code string) {
+	biz = filepath.Join(g.config.RepoRoot, "internal", "api", "biz", fmt.Sprintf("%s.go", moduleName))
+	svc = filepath.Join(g.config.RepoRoot, "internal", "api", "service", fmt.Sprintf("%s.go", moduleName))
+	param = filepath.Join(g.config.RepoRoot, "internal", "api", "service", "param", fmt.Sprintf("%s.go", moduleName))
+	code = filepath.Join(g.config.RepoRoot, "internal", "code", fmt.Sprintf("%s.go", moduleName))
+	return
+}
 
-	// 生成代码
-	utils.MustWrite(bizFile, templates.RenderBizFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
-	utils.MustWrite(svcFile, templates.RenderServiceFromOpenAPI(module, pascal, camel, baseRoute, g.config.PackagePath), g.config.Force)
-	utils.MustWrite(paramFile, templates.RenderParamFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
-	utils.MustWrite(codeFile, templates.RenderCodeFromOpenAPI(module, pascal, g.config.PackagePath), g.config.Force)
-
-	// 生成测试用例（如果启用）
-	if g.config.GenerateTests {
-		utils.PrintInfo("🧪 生成测试用例...")
-		bizTestFile := filepath.Join(g.config.RepoRoot, "internal", "api", "biz", fmt.Sprintf("%s_test.go", g.config.Name))
-		svcTestFile := filepath.Join(g.config.RepoRoot, "internal", "api", "service", fmt.Sprintf("%s_test.go", g.config.Name))
-		// 使用增强测试模板作为默认
-		utils.MustWrite(bizTestFile, templates.RenderBizTestEnhancedFromOpenAPI(module, pascal, camel, g.config.PackagePath), g.config.Force)
-		utils.MustWrite(svcTestFile, templates.RenderServiceTestEnhancedFromOpenAPI(module, pascal, camel, g.config.PackagePath), g.config.Force)
-	}
-
-	utils.PrintInfo("📊 从OpenAPI文档解析到 %d 个操作", len(module.Operations))
-
-	// 注入到 fx.Options
-	_ = utils.TryInject(filepath.Join(g.config.RepoRoot, "internal", "api", "biz", "biz.go"), "New"+pascal+"Handler")
-	_ = utils.TryInject(filepath.Join(g.config.RepoRoot, "internal", "api", "service", "service.go"), "AsRoute(New"+pascal+"Controller)")
-
-	utils.PrintSuccess("✅ %s 模块生成完成！", g.config.Name)
-	g.printGeneratedFiles(pascal)
-	utils.PrintUsageInstructions(g.config.Name, pascal)
-
-	return nil
+// moduleTestFilePaths 返回模块测试文件路径
+func (g *Generator) moduleTestFilePaths(moduleName string) (bizTest, svcTest string) {
+	bizTest = filepath.Join(g.config.RepoRoot, "internal", "api", "biz", fmt.Sprintf("%s_test.go", moduleName))
+	svcTest = filepath.Join(g.config.RepoRoot, "internal", "api", "service", fmt.Sprintf("%s_test.go", moduleName))
+	return
 }
 
 // printGeneratedFiles 打印生成的文件列表
-func (g *Generator) printGeneratedFiles(pascal string) {
+func (g *Generator) printGeneratedFiles(moduleName string) {
+	bizFile, svcFile, paramFile, codeFile := g.moduleFilePaths(moduleName)
+
 	fmt.Printf("\n📁 生成的文件:\n")
-	fmt.Printf("  📄 业务逻辑: %s\n", filepath.Join(g.config.RepoRoot, "internal", "api", "biz", fmt.Sprintf("%s.go", g.config.Name)))
-	fmt.Printf("  📄 控制器: %s\n", filepath.Join(g.config.RepoRoot, "internal", "api", "service", fmt.Sprintf("%s.go", g.config.Name)))
-	fmt.Printf("  📄 参数结构: %s\n", filepath.Join(g.config.RepoRoot, "internal", "api", "service", "param", fmt.Sprintf("%s.go", g.config.Name)))
-	fmt.Printf("  📄 错误码: %s\n", filepath.Join(g.config.RepoRoot, "internal", "code", fmt.Sprintf("%s.go", g.config.Name)))
+	fmt.Printf("  📄 业务逻辑: %s\n", bizFile)
+	fmt.Printf("  📄 控制器: %s\n", svcFile)
+	fmt.Printf("  📄 参数结构: %s\n", paramFile)
+	fmt.Printf("  📄 错误码: %s\n", codeFile)
+}
+
+func (g *Generator) templateRenderer() (*templates.TemplateRenderer, error) {
+	if g.renderer != nil {
+		return g.renderer, nil
+	}
+
+	r, err := templates.NewTemplateRenderer()
+	if err != nil {
+		return nil, err
+	}
+
+	g.renderer = r
+	return g.renderer, nil
 }

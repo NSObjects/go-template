@@ -4,11 +4,10 @@
  *
  */
 
-package main
+package codegen
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -70,65 +69,53 @@ var errCodeDocPrefix = `# 错误码文档
 | ---------- | ---- | --------- | ----------- |
 `
 
-var (
-	typeNames  = flag.String("type", "", "comma-separated list of type names; must be set")
-	output     = flag.String("output", "", "output file name; default srcdir/<type>_string.go")
-	trimprefix = flag.String("trimprefix", "", "trim the `prefix` from the generated "+
-		"constant names")
-	buildTags = flag.String("tags", "", "comma-separated list of build tags to apply")
-	doc       = flag.Bool("doc", false, "if true only generate error code "+
-		"documentation in markdown format")
-)
-
-// Usage is a replacement usage function for the flags package.
-func Usage() {
-	fmt.Fprintf(os.Stderr, "Usage of codegen:\n")
-	fmt.Fprintf(os.Stderr, "\tcodegen [flags] -type T [directory]\n")
-	fmt.Fprintf(os.Stderr, "\tcodegen [flags] -type T files... # Must be a single package\n")
-	fmt.Fprintf(os.Stderr, "Flags:\n")
-	flag.PrintDefaults()
+// Options describes the configuration for the code generator command.
+type Options struct {
+	TypeNames  string
+	Output     string
+	TrimPrefix string
+	BuildTags  string
+	Doc        bool
 }
 
-func main() { //nolint:funlen
+// Run executes the code generator with the provided options and arguments.
+func Run(opts Options, args []string) error { //nolint:funlen
 	log.SetFlags(0)
 	log.SetPrefix("codegen: ")
-	flag.Usage = Usage
-	flag.Parse()
-	if len(*typeNames) == 0 {
-		flag.Usage()
-		os.Exit(2) //nolint:gomnd
-	}
-	types := strings.Split(*typeNames, ",")
-	var tags []string
-	if len(*buildTags) > 0 {
-		tags = strings.Split(*buildTags, ",")
+
+	if len(opts.TypeNames) == 0 {
+		return fmt.Errorf("type flag must be set")
 	}
 
-	// We accept either one directory or a list of files. Which do we have?
-	args := flag.Args()
+	types := strings.Split(opts.TypeNames, ",")
+	var tags []string
+	if len(opts.BuildTags) > 0 {
+		tags = strings.Split(opts.BuildTags, ",")
+	}
+
 	if len(args) == 0 {
 		// Default: process whole package in current directory.
 		args = []string{"."}
 	}
 
-	// Parse the package once.
 	var dir string
 	g := Generator{
-		trimPrefix: *trimprefix,
+		trimPrefix: opts.TrimPrefix,
 	}
+
 	// TODO(suzmue): accept other patterns for packages (directories, list of files, import paths, etc).
 	if len(args) == 1 && isDirectory(args[0]) {
 		dir = args[0]
 	} else {
 		if len(tags) != 0 {
-			log.Fatal("-tags option applies only to directories, not when files are specified")
+			return fmt.Errorf("-tags option applies only to directories, not when files are specified")
 		}
 		dir = filepath.Dir(args[0])
 	}
 
 	g.parsePackage(args, tags)
 
-	if !*doc {
+	if !opts.Doc {
 		// Print the header and package clause.
 		g.Printf("// Copyright 2020 Lingfei Kong <colin404@foxmail.com>. All rights reserved.\n")
 		g.Printf("// Use of this source code is governed by a MIT style\n")
@@ -143,7 +130,7 @@ func main() { //nolint:funlen
 	// Run generate for each type.
 	var src []byte
 	for _, typeName := range types {
-		if *doc {
+		if opts.Doc {
 			g.generateDocs(typeName)
 			src = g.buf.Bytes()
 		} else {
@@ -154,24 +141,25 @@ func main() { //nolint:funlen
 	}
 
 	// Write to file.
-	outputName := *output
+	outputName := opts.Output
 	if outputName == "" {
 		absDir, _ := filepath.Abs(dir)
 		baseName := fmt.Sprintf("%s_generated.go", strings.ReplaceAll(filepath.Base(absDir), "-", "_"))
-		if len(flag.Args()) == 1 {
+		if len(args) == 1 {
 			baseName = fmt.Sprintf(
 				"%s_generated.go",
-				strings.ReplaceAll(filepath.Base(strings.TrimSuffix(flag.Args()[0], ".go")), "-", "_"),
+				strings.ReplaceAll(filepath.Base(strings.TrimSuffix(args[0], ".go")), "-", "_"),
 			)
 		}
 
 		outputName = filepath.Join(dir, strings.ToLower(baseName))
 	}
 
-	err := os.WriteFile(outputName, src, 0o600) //nolint:gomnd
-	if err != nil {
-		log.Fatalf("writing output: %s", err)
+	if err := os.WriteFile(outputName, src, 0o600); err != nil { //nolint:gomnd
+		return fmt.Errorf("writing output: %w", err)
 	}
+
+	return nil
 }
 
 // isDirectory reports whether the named file is a directory.

@@ -11,100 +11,46 @@ import (
 	"github.com/NSObjects/go-template/tools/modgen/openapi"
 )
 
-// RenderBizFromOpenAPI 从OpenAPI3生成业务逻辑模板
-func RenderBizFromOpenAPI(module *openapi.APIModule, pascal, packagePath string) string {
-	// 使用新的模板渲染器
-	renderer, err := NewTemplateRenderer()
-	if err != nil {
-		return fmt.Sprintf("// 错误: %v", err)
-	}
-
-	// 检查是否有请求体或查询参数
-	hasRequestBodyOrQuery := checkHasRequestBodyOrQuery(module.Operations)
-
-	// 准备模板数据
+// RenderOpenAPIBiz 从OpenAPI3生成业务逻辑模板
+func (tr *TemplateRenderer) RenderOpenAPIBiz(module *openapi.APIModule, pascal, packagePath string) (string, error) {
 	data := TemplateData{
 		Pascal:                pascal,
 		PackagePath:           packagePath,
 		Operations:            module.Operations,
-		HasRequestBodyOrQuery: hasRequestBodyOrQuery,
+		HasRequestBodyOrQuery: checkHasRequestBodyOrQuery(module.Operations),
 	}
 
-	// 渲染模板
-	content, err := renderer.Render("biz_openapi", data)
-	if err != nil {
-		return fmt.Sprintf("// 错误: %v", err)
-	}
-
-	return content
+	return tr.Render("biz_openapi", data)
 }
 
-// RenderServiceFromOpenAPI 从OpenAPI3生成服务层模板
-func RenderServiceFromOpenAPI(module *openapi.APIModule, pascal, camel, baseRoute, packagePath string) string {
-	// 使用新的模板渲染器
-	renderer, err := NewTemplateRenderer()
-	if err != nil {
-		return fmt.Sprintf("// 错误: %v", err)
-	}
-
-	// 检查是否有路径参数
-	hasPathParams := checkHasPathParams(module.Operations)
-	// 检查是否有请求体或查询参数
-	hasRequestBodyOrQuery := checkHasRequestBodyOrQuery(module.Operations)
-
-	// 准备模板数据
+// RenderOpenAPIService 从OpenAPI3生成服务层模板
+func (tr *TemplateRenderer) RenderOpenAPIService(module *openapi.APIModule, pascal, camel, baseRoute, packagePath string) (string, error) {
 	data := TemplateData{
 		Pascal:                pascal,
 		Camel:                 camel,
+		Route:                 baseRoute,
 		PackagePath:           packagePath,
 		Operations:            module.Operations,
-		HasPathParams:         hasPathParams,
-		HasRequestBodyOrQuery: hasRequestBodyOrQuery,
+		HasPathParams:         checkHasPathParams(module.Operations),
+		HasRequestBodyOrQuery: checkHasRequestBodyOrQuery(module.Operations),
 	}
 
-	// 渲染模板
-	content, err := renderer.Render("service_openapi", data)
-	if err != nil {
-		return fmt.Sprintf("// 错误: %v", err)
-	}
-
-	return content
+	return tr.Render("service_openapi", data)
 }
 
-// RenderParamFromOpenAPI 从OpenAPI3生成参数模板
-func RenderParamFromOpenAPI(module *openapi.APIModule, pascal, packagePath string) string {
-	// 使用新的模板渲染器
-	renderer, err := NewTemplateRenderer()
-	if err != nil {
-		return fmt.Sprintf("// 错误: %v", err)
-	}
-
-	// 检查是否包含时间字段（包括所有字段）
-	hasTimeFields := checkHasTimeFieldsAll(module.Operations)
-
-	// 检查是否有路径参数
-	hasPathParams := checkHasPathParams(module.Operations)
-	// 检查是否有请求体或查询参数
-	hasRequestBodyOrQuery := checkHasRequestBodyOrQuery(module.Operations)
-
-	// 准备模板数据
+// RenderOpenAPIParam 从OpenAPI3生成参数模板
+func (tr *TemplateRenderer) RenderOpenAPIParam(module *openapi.APIModule, pascal, packagePath string) (string, error) {
 	data := TemplateData{
 		Pascal:                pascal,
 		PackagePath:           packagePath,
 		Operations:            module.Operations,
 		ResponseDataTypes:     deduplicateResponseData(module.Operations),
-		HasTimeFields:         hasTimeFields,
-		HasPathParams:         hasPathParams,
-		HasRequestBodyOrQuery: hasRequestBodyOrQuery,
+		HasTimeFields:         checkHasTimeFieldsAll(module.Operations),
+		HasPathParams:         checkHasPathParams(module.Operations),
+		HasRequestBodyOrQuery: checkHasRequestBodyOrQuery(module.Operations),
 	}
 
-	// 渲染模板
-	content, err := renderer.Render("param_openapi", data)
-	if err != nil {
-		return fmt.Sprintf("// 错误: %v", err)
-	}
-
-	return content
+	return tr.Render("param_openapi", data)
 }
 
 // deduplicateResponseData 去重响应数据类型
@@ -812,94 +758,48 @@ func checkHasRequestBodyOrQuery(operations []openapi.APIOperation) bool {
 	return false
 }
 
-// RenderBizTestEnhancedFromOpenAPI 从OpenAPI3生成增强的业务逻辑测试模板
-func RenderBizTestEnhancedFromOpenAPI(module *openapi.APIModule, pascal, camel, packagePath string) string {
-	// 使用新的模板渲染器
-	renderer, err := NewTemplateRenderer()
-	if err != nil {
-		return fmt.Sprintf("// 错误: %v", err)
-	}
-
-	// 检查是否包含时间字段
-	hasTimeFields := checkHasTimeFields(module.Operations)
-
-	// 准备模板数据
+// RenderOpenAPIBizTests 从OpenAPI3生成增强的业务逻辑测试模板
+func (tr *TemplateRenderer) RenderOpenAPIBizTests(module *openapi.APIModule, pascal, camel, packagePath string) (string, error) {
 	data := TemplateData{
 		Pascal:                pascal,
 		Camel:                 camel,
 		PackagePath:           packagePath,
 		Operations:            module.Operations,
-		HasTimeFields:         hasTimeFields,
+		HasTimeFields:         checkHasTimeFields(module.Operations),
 		HasPathParams:         checkHasPathParams(module.Operations),
 		HasRequestBodyOrQuery: checkHasRequestBodyOrQuery(module.Operations),
 	}
 
-	// 渲染增强模板
-	content, err := renderer.RenderBizTestEnhanced(data)
-	if err != nil {
-		return fmt.Sprintf("// 错误: %v", err)
-	}
-
-	return content
+	return tr.RenderBizTestEnhanced(data)
 }
 
-// RenderServiceTestEnhancedFromOpenAPI 从OpenAPI3生成增强的服务层测试模板
-func RenderServiceTestEnhancedFromOpenAPI(module *openapi.APIModule, pascal, camel, packagePath string) string {
-	// 使用新的模板渲染器
-	renderer, err := NewTemplateRenderer()
-	if err != nil {
-		return fmt.Sprintf("// 错误: %v", err)
-	}
-
-	// 检查是否包含时间字段
-	hasTimeFields := checkHasTimeFields(module.Operations)
-
-	// 准备模板数据
+// RenderOpenAPIServiceTests 从OpenAPI3生成增强的服务层测试模板
+func (tr *TemplateRenderer) RenderOpenAPIServiceTests(module *openapi.APIModule, pascal, camel, packagePath string) (string, error) {
 	data := TemplateData{
 		Pascal:                pascal,
 		Camel:                 camel,
 		PackagePath:           packagePath,
 		Operations:            module.Operations,
-		HasTimeFields:         hasTimeFields,
+		HasTimeFields:         checkHasTimeFields(module.Operations),
 		HasPathParams:         checkHasPathParams(module.Operations),
 		HasRequestBodyOrQuery: checkHasRequestBodyOrQuery(module.Operations),
 	}
 
-	// 渲染增强模板
-	content, err := renderer.RenderServiceTestEnhanced(data)
-	if err != nil {
-		return fmt.Sprintf("// 错误: %v", err)
-	}
-
-	return content
+	return tr.RenderServiceTestEnhanced(data)
 }
 
-// RenderCodeFromOpenAPI 从OpenAPI3生成错误码模板
-func RenderCodeFromOpenAPI(module *openapi.APIModule, pascal, packagePath string) string {
-	// 使用新的模板渲染器
-	renderer, err := NewTemplateRenderer()
-	if err != nil {
-		return fmt.Sprintf("// 错误: %v", err)
-	}
-
-	// 收集所有操作中的错误码
+// RenderOpenAPICode 从OpenAPI3生成错误码模板
+func (tr *TemplateRenderer) RenderOpenAPICode(module *openapi.APIModule, pascal, packagePath string) (string, error) {
 	var allErrorCodes []openapi.ErrorCode
 	for _, op := range module.Operations {
 		allErrorCodes = append(allErrorCodes, op.XErrorCodes...)
 	}
 
-	// 准备模板数据
 	data := TemplateData{
 		Pascal:      pascal,
 		PackagePath: packagePath,
 		ErrorCodes:  allErrorCodes,
 	}
 
-	// 渲染错误码模板
-	content, err := renderer.RenderCodeFromOpenAPI(data)
-	if err != nil {
-		return fmt.Sprintf("// 错误: %v", err)
-	}
-
-	return content
+	return tr.Render("code_openapi", data)
 }

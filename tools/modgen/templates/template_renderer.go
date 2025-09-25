@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/NSObjects/go-template/tools/modgen/openapi"
@@ -36,57 +37,108 @@ type TemplateRenderer struct {
 	templates map[string]*template.Template
 }
 
+var (
+	rendererOnce sync.Once
+	renderer     *TemplateRenderer
+	rendererErr  error
+)
+
 // NewTemplateRenderer 创建新的模板渲染器
 func NewTemplateRenderer() (*TemplateRenderer, error) {
-	tr := &TemplateRenderer{
-		templates: make(map[string]*template.Template),
-	}
+	rendererOnce.Do(func() {
+		renderer, rendererErr = loadRenderer()
+	})
+	return renderer, rendererErr
+}
 
-	// 获取当前工作目录
-	wd, err := os.Getwd()
+func loadRenderer() (*TemplateRenderer, error) {
+	templateDir, err := locateTemplateDir()
 	if err != nil {
-		return nil, fmt.Errorf("无法获取工作目录: %v", err)
+		return nil, err
 	}
 
-	// 构建模板目录路径 - 修复路径问题
-	var templateDir string
+	tr := &TemplateRenderer{templates: make(map[string]*template.Template)}
 
-	// 尝试多个可能的路径
-	possiblePaths := []string{
-		filepath.Join(wd, "tools", "modgen", "templates", "tmpl"),
-		filepath.Join(wd, "tmpl"),
-		filepath.Join(filepath.Dir(wd), "tmpl"),
-		"tmpl", // 相对路径
+	funcMap := template.FuncMap{
+		"hasPrefix": strings.HasPrefix,
+		"contains":  strings.Contains,
 	}
 
-	for _, path := range possiblePaths {
-		if _, err := os.Stat(path); err == nil {
-			templateDir = path
-			break
-		}
+	templates := []string{
+		"biz",
+		"service",
+		"param",
+		"model",
+		"code",
+		"param_openapi",
+		"biz_openapi",
+		"service_openapi",
+		"service_test_enhanced",
+		"biz_test_enhanced",
+		"code_openapi",
 	}
 
-	if templateDir == "" {
-		return nil, fmt.Errorf("无法找到模板目录，尝试的路径: %v", possiblePaths)
-	}
-
-	// 加载所有模板
-	templates := []string{"biz", "service", "param", "model", "code", "biz_test", "service_test", "param_openapi", "service_test_openapi", "biz_openapi", "service_openapi", "biz_test_openapi", "service_test_enhanced", "biz_test_enhanced", "code_openapi"}
 	for _, name := range templates {
-		// 使用计算出的模板目录
 		templatePath := filepath.Join(templateDir, name+".tmpl")
 
-		tmpl, err := template.New(filepath.Base(templatePath)).Funcs(template.FuncMap{
-			"hasPrefix": strings.HasPrefix,
-			"contains":  strings.Contains,
-		}).ParseFiles(templatePath)
+		tmpl, err := template.New(filepath.Base(templatePath)).Funcs(funcMap).ParseFiles(templatePath)
 		if err != nil {
-			return nil, fmt.Errorf("加载模板 %s 失败，路径: %s, 错误: %v", name, templatePath, err)
+			return nil, fmt.Errorf("加载模板 %s 失败，路径: %s, 错误: %w", name, templatePath, err)
 		}
 		tr.templates[name] = tmpl
 	}
 
 	return tr, nil
+}
+
+func locateTemplateDir() (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("无法获取工作目录: %w", err)
+	}
+
+	candidates := collectTemplateCandidates(wd)
+	for _, path := range candidates {
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			return path, nil
+		}
+	}
+
+	return "", fmt.Errorf("无法找到模板目录，尝试的路径: %v", candidates)
+}
+
+func collectTemplateCandidates(wd string) []string {
+	seen := make(map[string]struct{})
+	var paths []string
+
+	add := func(path string) {
+		if _, ok := seen[path]; ok {
+			return
+		}
+		seen[path] = struct{}{}
+		paths = append(paths, path)
+	}
+
+	relPaths := []string{
+		"tmpl",
+		filepath.Join("templates", "tmpl"),
+		filepath.Join("tools", "modgen", "templates", "tmpl"),
+	}
+
+	for dir := wd; ; dir = filepath.Dir(dir) {
+		for _, rel := range relPaths {
+			add(filepath.Join(dir, rel))
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+	}
+
+	// 兼容相对路径引用
+	add("tmpl")
+
+	return paths
 }
 
 // Render 渲染模板
@@ -160,37 +212,10 @@ func (tr *TemplateRenderer) RenderCode(pascal, table, packagePath string) (strin
 	return tr.Render("code", data)
 }
 
-// RenderBizTest 生成业务逻辑测试模板
-func (tr *TemplateRenderer) RenderBizTest(pascal, packagePath string) (string, error) {
-	data := TemplateData{
-		Pascal:      pascal,
-		PackagePath: packagePath,
-	}
-	return tr.Render("biz_test", data)
-}
-
-// RenderServiceTest 生成服务层测试模板
-func (tr *TemplateRenderer) RenderServiceTest(pascal, camel, route, packagePath string) (string, error) {
-	data := TemplateData{
-		Pascal:      pascal,
-		Camel:       camel,
-		Route:       route,
-		PackagePath: packagePath,
-	}
-	return tr.Render("service_test", data)
-}
-
-// RenderServiceTestEnhanced 生成增强的服务层测试模板
 func (tr *TemplateRenderer) RenderServiceTestEnhanced(data TemplateData) (string, error) {
 	return tr.Render("service_test_enhanced", data)
 }
 
-// RenderBizTestEnhanced 生成增强的业务逻辑测试模板
 func (tr *TemplateRenderer) RenderBizTestEnhanced(data TemplateData) (string, error) {
 	return tr.Render("biz_test_enhanced", data)
-}
-
-// RenderCodeFromOpenAPI 从OpenAPI数据渲染错误码模板
-func (tr *TemplateRenderer) RenderCodeFromOpenAPI(data TemplateData) (string, error) {
-	return tr.Render("code_openapi", data)
 }

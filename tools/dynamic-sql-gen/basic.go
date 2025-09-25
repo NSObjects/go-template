@@ -1,14 +1,15 @@
-package main
+package dynamicsql
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/NSObjects/go-template/internal/configs"
 	"gorm.io/driver/mysql"
 	"gorm.io/gen"
 	"gorm.io/gorm"
+
+	"github.com/spf13/cobra"
 )
 
 // 通用查询接口 - 适用于所有模型的基础CRUD操作
@@ -126,11 +127,29 @@ type IBusinessQuery interface {
 	BatchUpdate(field, value string, ids []uint) error
 }
 
-func main() {
-	// 加载配置
-	cfg := configs.NewCfg("configs/config.toml")
+type Options struct {
+	Config string
+}
 
-	// 构建DSN
+func NewCommand() *cobra.Command {
+	opts := Options{}
+
+	cmd := &cobra.Command{
+		Use:   "dynamic-sql",
+		Short: "Generate dynamic SQL helpers based on the current database schema",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return Run(opts)
+		},
+	}
+
+	cmd.Flags().StringVar(&opts.Config, "config", "configs/config.toml", "config file path")
+
+	return cmd
+}
+
+func Run(opts Options) error {
+	cfg := configs.NewCfg(opts.Config)
+
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		cfg.Mysql.User,
 		cfg.Mysql.Password,
@@ -139,13 +158,11 @@ func main() {
 		cfg.Mysql.Database,
 	)
 
-	// 连接数据库
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatalf("failed to connect database: %v", err)
+		return fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	// 创建生成器
 	g := gen.NewGenerator(gen.Config{
 		OutPath:           "./internal/api/data/query",
 		Mode:              gen.WithoutContext | gen.WithDefaultQuery | gen.WithQueryInterface,
@@ -153,13 +170,10 @@ func main() {
 		FieldWithTypeTag:  true,
 	})
 
-	// 设置数据库连接
 	g.UseDB(db)
 
-	// 生成所有表的模型
 	g.ApplyBasic(g.GenerateAllTable()...)
 
-	// 应用通用查询接口到所有模型 - 这是Dynamic SQL的核心：通用方法
 	g.ApplyInterface(func(ICommonQuery) {}, g.GenerateAllTable()...)
 	g.ApplyInterface(func(IPaginationQuery) {}, g.GenerateAllTable()...)
 	g.ApplyInterface(func(ISearchQuery) {}, g.GenerateAllTable()...)
@@ -167,8 +181,9 @@ func main() {
 	g.ApplyInterface(func(IAdvancedQuery) {}, g.GenerateAllTable()...)
 	g.ApplyInterface(func(IBusinessQuery) {}, g.GenerateAllTable()...)
 
-	// 执行生成
 	g.Execute()
 
 	fmt.Println("Basic Dynamic SQL generation completed!")
+
+	return nil
 }
