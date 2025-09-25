@@ -150,13 +150,29 @@ test-coverage:
 # 代码生成工具
 # =============================================================================
 
-.PHONY: gen-code gen-module gen-module-tests gen-module-openapi gen-module-openapi-tests gen-module-route gen-all-modules gen-all-modules-tests db-gen db-gen-table gen-all
+.PHONY: init-project gen-code gen-module gen-module-tests gen-module-openapi gen-module-openapi-tests gen-module-route gen-all-modules gen-all-modules-tests db-gen db-gen-table gen-all
+
+# 使用模板生成全新项目骨架
+init-project:
+	@if [ -z "$(MODULE)" ]; then \
+		echo "$(RED)[ERROR]$(NC) Usage: make init-project MODULE=github.com/acme/demo [OUTPUT=path] [NAME=ProjectName] [FORCE=1]"; \
+		exit 1; \
+	fi
+	@OUTPUT_DIR=$${OUTPUT:-$$(basename $(MODULE))}; \
+		NAME_FLAG=""; \
+		if [ -n "$(NAME)" ]; then NAME_FLAG="--name=$(NAME)"; fi; \
+		FORCE_FLAG=""; \
+		if [ "$(FORCE)" = "1" ]; then FORCE_FLAG="--force"; fi; \
+		echo "$(BLUE)[INFO]$(NC) Generating project skeleton: $(MODULE) -> $$OUTPUT_DIR"; \
+            go run ./tools -- new project --module=$(MODULE) --output=$$OUTPUT_DIR $$NAME_FLAG $$FORCE_FLAG; \
+		echo "$(GREEN)[SUCCESS]$(NC) Project generated at $$OUTPUT_DIR"
+
 
 # 生成错误码和文档
 gen-code:
-	@echo "$(BLUE)[INFO]$(NC) Generating error codes and documentation..."
-	@go run tools/codegen/codegen.go -type=int ./internal/code
-	@go run tools/codegen/codegen.go -type=int -doc -output ./internal/code/error_code_generated.md ./internal/code
+       @echo "$(BLUE)[INFO]$(NC) Generating error codes and documentation..."
+       @go run ./tools -- codegen --type=int ./internal/code
+       @go run ./tools -- codegen --type=int --doc --output=./internal/code/error_code_generated.md ./internal/code
 	@echo "$(GREEN)[SUCCESS]$(NC) Error code generation completed"
 
 # 生成业务模块（基础模板）
@@ -165,8 +181,8 @@ gen-module:
 		echo "$(RED)[ERROR]$(NC) Usage: make gen-module NAME=module_name"; \
 		exit 1; \
 	fi
-	@echo "$(BLUE)[INFO]$(NC) Generating module: $(NAME)"
-	@go run tools/modgen/main.go --name=$(NAME) --force
+       @echo "$(BLUE)[INFO]$(NC) Generating module: $(NAME)"
+      @go run ./tools -- new module --name=$(NAME) --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) generation completed"
 
 # 生成模块和测试用例
@@ -175,8 +191,8 @@ gen-module-tests:
 		echo "$(RED)[ERROR]$(NC) Usage: make gen-module-tests NAME=module_name"; \
 		exit 1; \
 	fi
-	@echo "$(BLUE)[INFO]$(NC) Generating module with tests: $(NAME)"
-	@go run tools/modgen/main.go --name=$(NAME) --tests --force
+       @echo "$(BLUE)[INFO]$(NC) Generating module with tests: $(NAME)"
+      @go run ./tools -- new module --name=$(NAME) --tests --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) with tests generation completed"
 
 # 从OpenAPI文档生成模块
@@ -185,9 +201,9 @@ gen-module-openapi:
 		echo "$(RED)[ERROR]$(NC) Usage: make gen-module-openapi NAME=module_name [OPENAPI=doc/openapi.yaml]"; \
 		exit 1; \
 	fi
-	@OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
-	echo "$(BLUE)[INFO]$(NC) Generating module from OpenAPI: $(NAME) ($$OPENAPI_FILE)"; \
-	go run tools/modgen/main.go --name=$(NAME) --openapi=$$OPENAPI_FILE --force
+       @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
+       echo "$(BLUE)[INFO]$(NC) Generating module from OpenAPI: $(NAME) ($$OPENAPI_FILE)"; \
+      go run ./tools -- new module --name=$(NAME) --openapi=$$OPENAPI_FILE --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) generated from OpenAPI"
 
 # 从OpenAPI生成模块和测试用例（Table-driven测试）
@@ -196,23 +212,23 @@ gen-module-openapi-tests:
 		echo "$(RED)[ERROR]$(NC) Usage: make gen-module-openapi-tests NAME=module_name [OPENAPI=doc/openapi.yaml]"; \
 		exit 1; \
 	fi
-	@OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
-	echo "$(BLUE)[INFO]$(NC) Generating module from OpenAPI with tests: $(NAME) ($$OPENAPI_FILE)"; \
-	go run tools/modgen/main.go --name=$(NAME) --openapi=$$OPENAPI_FILE --tests --force
+       @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
+       echo "$(BLUE)[INFO]$(NC) Generating module from OpenAPI with tests: $(NAME) ($$OPENAPI_FILE)"; \
+      go run ./tools -- new module --name=$(NAME) --openapi=$$OPENAPI_FILE --tests --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) with tests generated from OpenAPI"
 
 # 生成所有API模块（从OpenAPI）
 gen-all-modules:
-	@OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
-	echo "$(BLUE)[INFO]$(NC) Generating all modules from OpenAPI: $$OPENAPI_FILE"; \
-	go run -mod=mod tools/modgen/main.go --all --openapi=$$OPENAPI_FILE --force
+       @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
+       echo "$(BLUE)[INFO]$(NC) Generating all modules from OpenAPI: $$OPENAPI_FILE"; \
+      go run -mod=mod ./tools -- new module --all --openapi=$$OPENAPI_FILE --force
 	@echo "$(GREEN)[SUCCESS]$(NC) All modules generated from OpenAPI"
 
 # 生成所有API模块和测试用例（从OpenAPI）
 gen-all-modules-tests:
-	@OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
-	echo "$(BLUE)[INFO]$(NC) Generating all modules with tests from OpenAPI: $$OPENAPI_FILE"; \
-	go run -mod=mod tools/modgen/main.go --all --openapi=$$OPENAPI_FILE --tests --force
+       @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
+       echo "$(BLUE)[INFO]$(NC) Generating all modules with tests from OpenAPI: $$OPENAPI_FILE"; \
+      go run -mod=mod ./tools -- new module --all --openapi=$$OPENAPI_FILE --tests --force
 	@echo "$(GREEN)[SUCCESS]$(NC) All modules with tests generated from OpenAPI"
 
 # 生成模块（指定路由）
@@ -221,8 +237,8 @@ gen-module-route:
 		echo "$(RED)[ERROR]$(NC) Usage: make gen-module-route NAME=module_name ROUTE=/api/module_name"; \
 		exit 1; \
 	fi
-	@echo "$(BLUE)[INFO]$(NC) Generating module with custom route: $(NAME) -> $(ROUTE)"
-	@go run tools/modgen/main.go --name=$(NAME) --route=$(ROUTE) --force
+       @echo "$(BLUE)[INFO]$(NC) Generating module with custom route: $(NAME) -> $(ROUTE)"
+      @go run ./tools -- new module --name=$(NAME) --route=$(ROUTE) --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) with route $(ROUTE) generation completed"
 
 # 生成数据库模型和查询
@@ -254,8 +270,8 @@ db-gen-table:
 
 # 生成Dynamic SQL查询方法
 db-gen-dynamic:
-	@echo "$(BLUE)[INFO]$(NC) Generating Dynamic SQL queries..."
-	@go run tools/dynamic-sql-gen/basic.go
+       @echo "$(BLUE)[INFO]$(NC) Generating Dynamic SQL queries..."
+       @go run ./tools -- dynamic-sql --config=configs/config.toml
 	@echo "$(GREEN)[SUCCESS]$(NC) Dynamic SQL generation completed"
 
 # 完整生成（数据库 + 错误码）
@@ -424,6 +440,7 @@ help:
 	@echo "  $(GREEN)test-coverage$(NC)      - 生成测试覆盖率报告"
 	@echo ""
 	@echo "$(YELLOW)代码生成:$(NC)"
+	@echo "  $(GREEN)init-project$(NC)                - 基于模板生成新项目 (MODULE=module_path [OUTPUT=dir])"
 	@echo "  $(GREEN)gen-code$(NC)                    - 生成错误码和文档"
 	@echo "  $(GREEN)gen-module$(NC)                  - 生成业务模块 (NAME=module_name)"
 	@echo "  $(GREEN)gen-module-tests$(NC)            - 生成模块和测试用例 (NAME=module_name)"
@@ -454,6 +471,9 @@ help:
 	@echo "  $(GREEN)docker-clean$(NC)       - 清理Docker资源"
 	@echo ""
 	@echo "$(YELLOW)环境变量:$(NC)"
+	@echo "  $(GREEN)MODULE$(NC)             - 新项目的Go Module路径 (用于init-project)"
+	@echo "  $(GREEN)OUTPUT$(NC)             - 生成新项目的输出目录 (用于init-project)"
+	@echo "  $(GREEN)FORCE$(NC)              - 允许覆盖已有目录 (1 表示开启，适用于init-project)"
 	@echo "  $(GREEN)NAME$(NC)               - 模块名 (用于gen-module)"
 	@echo "  $(GREEN)ROUTE$(NC)              - 路由路径 (用于gen-module-route)"
 	@echo "  $(GREEN)OPENAPI$(NC)            - OpenAPI文档路径 (默认: doc/openapi.yaml)"

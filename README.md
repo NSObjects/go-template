@@ -37,6 +37,24 @@ make dev-setup
 make run
 ```
 
+## 🆕 使用模板初始化新项目
+
+使用统一的 CLI 可以快速将当前仓库复制为一个新的项目骨架：
+
+```bash
+# 在目标目录中创建一个全新的项目
+go run ./tools -- new project --module=github.com/acme/awesome-api --output=../awesome-api
+
+# 如需覆盖已存在的目录或指定项目名称
+go run ./tools -- new project --module=github.com/acme/awesome-api --force --name="Awesome API"
+```
+
+也可以通过 Makefile 包裹的命令来完成同样的操作：
+
+```bash
+make init-project MODULE=github.com/acme/awesome-api OUTPUT=../awesome-api
+```
+
 ## 📁 项目结构
 
 ```
@@ -65,10 +83,12 @@ go-template/
 │   ├── server/            # HTTP服务器
 │   │   └── middlewares/   # 中间件
 │   └── utils/             # 工具函数
-├── tools/                 # 开发工具
+├── tools/                 # 开发工具 CLI
+│   ├── cmd/               # Cobra 根命令与入口
 │   ├── modgen/            # 模块生成器
 │   ├── dynamic-sql-gen/   # 动态SQL生成器
-│   └── codegen/           # 错误码生成器
+│   ├── codegen/           # 错误码生成器
+│   └── main.go            # 工具统一入口
 ├── main.go                # 主入口文件
 ├── Makefile               # 构建脚本
 └── README.md              # 项目说明
@@ -133,6 +153,33 @@ make clean                    # 清理生成的文件
 make clean-all                # 深度清理
 make help                     # 显示帮助信息
 ```
+
+## 🧰 统一工具 CLI
+
+项目中的所有代码生成器已经整合为单一的 `tool` 命令，可以通过 `go run ./tools` 快速调用不同的子命令。
+
+```bash
+# 查看帮助
+go run ./tools -- help
+
+# 生成全新项目骨架
+go run ./tools -- new project --module=github.com/acme/awesome-api --output=../awesome-api
+
+# 生成模块（默认模板）
+go run ./tools -- new module --name=user --force
+
+# 基于 OpenAPI 生成模块并附带测试
+go run ./tools -- new module --name=user --openapi=doc/openapi.yaml --tests --force
+
+# 生成错误码以及文档
+go run ./tools -- codegen --type=int ./internal/code
+go run ./tools -- codegen --type=int --doc --output=./internal/code/error_code_generated.md ./internal/code
+
+# 生成动态 SQL 查询
+go run ./tools -- dynamic-sql --config=configs/config.toml
+```
+
+> 所有 Makefile 中的 `gen-*` 相关命令也已经迁移到新的 CLI 之上，因此可以放心继续使用原有的 `make` 工作流。
 
 ## 🔄 开发流程
 

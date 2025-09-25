@@ -19,22 +19,24 @@ ModGen 是一个基于 Go `text/template` 的代码生成工具，用于快速�
 
 ```
 tools/modgen/
+├── README.md            # 使用说明
+├── command.go           # Cobra 子命令入口
+├── generator/           # 代码生成器核心
+│   └── generator.go
+├── openapi/             # OpenAPI 支持
 ├── templates/           # 模板系统
-│   ├── tmpl/           # 模板文件
-│   │   ├── biz.tmpl           # 业务逻辑模板
-│   │   ├── service.tmpl       # 服务层模板
-│   │   ├── param.tmpl         # 参数结构模板
-│   │   ├── model.tmpl         # 数据模型模板
-│   │   ├── code.tmpl          # 错误码模板
-│   │   ├── biz_test.tmpl      # 业务逻辑测试模板
-│   │   └── service_test.tmpl  # 服务层测试模板
-│   ├── template_renderer.go   # 模板渲染器
-│   └── *_test.go             # 测试文件
-├── generator/          # 代码生成器
-│   ├── generator.go           # 生成器核心逻辑
-│   └── generator_test.go      # 生成器测试
-├── openapi/           # OpenAPI 支持
-└── main.go           # 主程序入口
+│   ├── tmpl/            # 模板文件
+│   │   ├── biz.tmpl                # 业务逻辑模板
+│   │   ├── service.tmpl            # 服务层模板
+│   │   ├── param.tmpl              # 参数结构模板
+│   │   ├── model.tmpl              # 数据模型模板
+│   │   ├── code.tmpl               # 错误码模板
+│   │   ├── biz_test_enhanced.tmpl  # 业务逻辑测试模板（增强版）
+│   │   ├── service_test_enhanced.tmpl # 服务层测试模板（增强版）
+│   │   ├── *.tmpl (openapi)        # OpenAPI 专用模板
+│   ├── template_renderer.go        # 模板渲染器
+│   └── *_test.go                   # 测试文件
+└── utils/               # 路径与命名工具
 ```
 
 ## 使用方法
@@ -43,13 +45,16 @@ tools/modgen/
 
 ```bash
 # 生成基本模块
-go run tools/modgen/main.go --name=user
+go run ./tools -- new module --name=user
 
 # 生成模块并包含测试用例
-go run tools/modgen/main.go --name=user --tests
+go run ./tools -- new module --name=user --tests
 
 # 强制覆盖已存在的文件
-go run tools/modgen/main.go --name=user --force
+go run ./tools -- new module --name=user --force
+
+# 基于 OpenAPI 文档批量生成
+go run ./tools -- new module --all --openapi=doc/openapi.yaml
 ```
 
 ### 参数说明
@@ -58,6 +63,8 @@ go run tools/modgen/main.go --name=user --force
 - `--tests`: 生成测试用例
 - `--force`: 强制覆盖已存在的文件
 - `--route`: 自定义路由路径（可选，默认为模块名）
+- `--openapi`: 指定 OpenAPI3 文档路径
+- `--all`: 基于 OpenAPI 文档批量生成所有模块（需要配合 `--openapi` 使用）
 
 ## 生成的代码结构
 
@@ -105,8 +112,9 @@ type TemplateData struct {
 - **param.tmpl**: 参数结构模板，包含请求/响应结构
 - **model.tmpl**: 数据模型模板，包含 GORM 模型
 - **code.tmpl**: 错误码模板，包含错误码定义
-- **biz_test.tmpl**: 业务逻辑测试模板
-- **service_test.tmpl**: 服务层测试模板
+- **biz_test_enhanced.tmpl**: 业务逻辑测试模板（增强版，默认使用）
+- **service_test_enhanced.tmpl**: 服务层测试模板（增强版，默认使用）
+- ***_openapi.tmpl**: 基于 OpenAPI 的专用模板
 
 ## 测试
 
