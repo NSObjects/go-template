@@ -345,7 +345,11 @@ func mergeAllOfSchemas(allOf []*Schema, openapi *OpenAPI3) *Schema {
 
 // parseDataSchema 解析 data 字段的 Schema
 func parseDataSchema(schema *Schema, openapi *OpenAPI3) *ResponseData {
-	if schema == nil {
+	return parseDataSchemaWithDepth(schema, openapi, 0)
+}
+
+func parseDataSchemaWithDepth(schema *Schema, openapi *OpenAPI3, depth int) *ResponseData {
+	if schema == nil || depth > 100 { // 防止循环引用导致栈溢出
 		return nil
 	}
 
@@ -353,47 +357,21 @@ func parseDataSchema(schema *Schema, openapi *OpenAPI3) *ResponseData {
 	if schema.Ref != "" {
 		refSchema := ResolveSchemaRef(schema.Ref, openapi)
 		if refSchema != nil {
-			return parseDataSchema(refSchema, openapi)
+			return parseDataSchemaWithDepth(refSchema, openapi, depth+1)
 		}
 		return nil
 	}
 
 	// 处理数组类型（list 结构）
 	if schema.Type == "array" && schema.Items != nil {
-		itemSchema := schema.Items
-		if itemSchema.Ref != "" {
-			refSchema := ResolveSchemaRef(itemSchema.Ref, openapi)
-			if refSchema != nil {
-				itemSchema = refSchema
-			}
+		itemSchema := resolveSchemaRefIfNeeded(schema.Items, openapi)
+		if itemSchema == nil {
+			return nil
 		}
 
-		if itemSchema != nil && itemSchema.Type == "object" && itemSchema.Properties != nil {
-			var fields []Field
-			for name, propSchema := range itemSchema.Properties {
-				required := false
-				for _, req := range itemSchema.Required {
-					if req == name {
-						required = true
-						break
-					}
-				}
-				fields = append(fields, GenerateField(name, propSchema, required))
-			}
-
-			return &ResponseData{
-				GoType:      "ListItem", // 列表项类型
-				Description: itemSchema.Description,
-				Fields:      fields,
-			}
-		} else if itemSchema != nil && itemSchema.Type == "object" && itemSchema.Properties == nil {
-			// 处理空的 object 类型，生成默认的 ListItem
-			return &ResponseData{
-				GoType:      "ListItem", // 列表项类型
-				Description: "列表项",
-				Fields:      []Field{}, // 空字段列表
-			}
-		} else if itemSchema != nil {
+		if itemSchema.Type == "object" {
+			return handleObjectType(itemSchema, "ListItem", "列表项")
+		} else {
 			// 处理其他类型，生成默认的 ListItem
 			return &ResponseData{
 				GoType:      "ListItem", // 列表项类型
@@ -404,35 +382,59 @@ func parseDataSchema(schema *Schema, openapi *OpenAPI3) *ResponseData {
 	}
 
 	// 处理对象类型（单个对象）
-	if (schema.Type == "object" || schema.Type == "") && (schema.Properties != nil || len(schema.Properties) == 0) {
+	if schema.Type == "object" || schema.Type == "" {
 		// 检查是否有 list 字段（列表响应）
 		if listSchema, ok := schema.Properties["list"]; ok {
-			return parseDataSchema(listSchema, openapi)
+			return parseDataSchemaWithDepth(listSchema, openapi, depth+1)
 		}
 
 		// 检查是否有 total 字段（列表响应结构）
 		if _, hasTotal := schema.Properties["total"]; hasTotal {
 			// 这是一个列表响应结构，查找 list 字段
 			if listSchema, ok := schema.Properties["list"]; ok {
-				return parseDataSchema(listSchema, openapi)
+				return parseDataSchemaWithDepth(listSchema, openapi, depth+1)
 			}
 		}
 
 		// 普通对象类型
-		var fields []Field
+		return handleObjectType(schema, "Data", schema.Description)
+	}
+
+	return nil
+}
+
+// resolveSchemaRefIfNeeded 解析 schema 的 $ref（如果存在）
+func resolveSchemaRefIfNeeded(schema *Schema, openapi *OpenAPI3) *Schema {
+	if schema == nil {
+		return nil
+	}
+	if schema.Ref != "" {
+		refSchema := ResolveSchemaRef(schema.Ref, openapi)
+		if refSchema != nil {
+			return refSchema
+		}
+	}
+	return schema
+}
+
+// handleObjectType 处理 object 类型的 schema
+func handleObjectType(schema *Schema, goType, defaultDesc string) *ResponseData {
+	requiredMap := make(map[string]bool)
+	for _, req := range schema.Required {
+		requiredMap[req] = true
+	}
+
+	var fields []Field
+	if schema.Properties != nil {
 		for name, propSchema := range schema.Properties {
-			required := false
-			for _, req := range schema.Required {
-				if req == name {
-					required = true
-					break
-				}
-			}
+			required := requiredMap[name]
 			fields = append(fields, GenerateField(name, propSchema, required))
 		}
+	}
 
-		// 如果对象为空（如 SingleResponse 的 data: {}），生成一个默认的 Data 类型
-		if len(fields) == 0 {
+	// 如果对象为空（如 SingleResponse 的 data: {}），生成一个默认的 Data 类型
+	if len(fields) == 0 {
+		if goType == "Data" {
 			fields = []Field{
 				{
 					Name:      "ID",
@@ -441,16 +443,21 @@ func parseDataSchema(schema *Schema, openapi *OpenAPI3) *ResponseData {
 					Required:  false,
 				},
 			}
-		}
-
-		return &ResponseData{
-			GoType:      "Data", // 单个数据对象
-			Description: schema.Description,
-			Fields:      fields,
+		} else {
+			fields = []Field{} // 空字段列表
 		}
 	}
 
-	return nil
+	description := schema.Description
+	if description == "" {
+		description = defaultDesc
+	}
+
+	return &ResponseData{
+		GoType:      goType,
+		Description: description,
+		Fields:      fields,
+	}
 }
 
 // parseSchemaToFields 将Schema转换为字段列表
