@@ -1,0 +1,9 @@
+# Repository Development Notes
+
+This project scaffolds API layers (service, biz, data) from OpenAPI descriptions. When adding or modifying functionality under `internal/api`, keep the following in mind:
+
+- **OpenAPI as the source of truth**: the base structs and interfaces for the service, biz, and data layers are generated automatically from the OpenAPI specification. Avoid making manual changes that would be overwritten by regeneration.
+- **Extending generated layers**: place custom logic in separate files or clearly marked extension points so that automation can build atop the generated foundations without merge conflicts.
+- **Consistent layer responsibilities**: ensure changes respect the layering contract documented in `README.md`—services expose transport logic, biz coordinates domain rules, and data talks to storage. This keeps the generated code predictable for downstream automation.
+
+When updating templates or tooling that emits these layers, verify that regeneration from the OpenAPI definition still produces compilable artifacts before merging.
