@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/IBM/sarama"
-	"{{.ModulePath}}/internal/api/data/db"
-	"{{.ModulePath}}/internal/api/data/query"
-	"{{.ModulePath}}/internal/configs"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/fx"
 	"gorm.io/gorm"
+	"{{.ModulePath}}/internal/api/data/db"
+	"{{.ModulePath}}/internal/api/data/query"
+	"{{.ModulePath}}/internal/configs"
 )
 
 // DataManager 统一的数据管理器，提供所有数据库组件的操作接口
@@ -144,13 +144,16 @@ var Model = fx.Options(
 
 func NewQuery(db *gorm.DB) *query.Query {
 	// 使用生成的Query
+	if db == nil {
+		return nil
+	}
 	return query.Use(db)
 }
 
 // NewDB exposes the primary Gorm DB from the unified DataSource for DI consumers.
 func NewDB(ds *db.DataSource) *gorm.DB {
-	if ds == nil || ds.Mysql == nil {
-		panic("mysql data source is not initialized")
+	if ds == nil {
+		return nil
 	}
 	return ds.Mysql
 }

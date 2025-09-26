@@ -150,13 +150,16 @@ var Model = fx.Options(
 
 func NewQuery(db *gorm.DB) *query.Query {
 	// 使用生成的Query
+	if db == nil {
+		return nil
+	}
 	return query.Use(db)
 }
 
 // NewDB exposes the primary Gorm DB from the unified DataSource for DI consumers.
 func NewDB(ds *db.DataSource) *gorm.DB {
-	if ds == nil || ds.Mysql == nil {
-		panic("mysql data source is not initialized")
+	if ds == nil {
+		return nil
 	}
 	return ds.Mysql
 }
