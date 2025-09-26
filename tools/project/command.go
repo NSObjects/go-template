@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -58,7 +59,8 @@ func Run(opts Options) error {
 
 // RunWithWriter 执行生成逻辑并将日志写入指定 writer。
 func RunWithWriter(opts Options, out io.Writer) error {
-	if opts.ModulePath == "" {
+	modulePath := strings.TrimSpace(opts.ModulePath)
+	if modulePath == "" {
 		return fmt.Errorf("请使用 --module 指定新项目的 Go Module 路径")
 	}
 
@@ -67,17 +69,17 @@ func RunWithWriter(opts Options, out io.Writer) error {
 		return fmt.Errorf("获取当前工作目录失败: %w", err)
 	}
 
-	outputDir := opts.OutputDir
+	outputDir := strings.TrimSpace(opts.OutputDir)
 	if outputDir == "" {
-		outputDir = filepath.Base(opts.ModulePath)
+		outputDir = filepath.Base(modulePath)
 	}
 	if !filepath.IsAbs(outputDir) {
 		outputDir = filepath.Join(cwd, outputDir)
 	}
 
-	projectName := opts.Name
+	projectName := strings.TrimSpace(opts.Name)
 	if projectName == "" {
-		projectName = filepath.Base(opts.ModulePath)
+		projectName = filepath.Base(modulePath)
 	}
 
 	// 检查输出目录是否存在
@@ -85,19 +87,22 @@ func RunWithWriter(opts Options, out io.Writer) error {
 		if !opts.Force {
 			return fmt.Errorf("目标目录已存在: %s (使用 --force 可覆盖)", outputDir)
 		}
+		if err := ensureSafeRemoval(outputDir, cwd); err != nil {
+			return err
+		}
 		if err := os.RemoveAll(outputDir); err != nil {
 			return fmt.Errorf("清理目标目录失败: %w", err)
 		}
 	}
 
 	fmt.Fprintf(out, "🚀 正在生成新项目: %s\n", projectName)
-	fmt.Fprintf(out, "📦 Module: %s\n", opts.ModulePath)
+	fmt.Fprintf(out, "📦 Module: %s\n", modulePath)
 	fmt.Fprintf(out, "📁 目标目录: %s\n", outputDir)
 
 	// 使用嵌入模板生成器
 	generator := NewEmbedTemplateGenerator(
 		outputDir,
-		opts.ModulePath,
+		modulePath,
 		projectName,
 		WithLogger(func(format string, args ...interface{}) {
 			fmt.Fprintf(out, format, args...)
@@ -109,4 +114,33 @@ func RunWithWriter(opts Options, out io.Writer) error {
 
 	fmt.Fprintf(out, "✅ 项目生成完成！接下来可进入目录 %s 并执行 make dev-setup\n", outputDir)
 	return nil
+}
+
+func ensureSafeRemoval(outputDir, cwd string) error {
+	cleaned := filepath.Clean(outputDir)
+	if cleaned == "" || cleaned == "." {
+		return fmt.Errorf("拒绝清理危险目录: %s", outputDir)
+	}
+
+	if cleaned == filepath.Clean(cwd) {
+		return fmt.Errorf("拒绝清理当前工作目录: %s", outputDir)
+	}
+
+	if isRootPath(cleaned) {
+		return fmt.Errorf("拒绝清理系统根目录: %s", outputDir)
+	}
+
+	return nil
+}
+
+func isRootPath(path string) bool {
+	if runtime.GOOS == "windows" {
+		if vol := filepath.VolumeName(path); vol != "" {
+			rest := strings.TrimPrefix(path, vol)
+			rest = filepath.Clean(rest)
+			return rest == string(filepath.Separator)
+		}
+	}
+
+	return path == string(filepath.Separator)
 }

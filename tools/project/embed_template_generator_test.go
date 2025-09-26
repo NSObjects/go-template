@@ -11,11 +11,15 @@ import (
 )
 
 func TestGenerateProjectCreatesExecutableScripts(t *testing.T) {
-	t.Parallel()
 
 	tempDir := t.TempDir()
 
-	generator := NewEmbedTemplateGenerator(tempDir, "github.com/example/demo", "demo")
+	generator := NewEmbedTemplateGenerator(
+		tempDir,
+		"github.com/example/demo",
+		"demo",
+		WithLogger(func(string, ...interface{}) {}),
+	)
 	if err := generator.Generate(); err != nil {
 		t.Fatalf("Generate() error = %v", err)
 	}
@@ -55,7 +59,6 @@ func TestGenerateProjectCreatesExecutableScripts(t *testing.T) {
 }
 
 func TestGenerateProjectWithCustomLoggerAndModes(t *testing.T) {
-	t.Parallel()
 
 	tempDir := t.TempDir()
 	var logBuilder strings.Builder
@@ -102,7 +105,6 @@ func TestGenerateProjectWithCustomLoggerAndModes(t *testing.T) {
 }
 
 func TestRunWithWriterUsesProvidedOutput(t *testing.T) {
-	t.Parallel()
 
 	tempDir := t.TempDir()
 	targetDir := filepath.Join(tempDir, "myapp")
@@ -123,5 +125,38 @@ func TestRunWithWriterUsesProvidedOutput(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(targetDir, "go.mod")); err != nil {
 		t.Fatalf("expected go.mod to be generated: %v", err)
+	}
+}
+
+func TestRunWithWriterRejectsDangerousForce(t *testing.T) {
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("获取工作目录失败: %v", err)
+	}
+
+	t.Cleanup(func() {
+		if chdirErr := os.Chdir(originalWD); chdirErr != nil {
+			t.Fatalf("恢复工作目录失败: %v", chdirErr)
+		}
+	})
+
+	tempDir := t.TempDir()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("切换目录失败: %v", err)
+	}
+
+	opts := Options{
+		ModulePath: "github.com/example/danger",
+		OutputDir:  tempDir,
+		Force:      true,
+	}
+
+	var output strings.Builder
+	err = RunWithWriter(opts, &output)
+	if err == nil {
+		t.Fatalf("期望在危险目录上报错，但未返回错误")
+	}
+	if !strings.Contains(err.Error(), "拒绝清理") {
+		t.Fatalf("返回的错误信息不包含预期提示: %v", err)
 	}
 }

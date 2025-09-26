@@ -231,10 +231,17 @@ func (g *EmbedTemplateGenerator) generateFile(file fileSpec) error {
 		if err != nil {
 			return fmt.Errorf("创建输出文件失败: %w", err)
 		}
-		defer outputFile.Close()
 
 		if err := tmpl.Execute(outputFile, g.data); err != nil {
+			closeErr := outputFile.Close()
+			if closeErr != nil {
+				return fmt.Errorf("执行模板失败: %v (关闭输出文件失败: %w)", err, closeErr)
+			}
 			return fmt.Errorf("执行模板失败: %w", err)
+		}
+
+		if err := outputFile.Close(); err != nil {
+			return fmt.Errorf("关闭输出文件失败: %w", err)
 		}
 	} else {
 		if err := os.WriteFile(outputPath, templateContent, mode); err != nil {
