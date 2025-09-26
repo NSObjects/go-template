@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"github.com/NSObjects/go-template/tools/codegen"
-	dynamicsql "github.com/NSObjects/go-template/tools/dynamic-sql-gen"
-	"github.com/NSObjects/go-template/tools/newcmd"
+	"github.com/NSObjects/go-template/muban/codegen"
+	dynamicsql "github.com/NSObjects/go-template/muban/dynamic-sql-gen"
+	"github.com/NSObjects/go-template/muban/newcmd"
 	"github.com/spf13/cobra"
 )
 

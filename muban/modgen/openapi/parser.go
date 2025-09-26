@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/NSObjects/go-template/tools/modgen/utils"
+	"github.com/NSObjects/go-template/muban/modgen/utils"
 	"gopkg.in/yaml.v2"
 )
 

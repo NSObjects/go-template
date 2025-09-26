@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/NSObjects/go-template/tools/modgen/openapi"
-	"github.com/NSObjects/go-template/tools/modgen/templates"
-	"github.com/NSObjects/go-template/tools/modgen/utils"
+	"github.com/NSObjects/go-template/muban/modgen/openapi"
+	"github.com/NSObjects/go-template/muban/modgen/templates"
+	"github.com/NSObjects/go-template/muban/modgen/utils"
 )
 
 // Config 生成器配置

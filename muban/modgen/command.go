@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/NSObjects/go-template/tools/modgen/generator"
-	"github.com/NSObjects/go-template/tools/modgen/utils"
+	"github.com/NSObjects/go-template/muban/modgen/generator"
+	"github.com/NSObjects/go-template/muban/modgen/utils"
 	"github.com/spf13/cobra"
 )
 

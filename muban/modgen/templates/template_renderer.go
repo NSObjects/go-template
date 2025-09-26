@@ -13,7 +13,7 @@ import (
 	"sync"
 	"text/template"
 
-	"github.com/NSObjects/go-template/tools/modgen/openapi"
+	"github.com/NSObjects/go-template/muban/modgen/openapi"
 )
 
 // TemplateData 模板数据

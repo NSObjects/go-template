@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/NSObjects/go-template/tools/modgen/openapi"
+	"github.com/NSObjects/go-template/muban/modgen/openapi"
 )
 
 // RenderOpenAPIBiz 从OpenAPI3生成业务逻辑模板

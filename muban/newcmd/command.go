@@ -1,8 +1,8 @@
 package newcmd
 
 import (
-	"github.com/NSObjects/go-template/tools/modgen"
-	"github.com/NSObjects/go-template/tools/project"
+	"github.com/NSObjects/go-template/muban/modgen"
+	"github.com/NSObjects/go-template/muban/project"
 	"github.com/spf13/cobra"
 )
 
