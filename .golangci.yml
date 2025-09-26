@@ -1,21 +1,19 @@
+version: 2
+
 run:
   timeout: 5m
   tests: true
   fix: true                     # 能自动修的尽量自动修（gofumpt/goimports 等）
   modules-download-mode: mod
   allow-parallel-runners: true
+  skip-dirs:
+    - vendor
+  skip-files:
+    - ".*\\.gen\\.go$"
+    - ".*_mock\\.go$"
+    - "^zz_.*\\.go$"
+    - ".*\\.pb\\.go$"
 
-# 跳过目录/文件（在默认 vendor 忽略基础上再加）
-skip-dirs:
-  - vendor
-
-skip-files:
-  - ".*\\.gen\\.go$"
-  - ".*_mock\\.go$"
-  - "^zz_.*\\.go$"
-  - ".*\\.pb\\.go$"
-
-# 统一问题阈值与展示
 issues:
   exclude-use-default: false
   max-issues-per-linter: 0
@@ -23,16 +21,16 @@ issues:
   new-from-rev: HEAD           # 只看相对当前分支新增问题时很有用（本地/CI 可酌情保留）
   exclude-rules:
     # 测试里放宽圈复杂度/重复代码
-    - path: _test\.go
-      linters: [gocyclo]
+    - path: _test\\.go
+      linters:
+        - gocyclo
     # 允许在测试里出现未检查的错误（比如辅助断言场景），可按需删除
-    - path: _test\.go
-      linters: [errcheck]
+    - path: _test\\.go
+      linters:
+        - errcheck
     # 允许生成文件跳过大部分风格类检查（保险起见）
     - path: ".*(\\.gen\\.go|_mock\\.go|\\.pb\\.go)$"
       linters:
-        - stylecheck
-        - gosimple
         - revive
         - gocyclo
         - dupl
@@ -44,9 +42,6 @@ linters:
     # 语义与静态分析
     - govet
     - staticcheck
-    - gosimple
-    - stylecheck
-    - typecheck
     - unused
     - errcheck
     - errorlint
@@ -57,9 +52,7 @@ linters:
     - gocyclo
     - dupl
     - misspell
-    # 代码风格/格式
-    - gofumpt               # 用 gofumpt 取代 gofmt（更严格）
-    - goimports
+    # 代码风格/格式（使用 formatter 配置）
     - revive
     - nolintlint            # 约束 //nolint 的使用，避免滥用
     # 额外实用
@@ -68,11 +61,12 @@ linters:
     # 可选安全（如需安全扫描可开启）
     # - gosec
 
+formatters:
+  enable:
+    - gofumpt               # 用 gofumpt 取代 gofmt（更严格）
+    - goimports
+
 linters-settings:
-  gofumpt:
-    extra-rules: true
-  goimports:
-    local-prefixes: github.com/NSObjects/go-template
   gocyclo:
     min-complexity: 12        # 略放宽到 12，减少误报；核心热点再局部优化
   misspell:
@@ -110,21 +104,25 @@ linters-settings:
     allow-leading-space: false
     require-explanation: true # 要求 //nolint 必须附解释
     require-specific: true    # 要求指明具体 linter 名称
+  govet:
+    check-shadowing: true
+    enable:
+      - atomicalign
+      - bools
+      - copylocks
+      - fieldalignment
+      - printf
+      - shadow
+      - sortslice
+      - unreachable
+      - unusedresult
+      - nilness
 
-# govet 子检查（根据项目实际 Go 版本与需要启用）
-govet:
-  check-shadowing: true
-  enable:
-    - atomicalign
-    - bools
-    - copylocks
-    - fieldalignment
-    - printf
-    - shadow
-    - sortslice
-    - unreachable
-    - unusedresult
-    - nilness
+formatter-settings:
+  gofumpt:
+    extra-rules: true
+  goimports:
+    local-prefixes: github.com/NSObjects/go-template
 
 # 可在不同 CI 场景下使用的构建标签
 # build-tags:

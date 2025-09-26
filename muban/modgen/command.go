@@ -16,7 +16,6 @@ type Options struct {
 	Force         bool
 	OpenAPIFile   string
 	GenerateTests bool
-	GenerateAll   bool
 }
 
 // NewCommand builds the Cobra command for module scaffolding generation.
@@ -36,11 +35,9 @@ func NewCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.Force, "force", false, "若目标文件已存在则覆盖")
 	cmd.Flags().StringVar(&opts.OpenAPIFile, "openapi", "", "OpenAPI3文档路径，例如: doc/openapi.yaml")
 	cmd.Flags().BoolVar(&opts.GenerateTests, "tests", false, "同时生成测试用例（Table-driven测试）")
-	cmd.Flags().BoolVar(&opts.GenerateAll, "all", false, "生成所有API模块（需要指定OpenAPI文档）")
-
 	cmd.Example = "  go run ./muban -- new module --name=user\n" +
-		"  go run ./muban -- new module --name=user --openapi=doc/openapi.yaml --tests\n" +
-		"  go run ./muban -- new module --all --openapi=doc/openapi.yaml"
+		"  go run ./muban -- new module --name=article --openapi=doc/openapi.yaml --tests\n" +
+		"  go run ./muban -- new module --openapi=doc/openapi.yaml"
 
 	cmd.SilenceUsage = true
 
@@ -49,12 +46,14 @@ func NewCommand() *cobra.Command {
 
 // Run executes the module generation with the provided options.
 func Run(opts Options) error {
-	if !opts.GenerateAll && opts.Name == "" {
-		return fmt.Errorf("请使用 --name 指定模块名，或使用 --all 生成所有模块")
-	}
+	generateAll := false
 
-	if opts.GenerateAll && opts.OpenAPIFile == "" {
-		return fmt.Errorf("使用 --all 时必须指定 --openapi 文档路径")
+	if opts.OpenAPIFile != "" {
+		if opts.Name == "" {
+			generateAll = true
+		}
+	} else if opts.Name == "" {
+		return fmt.Errorf("请使用 --name 指定模块名，或提供 --openapi 文档路径")
 	}
 
 	cwd, err := os.Getwd()
@@ -80,7 +79,7 @@ func Run(opts Options) error {
 		GenerateTests: opts.GenerateTests,
 		PackagePath:   packagePath,
 		RepoRoot:      repoRoot,
-		GenerateAll:   opts.GenerateAll,
+		GenerateAll:   generateAll,
 	}
 
 	gen := generator.NewGenerator(config)

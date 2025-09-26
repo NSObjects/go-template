@@ -46,12 +46,10 @@ make dev
 本项目自带 CLI，可将当前模板复制为全新的仓库：
 
 ```bash
-go run ./muban -- new project \
-  --module=github.com/your-org/{{.PackageName}} \
-  --output=../{{.PackageName}}
+go run ./muban -- new -m github.com/your-org/{{.PackageName}} -o ../{{.PackageName}}
 ```
 
-可使用 `--name` 自定义展示名称，`--force` 覆盖已有目录。
+可使用 `--name` 自定义展示名称，`-f/--force` 覆盖已有目录。
 
 ## 📁 目录结构
 

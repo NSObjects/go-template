@@ -39,13 +39,13 @@ func NewCommand() *cobra.Command {
 
 	cmd.Example = strings.Join([]string{
 		"  # 生成一个新项目到 ../awesome-api",
-		"  gt new project --module=github.com/acme/awesome-api --output=../awesome-api",
+		"  gt new -m github.com/acme/awesome-api -o ../awesome-api",
 		"",
 		"  # 使用默认输出目录并覆盖已存在内容",
-		"  gt new project --module=github.com/acme/awesome-api --force",
+		"  gt new -m github.com/acme/awesome-api -f",
 		"",
 		"  # 从任何目录生成项目（无需在模板目录下）",
-		"  gt new project --module=github.com/acme/awesome-api",
+		"  gt new -m github.com/acme/awesome-api",
 	}, "\n")
 
 	cmd.SilenceUsage = true
