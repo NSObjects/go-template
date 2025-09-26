@@ -30,7 +30,6 @@ type templateData struct {
 	DisplayName string
 	PackageName string
 	EnvName     string
-
 }
 
 type fileSpec struct {
@@ -142,11 +141,9 @@ func (g *EmbedTemplateGenerator) filesToGenerate() ([]fileSpec, error) {
 			spec.outputPath = strings.TrimSuffix(spec.outputPath, ".tmpl")
 		}
 
-
 		if g.shouldSkip(spec.outputPath) {
 			return nil
 		}
-
 
 		if prev, exists := outputs[spec.outputPath]; exists {
 			return fmt.Errorf("检测到重复模板输出路径: %s (由 %s 和 %s 提供)", spec.outputPath, prev, path)
@@ -428,8 +425,6 @@ func toSnakeCase(input string) string {
 		}
 
 	}
-	g.logger(format, args...)
-}
 
 	sanitized := strings.Trim(b.String(), "_")
 	return sanitized
