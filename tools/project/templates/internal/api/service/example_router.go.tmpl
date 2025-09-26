@@ -108,7 +108,7 @@ func (r *ExampleRouter) DeleteUser(c echo.Context) error {
 // GetSystemInfo 获取系统信息
 func (r *ExampleRouter) GetSystemInfo(c echo.Context) error {
 	info := map[string]interface{}{
-		"name":    "{{.ProjectName}}",
+            "name":    "{{.DisplayName}}",
 		"version": "1.0.0",
 		"status":  "running",
 		"uptime":  "1h 30m",

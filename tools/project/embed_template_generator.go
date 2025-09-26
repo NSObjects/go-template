@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+	"unicode"
 )
 
 //go:embed templates/*
@@ -26,7 +27,10 @@ type EmbedTemplateGenerator struct {
 type templateData struct {
 	ModulePath  string
 	ProjectName string
+	DisplayName string
 	PackageName string
+	EnvName     string
+
 }
 
 type fileSpec struct {
@@ -45,12 +49,8 @@ type Option func(*EmbedTemplateGenerator)
 func NewEmbedTemplateGenerator(outputDir, modulePath, projectName string, opts ...Option) *EmbedTemplateGenerator {
 	generator := &EmbedTemplateGenerator{
 		outputDir: outputDir,
-		data: templateData{
-			ModulePath:  modulePath,
-			ProjectName: projectName,
-			PackageName: filepath.Base(modulePath),
-		},
-		fs: templateFS,
+		data:      buildTemplateData(modulePath, projectName),
+		fs:        templateFS,
 		logger: func(format string, args ...interface{}) {
 			fmt.Printf(format, args...)
 		},
@@ -142,6 +142,12 @@ func (g *EmbedTemplateGenerator) filesToGenerate() ([]fileSpec, error) {
 			spec.outputPath = strings.TrimSuffix(spec.outputPath, ".tmpl")
 		}
 
+
+		if g.shouldSkip(spec.outputPath) {
+			return nil
+		}
+
+
 		if prev, exists := outputs[spec.outputPath]; exists {
 			return fmt.Errorf("检测到重复模板输出路径: %s (由 %s 和 %s 提供)", spec.outputPath, prev, path)
 		}
@@ -227,11 +233,18 @@ func (g *EmbedTemplateGenerator) generateFile(file fileSpec) error {
 		if err != nil {
 			return fmt.Errorf("创建输出文件失败: %w", err)
 		}
-		defer outputFile.Close()
-
 		if err := tmpl.Execute(outputFile, g.data); err != nil {
+			closeErr := outputFile.Close()
+			if closeErr != nil {
+				return fmt.Errorf("执行模板失败: %v (关闭输出文件失败: %w)", err, closeErr)
+			}
 			return fmt.Errorf("执行模板失败: %w", err)
 		}
+
+		if err := outputFile.Close(); err != nil {
+			return fmt.Errorf("关闭输出文件失败: %w", err)
+		}
+
 	} else {
 		if err := os.WriteFile(outputPath, templateContent, mode); err != nil {
 			return fmt.Errorf("写入文件失败: %w", err)
@@ -252,6 +265,20 @@ func (g *EmbedTemplateGenerator) printf(format string, args ...interface{}) {
 	g.logger(format, args...)
 }
 
+func (g *EmbedTemplateGenerator) shouldSkip(outputPath string) bool {
+	normalized := filepath.ToSlash(outputPath)
+
+	if normalized == "go.sum" {
+		return true
+	}
+
+	if strings.HasPrefix(normalized, "docs/") && strings.HasSuffix(normalized, ".md") {
+		return true
+	}
+
+	return false
+}
+
 func desiredFileMode(outputPath string) fs.FileMode {
 	switch filepath.Ext(outputPath) {
 	case ".sh":
@@ -259,4 +286,152 @@ func desiredFileMode(outputPath string) fs.FileMode {
 	default:
 		return 0o644
 	}
+}
+
+func buildTemplateData(modulePath, projectName string) templateData {
+	sanitizedModule := strings.TrimSpace(modulePath)
+	base := filepath.Base(sanitizedModule)
+	pkgName := sanitizePackageName(base)
+
+	trimmedProject := strings.TrimSpace(projectName)
+	if trimmedProject == "" {
+		trimmedProject = base
+	}
+
+	display := trimmedProject
+	slug := toKebabCase(trimmedProject)
+	if slug == "" {
+		slug = pkgName
+	}
+	if slug == "" {
+		slug = "app"
+	}
+
+	envName := toSnakeCase(slug)
+	if envName == "" {
+		envName = slug
+	}
+
+	if display == "" {
+		display = slug
+	}
+
+	return templateData{
+		ModulePath:  sanitizedModule,
+		ProjectName: slug,
+		DisplayName: display,
+		PackageName: pkgName,
+		EnvName:     envName,
+	}
+}
+
+func sanitizePackageName(name string) string {
+	lower := strings.ToLower(strings.TrimSpace(name))
+	if lower == "" {
+		return "app"
+	}
+
+	runes := make([]rune, 0, len(lower))
+	prevUnderscore := false
+
+	for _, r := range lower {
+		switch {
+		case unicode.IsLetter(r):
+			runes = append(runes, r)
+			prevUnderscore = false
+		case unicode.IsDigit(r):
+			if len(runes) == 0 {
+				runes = append(runes, '_')
+			}
+			runes = append(runes, r)
+			prevUnderscore = false
+		case r == '_' || r == '.':
+			if len(runes) > 0 && !prevUnderscore {
+				runes = append(runes, '_')
+				prevUnderscore = true
+			}
+		default:
+			if len(runes) > 0 && !prevUnderscore {
+				runes = append(runes, '_')
+				prevUnderscore = true
+			}
+		}
+	}
+
+	if len(runes) == 0 {
+		return "app"
+	}
+	if runes[len(runes)-1] == '_' {
+		runes = runes[:len(runes)-1]
+	}
+	if len(runes) == 0 {
+		return "app"
+	}
+	return string(runes)
+}
+
+func toKebabCase(input string) string {
+	lower := strings.ToLower(strings.TrimSpace(input))
+	if lower == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	b.Grow(len(lower))
+	prevHyphen := false
+	for _, r := range lower {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			b.WriteRune(r)
+			prevHyphen = false
+		case r == '-' || r == '_' || r == ' ':
+			if !prevHyphen {
+				b.WriteByte('-')
+				prevHyphen = true
+			}
+		default:
+			if !prevHyphen {
+				b.WriteByte('-')
+				prevHyphen = true
+			}
+		}
+	}
+
+	slug := strings.Trim(b.String(), "-")
+	return slug
+}
+
+func toSnakeCase(input string) string {
+	lower := strings.ToLower(strings.TrimSpace(input))
+	if lower == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	b.Grow(len(lower))
+	prevUnderscore := false
+	for _, r := range lower {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			b.WriteRune(r)
+			prevUnderscore = false
+		case r == '-' || r == '_' || r == ' ':
+			if !prevUnderscore {
+				b.WriteByte('_')
+				prevUnderscore = true
+			}
+		default:
+			if !prevUnderscore {
+				b.WriteByte('_')
+				prevUnderscore = true
+			}
+		}
+
+	}
+	g.logger(format, args...)
+}
+
+	sanitized := strings.Trim(b.String(), "_")
+	return sanitized
+
 }
