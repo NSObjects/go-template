@@ -3,6 +3,7 @@ package cmd
 import (
 	"github.com/NSObjects/go-template/muban/codegen"
 	dynamicsql "github.com/NSObjects/go-template/muban/dynamic-sql-gen"
+	"github.com/NSObjects/go-template/muban/modgen"
 	"github.com/NSObjects/go-template/muban/newcmd"
 	"github.com/spf13/cobra"
 )
@@ -25,6 +26,7 @@ func NewRootCommand() *cobra.Command {
 
 	rootCmd.AddCommand(codegen.NewCommand())
 	rootCmd.AddCommand(dynamicsql.NewCommand())
+	rootCmd.AddCommand(modgen.NewCommand())
 	rootCmd.AddCommand(newcmd.NewCommand())
 
 	return rootCmd

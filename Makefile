@@ -182,18 +182,18 @@ gen-module:
 		exit 1; \
 	fi
        @echo "$(BLUE)[INFO]$(NC) Generating module: $(NAME)"
-      @go run ./muban -- new module --name=$(NAME) --force
+@go run ./muban -- module --name=$(NAME) --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) generation completed"
 
-# 生成模块和测试用例
+# 生成模块但跳过测试用例（兼容旧命令）
 gen-module-tests:
-	@if [ -z "$(NAME)" ]; then \
-		echo "$(RED)[ERROR]$(NC) Usage: make gen-module-tests NAME=module_name"; \
-		exit 1; \
-	fi
-       @echo "$(BLUE)[INFO]$(NC) Generating module with tests: $(NAME)"
-      @go run ./muban -- new module --name=$(NAME) --tests --force
-	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) with tests generation completed"
+        @if [ -z "$(NAME)" ]; then \
+                echo "$(RED)[ERROR]$(NC) Usage: make gen-module-tests NAME=module_name"; \
+                exit 1; \
+        fi
+       @echo "$(BLUE)[INFO]$(NC) Generating module without tests: $(NAME)"
+@go run ./muban -- module --name=$(NAME) --tests=false --force
+        @echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) without tests generation completed"
 
 # 从OpenAPI文档生成模块
 gen-module-openapi:
@@ -203,33 +203,33 @@ gen-module-openapi:
 	fi
        @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
        echo "$(BLUE)[INFO]$(NC) Generating module from OpenAPI: $(NAME) ($$OPENAPI_FILE)"; \
-      go run ./muban -- new module --name=$(NAME) --openapi=$$OPENAPI_FILE --force
+go run ./muban -- module --name=$(NAME) --openapi=$$OPENAPI_FILE --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) generated from OpenAPI"
 
-# 从OpenAPI生成模块和测试用例（Table-driven测试）
+# 从OpenAPI生成模块但跳过测试用例（兼容旧命令）
 gen-module-openapi-tests:
-	@if [ -z "$(NAME)" ]; then \
-		echo "$(RED)[ERROR]$(NC) Usage: make gen-module-openapi-tests NAME=module_name [OPENAPI=doc/openapi.yaml]"; \
-		exit 1; \
-	fi
+        @if [ -z "$(NAME)" ]; then \
+                echo "$(RED)[ERROR]$(NC) Usage: make gen-module-openapi-tests NAME=module_name [OPENAPI=doc/openapi.yaml]"; \
+                exit 1; \
+        fi
        @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
-       echo "$(BLUE)[INFO]$(NC) Generating module from OpenAPI with tests: $(NAME) ($$OPENAPI_FILE)"; \
-      go run ./muban -- new module --name=$(NAME) --openapi=$$OPENAPI_FILE --tests --force
-	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) with tests generated from OpenAPI"
+       echo "$(BLUE)[INFO]$(NC) Generating module from OpenAPI without tests: $(NAME) ($$OPENAPI_FILE)"; \
+go run ./muban -- module --name=$(NAME) --openapi=$$OPENAPI_FILE --tests=false --force
+        @echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) without tests generated from OpenAPI"
 
 # 生成所有API模块（从OpenAPI）
 gen-all-modules:
        @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
        echo "$(BLUE)[INFO]$(NC) Generating all modules from OpenAPI: $$OPENAPI_FILE"; \
-      go run -mod=mod ./muban -- new module --all --openapi=$$OPENAPI_FILE --force
+go run -mod=mod ./muban -- module --all --openapi=$$OPENAPI_FILE --force
 	@echo "$(GREEN)[SUCCESS]$(NC) All modules generated from OpenAPI"
 
-# 生成所有API模块和测试用例（从OpenAPI）
+# 生成所有API模块但跳过测试用例（兼容旧命令）
 gen-all-modules-tests:
        @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
-       echo "$(BLUE)[INFO]$(NC) Generating all modules with tests from OpenAPI: $$OPENAPI_FILE"; \
-      go run -mod=mod ./muban -- new module --all --openapi=$$OPENAPI_FILE --tests --force
-	@echo "$(GREEN)[SUCCESS]$(NC) All modules with tests generated from OpenAPI"
+       echo "$(BLUE)[INFO]$(NC) Generating all modules without tests from OpenAPI: $$OPENAPI_FILE"; \
+go run -mod=mod ./muban -- module --all --openapi=$$OPENAPI_FILE --tests=false --force
+        @echo "$(GREEN)[SUCCESS]$(NC) All modules without tests generated from OpenAPI"
 
 # 生成模块（指定路由）
 gen-module-route:
@@ -238,7 +238,7 @@ gen-module-route:
 		exit 1; \
 	fi
        @echo "$(BLUE)[INFO]$(NC) Generating module with custom route: $(NAME) -> $(ROUTE)"
-      @go run ./muban -- new module --name=$(NAME) --route=$(ROUTE) --force
+@go run ./muban -- module --name=$(NAME) --route=$(ROUTE) --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) with route $(ROUTE) generation completed"
 
 # 生成数据库模型和查询
@@ -443,12 +443,12 @@ help:
 	@echo "  $(GREEN)init-project$(NC)                - 基于模板生成新项目 (MODULE=module_path [OUTPUT=dir])"
 	@echo "  $(GREEN)gen-code$(NC)                    - 生成错误码和文档"
 	@echo "  $(GREEN)gen-module$(NC)                  - 生成业务模块 (NAME=module_name)"
-	@echo "  $(GREEN)gen-module-tests$(NC)            - 生成模块和测试用例 (NAME=module_name)"
+        @echo "  $(GREEN)gen-module-tests$(NC)            - 生成模块（跳过测试用例，兼容旧命令） (NAME=module_name)"
 	@echo "  $(GREEN)gen-module-openapi$(NC)          - 从OpenAPI生成模块 (NAME=name [OPENAPI=path])"
-	@echo "  $(GREEN)gen-module-openapi-tests$(NC)    - 从OpenAPI生成模块和测试 (NAME=name [OPENAPI=path])"
+        @echo "  $(GREEN)gen-module-openapi-tests$(NC)    - 从OpenAPI生成模块（跳过测试用例，兼容旧命令） (NAME=name [OPENAPI=path])"
 	@echo "  $(GREEN)gen-module-route$(NC)            - 生成模块（指定路由） (NAME=name ROUTE=path)"
 	@echo "  $(GREEN)gen-all-modules$(NC)             - 生成所有API模块 (OPENAPI=path)"
-	@echo "  $(GREEN)gen-all-modules-tests$(NC)       - 生成所有API模块和测试 (OPENAPI=path)"
+        @echo "  $(GREEN)gen-all-modules-tests$(NC)       - 生成所有API模块（跳过测试用例，兼容旧命令） (OPENAPI=path)"
 	@echo "  $(GREEN)db-gen$(NC)                      - 生成数据库模型和查询"
 	@echo "  $(GREEN)db-gen-table$(NC)                - 生成指定表模型 (TABLE=table_name)"
 	@echo "  $(GREEN)db-gen-dynamic$(NC)              - 生成Dynamic SQL查询"
@@ -483,12 +483,12 @@ help:
 	@echo ""
 	@echo "$(YELLOW)示例用法:$(NC)"
 	@echo "  make gen-module NAME=user"
-	@echo "  make gen-module-tests NAME=product"
+        @echo "  make gen-module-tests NAME=product"
 	@echo "  make gen-module-openapi NAME=article"
-	@echo "  make gen-module-openapi-tests NAME=user"
+        @echo "  make gen-module-openapi-tests NAME=user"
 	@echo "  make gen-module-route NAME=order ROUTE=/api/v1/orders"
 	@echo "  make gen-all-modules OPENAPI=doc/openapi.yaml"
-	@echo "  make gen-all-modules-tests OPENAPI=doc/openapi.yaml"
+        @echo "  make gen-all-modules-tests OPENAPI=doc/openapi.yaml"
 	@echo "  make db-gen-table TABLE=users"
 	@echo "  make lint-dir DIR=./internal/api"
 	@echo "  make lint-fix"

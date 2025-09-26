@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/NSObjects/go-template/muban/modgen"
 	"github.com/NSObjects/go-template/muban/project"
 	"github.com/spf13/cobra"
 )
@@ -43,13 +42,6 @@ func NewCommand() *cobra.Command {
 	}, "\n")
 
 	cmd.SilenceUsage = true
-
-	moduleCmd := modgen.NewCommand()
-	moduleCmd.Use = "module"
-	moduleCmd.Short = "生成业务模块，支持默认模板与 OpenAPI 文档"
-	moduleCmd.Aliases = append(moduleCmd.Aliases, "modgen")
-
-	cmd.AddCommand(moduleCmd)
 
 	return cmd
 }

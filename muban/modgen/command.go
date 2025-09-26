@@ -20,11 +20,12 @@ type Options struct {
 
 // NewCommand builds the Cobra command for module scaffolding generation.
 func NewCommand() *cobra.Command {
-	opts := Options{}
+	opts := Options{GenerateTests: true}
 
 	cmd := &cobra.Command{
-		Use:   "modgen",
-		Short: "Generate module scaffolding and optional OpenAPI-based handlers",
+		Use:     "module",
+		Aliases: []string{"modgen"},
+		Short:   "Generate module scaffolding and optional OpenAPI-based handlers",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return Run(opts)
 		},
@@ -33,11 +34,13 @@ func NewCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&opts.Name, "name", "n", "", "模块名，例如: user, article")
 	cmd.Flags().StringVar(&opts.Route, "route", "", "基础路由前缀，例如: /articles (默认使用 name 的复数形式)")
 	cmd.Flags().BoolVar(&opts.Force, "force", false, "若目标文件已存在则覆盖")
-	cmd.Flags().StringVar(&opts.OpenAPIFile, "openapi", "", "OpenAPI3文档路径，例如: doc/openapi.yaml")
-	cmd.Flags().BoolVar(&opts.GenerateTests, "tests", false, "同时生成测试用例（Table-driven测试）")
-	cmd.Example = "  go run ./muban -- new module --name=user\n" +
-		"  go run ./muban -- new module --name=article --openapi=doc/openapi.yaml --tests\n" +
-		"  go run ./muban -- new module --openapi=doc/openapi.yaml"
+	cmd.Flags().StringVar(&opts.OpenAPIFile, "openapi", "", "OpenAPI3文档路径或远程URL，例如: doc/openapi.yaml")
+	cmd.Flags().BoolVar(&opts.GenerateTests, "tests", true, "是否生成测试用例（默认开启，可通过 --tests=false 关闭）")
+	cmd.Example = "  go run ./muban -- module --name=user\n" +
+		"  go run ./muban -- module --name=article --openapi=doc/openapi.yaml\n" +
+		"  go run ./muban -- module --openapi=doc/openapi.yaml\n" +
+		"  go run ./muban -- module --openapi=https://example.com/openapi.yaml\n" +
+		"  go run ./muban -- module --name=user --tests=false"
 
 	cmd.SilenceUsage = true
 
