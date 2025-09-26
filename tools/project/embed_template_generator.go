@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+	"unicode"
 )
 
 //go:embed templates/*
@@ -26,7 +27,9 @@ type EmbedTemplateGenerator struct {
 type templateData struct {
 	ModulePath  string
 	ProjectName string
+	DisplayName string
 	PackageName string
+	EnvName     string
 }
 
 type fileSpec struct {
@@ -45,12 +48,8 @@ type Option func(*EmbedTemplateGenerator)
 func NewEmbedTemplateGenerator(outputDir, modulePath, projectName string, opts ...Option) *EmbedTemplateGenerator {
 	generator := &EmbedTemplateGenerator{
 		outputDir: outputDir,
-		data: templateData{
-			ModulePath:  modulePath,
-			ProjectName: projectName,
-			PackageName: filepath.Base(modulePath),
-		},
-		fs: templateFS,
+		data:      buildTemplateData(modulePath, projectName),
+		fs:        templateFS,
 		logger: func(format string, args ...interface{}) {
 			fmt.Printf(format, args...)
 		},
@@ -284,4 +283,148 @@ func desiredFileMode(outputPath string) fs.FileMode {
 	default:
 		return 0o644
 	}
+}
+
+func buildTemplateData(modulePath, projectName string) templateData {
+	sanitizedModule := strings.TrimSpace(modulePath)
+	base := filepath.Base(sanitizedModule)
+	pkgName := sanitizePackageName(base)
+
+	trimmedProject := strings.TrimSpace(projectName)
+	if trimmedProject == "" {
+		trimmedProject = base
+	}
+
+	display := trimmedProject
+	slug := toKebabCase(trimmedProject)
+	if slug == "" {
+		slug = pkgName
+	}
+	if slug == "" {
+		slug = "app"
+	}
+
+	envName := toSnakeCase(slug)
+	if envName == "" {
+		envName = slug
+	}
+
+	if display == "" {
+		display = slug
+	}
+
+	return templateData{
+		ModulePath:  sanitizedModule,
+		ProjectName: slug,
+		DisplayName: display,
+		PackageName: pkgName,
+		EnvName:     envName,
+	}
+}
+
+func sanitizePackageName(name string) string {
+	lower := strings.ToLower(strings.TrimSpace(name))
+	if lower == "" {
+		return "app"
+	}
+
+	runes := make([]rune, 0, len(lower))
+	prevUnderscore := false
+
+	for _, r := range lower {
+		switch {
+		case unicode.IsLetter(r):
+			runes = append(runes, r)
+			prevUnderscore = false
+		case unicode.IsDigit(r):
+			if len(runes) == 0 {
+				runes = append(runes, '_')
+			}
+			runes = append(runes, r)
+			prevUnderscore = false
+		case r == '_' || r == '.':
+			if len(runes) > 0 && !prevUnderscore {
+				runes = append(runes, '_')
+				prevUnderscore = true
+			}
+		default:
+			if len(runes) > 0 && !prevUnderscore {
+				runes = append(runes, '_')
+				prevUnderscore = true
+			}
+		}
+	}
+
+	if len(runes) == 0 {
+		return "app"
+	}
+	if runes[len(runes)-1] == '_' {
+		runes = runes[:len(runes)-1]
+	}
+	if len(runes) == 0 {
+		return "app"
+	}
+	return string(runes)
+}
+
+func toKebabCase(input string) string {
+	lower := strings.ToLower(strings.TrimSpace(input))
+	if lower == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	b.Grow(len(lower))
+	prevHyphen := false
+	for _, r := range lower {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			b.WriteRune(r)
+			prevHyphen = false
+		case r == '-' || r == '_' || r == ' ':
+			if !prevHyphen {
+				b.WriteByte('-')
+				prevHyphen = true
+			}
+		default:
+			if !prevHyphen {
+				b.WriteByte('-')
+				prevHyphen = true
+			}
+		}
+	}
+
+	slug := strings.Trim(b.String(), "-")
+	return slug
+}
+
+func toSnakeCase(input string) string {
+	lower := strings.ToLower(strings.TrimSpace(input))
+	if lower == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	b.Grow(len(lower))
+	prevUnderscore := false
+	for _, r := range lower {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			b.WriteRune(r)
+			prevUnderscore = false
+		case r == '-' || r == '_' || r == ' ':
+			if !prevUnderscore {
+				b.WriteByte('_')
+				prevUnderscore = true
+			}
+		default:
+			if !prevUnderscore {
+				b.WriteByte('_')
+				prevUnderscore = true
+			}
+		}
+	}
+
+	sanitized := strings.Trim(b.String(), "_")
+	return sanitized
 }

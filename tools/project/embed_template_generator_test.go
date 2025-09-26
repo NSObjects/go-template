@@ -3,6 +3,7 @@ package project
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -55,6 +56,54 @@ func TestGenerateProjectCreatesExecutableScripts(t *testing.T) {
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("unexpected error reading docs dir: %v", err)
+	}
+}
+
+func TestGenerateProjectSanitizesNames(t *testing.T) {
+
+	tempDir := t.TempDir()
+
+	generator := NewEmbedTemplateGenerator(
+		tempDir,
+		"github.com/example/my-service",
+		"",
+		WithLogger(func(string, ...interface{}) {}),
+	)
+
+	if err := generator.Generate(); err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+
+	envBytes, err := os.ReadFile(filepath.Join(tempDir, "env.example"))
+	if err != nil {
+		t.Fatalf("read env.example: %v", err)
+	}
+	envContent := string(envBytes)
+	if !strings.Contains(envContent, "MYSQL_DATABASE=my_service") {
+		t.Fatalf("expected env.example to use snake_case project name, got %q", envContent)
+	}
+
+	composeBytes, err := os.ReadFile(filepath.Join(tempDir, "docker-compose.yaml"))
+	if err != nil {
+		t.Fatalf("read docker-compose.yaml: %v", err)
+	}
+	compose := string(composeBytes)
+	if !strings.Contains(compose, "  mysql:\n    image") {
+		t.Fatalf("docker-compose content unexpected: %q", compose)
+	}
+	if !strings.Contains(compose, "MYSQL_DATABASE: my_service") {
+		t.Fatalf("expected docker-compose to use snake_case for database name, got %q", compose)
+	}
+	if !strings.Contains(compose, "services:\n  my-service:\n") {
+		t.Fatalf("expected docker-compose to keep kebab-case service name, got %q", compose)
+	}
+
+	readmeBytes, err := os.ReadFile(filepath.Join(tempDir, "README.md"))
+	if err != nil {
+		t.Fatalf("read README.md: %v", err)
+	}
+	if !strings.Contains(string(readmeBytes), "# my-service") {
+		t.Fatalf("expected README heading to preserve display name, got %q", readmeBytes)
 	}
 }
 
@@ -125,6 +174,23 @@ func TestRunWithWriterUsesProvidedOutput(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(targetDir, "go.mod")); err != nil {
 		t.Fatalf("expected go.mod to be generated: %v", err)
+	}
+}
+
+func TestRunWithWriterRejectsInvalidModulePath(t *testing.T) {
+	tempDir := t.TempDir()
+
+	opts := Options{
+		ModulePath: "github.com/example/with space",
+		OutputDir:  filepath.Join(tempDir, "out"),
+	}
+
+	err := RunWithWriter(opts, io.Discard)
+	if err == nil {
+		t.Fatalf("expected invalid module path to return error")
+	}
+	if !strings.Contains(err.Error(), "无效的 Go Module 路径") {
+		t.Fatalf("unexpected error message: %v", err)
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/mod/module"
 )
 
 // Options defines the CLI parameters for project generation.
@@ -62,6 +63,10 @@ func RunWithWriter(opts Options, out io.Writer) error {
 	modulePath := strings.TrimSpace(opts.ModulePath)
 	if modulePath == "" {
 		return fmt.Errorf("请使用 --module 指定新项目的 Go Module 路径")
+	}
+
+	if err := module.CheckPath(modulePath); err != nil {
+		return fmt.Errorf("无效的 Go Module 路径: %w", err)
 	}
 
 	cwd, err := os.Getwd()
