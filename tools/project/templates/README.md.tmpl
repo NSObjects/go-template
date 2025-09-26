@@ -1,116 +1,89 @@
 # {{.ProjectName}}
 
-{{.ProjectName}} 是一个基于 Go 的 Web 应用项目，使用 Echo 框架构建。
+{{.ProjectName}} 是一个基于 Go 的 Web 服务模板，内置了 Echo、Fx、GORM 等常用组件，开箱即用地提供认证、日志、配置和可观测性支持，帮助团队在保持代码规范的同时快速启动新项目。
 
-## 功能特性
+## ✨ 核心特性
 
-- 🚀 基于 Echo 框架的高性能 HTTP 服务器
-- 🔧 使用 Fx 进行依赖注入
-- 📊 集成 GORM 进行数据库操作
-- 🔐 支持 JWT 认证和 Casbin 权限控制
-- 📝 结构化日志记录
-- ⚙️ 灵活的配置管理
-- 🐳 Docker 支持
-- 📈 监控和健康检查
+- **分层架构**：遵循 Clean Architecture，清晰划分业务、数据和接口层
+- **依赖注入**：集成 Uber Fx，支持模块化的服务装配
+- **数据访问**：GORM + MySQL/PostgreSQL，内置 DAO、事务和迁移示例
+- **认证与权限**：提供 JWT 登录流程，并预置 Casbin RBAC 模型
+- **工程化工具链**：Makefile、代码生成器、lint/test 流水线一应俱全
+- **可观测性**：内置健康检查、结构化日志和 Prometheus 指标上报
 
-## 技术栈
+## 🚀 快速开始
 
-- **Web 框架**: Echo v4
-- **依赖注入**: Fx
-- **数据库**: GORM + MySQL/PostgreSQL
-- **缓存**: Redis
-- **消息队列**: Kafka
-- **认证**: JWT
-- **权限控制**: Casbin
-- **配置管理**: Viper
-- **日志**: slog
-- **监控**: Prometheus
+### 环境要求
 
-## 快速开始
+- Go 1.23+
+- 可用的 MySQL 和 Redis 实例（如不使用可在配置中禁用）
 
-### 1. 安装依赖
+### 初始化
 
 ```bash
+# 安装依赖
 go mod tidy
-```
 
-### 2. 配置环境
-
-复制环境变量文件并修改配置：
-
-```bash
+# 准备环境变量
 cp env.example .env
-```
 
-### 3. 运行项目
-
-```bash
-# 开发模式
+# 启动开发模式
 make dev
-
-# 生产模式
-make build
-make run
 ```
 
-## 项目结构
+### 常用命令
 
-```
-.
-├── cmd/                    # 命令行工具
-├── configs/                # 配置文件
-├── internal/               # 内部包
-│   ├── api/               # API 层
-│   │   ├── biz/           # 业务逻辑
-│   │   ├── data/          # 数据访问
-│   │   └── service/       # 服务层
-│   ├── cache/             # 缓存
-│   ├── code/              # 错误码
-│   ├── configs/           # 配置管理
-│   ├── health/            # 健康检查
-│   ├── log/               # 日志
-│   ├── middleware/        # 中间件
-│   ├── resp/              # 响应处理
-│   ├── server/            # 服务器
-│   ├── utils/             # 工具函数
-│   └── validator/         # 验证器
-├── k8s/                   # Kubernetes 配置
-├── scripts/               # 脚本
-└── sql/                   # SQL 文件
-```
+| 命令 | 说明 |
+| --- | --- |
+| `make run` | 在本地运行服务 |
+| `make test` | 执行单元测试 |
+| `make lint` | 运行 golangci-lint 检查 |
+| `make db-gen` | 根据当前数据库生成 GORM 代码 |
+| `make gen-code` | 生成错误码和文档 |
 
-## 开发指南
+## 🧰 项目脚手架命令
 
-### 添加新的 API
-
-1. 在 `internal/api/biz/` 中定义业务逻辑
-2. 在 `internal/api/service/` 中实现服务层
-3. 在 `internal/api/data/` 中实现数据访问层
-4. 在 `internal/server/` 中注册路由
-
-### 添加新的中间件
-
-1. 在 `internal/middleware/` 中实现中间件
-2. 在 `internal/server/middlewares/` 中注册中间件
-
-## 部署
-
-### Docker 部署
+本项目自带 CLI，可将当前模板复制为全新的仓库：
 
 ```bash
-# 构建镜像
-docker build -t {{.ProjectName}} .
-
-# 运行容器
-docker run -p 8080:8080 {{.ProjectName}}
+go run ./tools -- new project \
+  --module=github.com/your-org/{{.PackageName}} \
+  --output=../{{.PackageName}}
 ```
 
-### Kubernetes 部署
+可使用 `--name` 自定义展示名称，`--force` 覆盖已有目录。
 
-```bash
-kubectl apply -f k8s/
+## 📁 目录结构
+
+```
+{{.ProjectName}}/
+├── cmd/                # 程序入口与命令
+├── configs/            # 配置文件与示例
+├── internal/           # 业务代码
+│   ├── api/            # API 层 (biz/data/service)
+│   ├── code/           # 错误码定义
+│   ├── log/            # 日志封装
+│   └── server/         # Echo/Fx 组合及中间件
+├── scripts/            # 开发脚本
+├── sql/                # 数据库迁移
+├── tools/              # 项目 CLI 与生成器
+└── Makefile            # 常用任务
 ```
 
-## 许可证
+### API 分层说明
+
+`internal/api` 目录同样划分为三层：
+
+- **service 层**：定义路由与处理器，负责请求/响应模型转换、参数校验和错误映射，仅依赖 biz 层。
+- **biz 层**：承载业务用例与领域逻辑，通过接口与 data 层交互，协调事务和跨模块协作。
+- **data 层**：封装数据库、缓存与外部服务的访问细节，对 biz 层暴露仓储实现，并处理连接、重试与监控等通用能力。
+
+## 📚 下一步
+
+- 根据业务需求扩展 `internal/api` 下的模块
+- 使用 `make gen-module` 快速创建标准化的 CRUD 模块
+- 配置 CI/CD，将 `make lint` 与 `make test` 纳入流水线
+
+## 📄 许可证
 
 MIT License
