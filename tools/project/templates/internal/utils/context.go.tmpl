@@ -1,0 +1,56 @@
+package utils
+
+import (
+	"context"
+	"time"
+)
+
+// ContextKey 上下文键类型
+type ContextKey string
+
+const (
+	// UserIDKey 用户ID键
+	UserIDKey ContextKey = "user_id"
+	// UsernameKey 用户名键
+	UsernameKey ContextKey = "username"
+	// RequestIDKey 请求ID键
+	RequestIDKey ContextKey = "request_id"
+)
+
+// WithUserID 添加上下文中的用户ID
+func WithUserID(ctx context.Context, userID uint) context.Context {
+	return context.WithValue(ctx, UserIDKey, userID)
+}
+
+// GetUserID 从上下文中获取用户ID
+func GetUserID(ctx context.Context) (uint, bool) {
+	userID, ok := ctx.Value(UserIDKey).(uint)
+	return userID, ok
+}
+
+// WithUsername 添加上下文中的用户名
+func WithUsername(ctx context.Context, username string) context.Context {
+	return context.WithValue(ctx, UsernameKey, username)
+}
+
+// GetUsername 从上下文中获取用户名
+func GetUsername(ctx context.Context) (string, bool) {
+	username, ok := ctx.Value(UsernameKey).(string)
+	return username, ok
+}
+
+// WithRequestID 添加上下文中的请求ID
+func WithRequestID(ctx context.Context, requestID string) context.Context {
+	return context.WithValue(ctx, RequestIDKey, requestID)
+}
+
+// GetRequestID 从上下文中获取请求ID
+func GetRequestID(ctx context.Context) (string, bool) {
+	requestID, ok := ctx.Value(RequestIDKey).(string)
+	return requestID, ok
+}
+
+// WithTimeout 添加上下文超时
+func WithTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, timeout)
+}

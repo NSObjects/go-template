@@ -1,0 +1,54 @@
+package utils
+
+import (
+	"context"
+	"testing"
+)
+
+func TestWithUserID(t *testing.T) {
+	ctx := context.Background()
+	userID := uint(123)
+	
+	ctx = WithUserID(ctx, userID)
+	
+	retrievedID, ok := GetUserID(ctx)
+	if !ok {
+		t.Fatal("expected to get user ID from context")
+	}
+	
+	if retrievedID != userID {
+		t.Errorf("expected user ID %d, got %d", userID, retrievedID)
+	}
+}
+
+func TestWithUsername(t *testing.T) {
+	ctx := context.Background()
+	username := "testuser"
+	
+	ctx = WithUsername(ctx, username)
+	
+	retrievedUsername, ok := GetUsername(ctx)
+	if !ok {
+		t.Fatal("expected to get username from context")
+	}
+	
+	if retrievedUsername != username {
+		t.Errorf("expected username %s, got %s", username, retrievedUsername)
+	}
+}
+
+func TestWithRequestID(t *testing.T) {
+	ctx := context.Background()
+	requestID := "req-123"
+	
+	ctx = WithRequestID(ctx, requestID)
+	
+	retrievedRequestID, ok := GetRequestID(ctx)
+	if !ok {
+		t.Fatal("expected to get request ID from context")
+	}
+	
+	if retrievedRequestID != requestID {
+		t.Errorf("expected request ID %s, got %s", requestID, retrievedRequestID)
+	}
+}

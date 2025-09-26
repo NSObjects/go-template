@@ -1,0 +1,52 @@
+package resp
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/labstack/echo/v4"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestSuccess(t *testing.T) {
+	data := map[string]string{"message": "test"}
+	response := Success(data)
+
+	assert.Equal(t, 200, response.Code)
+	assert.Equal(t, "success", response.Message)
+	assert.Equal(t, data, response.Data)
+}
+
+func TestError(t *testing.T) {
+	response := Error(400, "Bad Request")
+
+	assert.Equal(t, 400, response.Code)
+	assert.Equal(t, "Bad Request", response.Message)
+	assert.Nil(t, response.Data)
+}
+
+func TestSuccessJSON(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	data := map[string]string{"message": "test"}
+	err := SuccessJSON(c, data)
+
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestErrorJSON(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := ErrorJSON(c, http.StatusBadRequest, "Bad Request")
+
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}

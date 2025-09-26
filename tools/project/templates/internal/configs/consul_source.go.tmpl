@@ -1,0 +1,83 @@
+package configs
+
+import (
+	"bytes"
+	"context"
+	"time"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/spf13/viper"
+)
+
+// ConsulSource 从 Consul 读取配置
+type ConsulSource struct {
+	Address string
+	Token   string
+	Key     string
+	Format  string // json|yaml|toml（默认 toml）
+}
+
+func (c ConsulSource) Load(ctx context.Context) (Config, error) {
+	client, err := api.NewClient(&api.Config{
+		Address: c.Address,
+		Token:   c.Token,
+	})
+	if err != nil {
+		return Config{}, err
+	}
+
+	kv, _, err := client.KV().Get(c.Key, nil)
+	if err != nil {
+		return Config{}, err
+	}
+	if kv == nil {
+		return Config{}, nil
+	}
+
+	v := viper.New()
+	v.SetConfigType(c.Format)
+	if err := v.ReadConfig(bytes.NewReader(kv.Value)); err != nil {
+		return Config{}, err
+	}
+
+	var cfg Config
+	if err := v.Unmarshal(&cfg); err != nil {
+		return Config{}, err
+	}
+
+	return cfg, nil
+}
+
+func (c ConsulSource) Watch(ctx context.Context, onChange func(Config)) error {
+	client, err := api.NewClient(&api.Config{
+		Address: c.Address,
+		Token:   c.Token,
+	})
+	if err != nil {
+		return err
+	}
+
+	queryOptions := &api.QueryOptions{
+		WaitTime: 10 * time.Second,
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			kv, meta, err := client.KV().Get(c.Key, queryOptions)
+			if err != nil {
+				continue
+			}
+			if kv != nil {
+				cfg, err := c.Load(ctx)
+				if err == nil {
+					onChange(cfg)
+				}
+			}
+			queryOptions.WaitIndex = meta.LastIndex
+		}
+	}
+	return nil
+}

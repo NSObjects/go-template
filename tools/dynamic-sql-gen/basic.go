@@ -135,7 +135,7 @@ func NewCommand() *cobra.Command {
 	opts := Options{}
 
 	cmd := &cobra.Command{
-		Use:   "dynamic-sql",
+		Use:   "dynamicsql",
 		Short: "Generate dynamic SQL helpers based on the current database schema",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return Run(opts)

@@ -1,0 +1,59 @@
+package cache
+
+import (
+	"context"
+	"encoding/json"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+)
+
+// Cache Redis缓存
+type Cache struct {
+	client *redis.Client
+}
+
+// NewCache 创建缓存实例
+func NewCache(client *redis.Client) *Cache {
+	return &Cache{
+		client: client,
+	}
+}
+
+// Set 设置缓存
+func (c *Cache) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return c.client.Set(ctx, key, data, expiration).Err()
+}
+
+// Get 获取缓存
+func (c *Cache) Get(ctx context.Context, key string, dest interface{}) error {
+	data, err := c.client.Get(ctx, key).Result()
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal([]byte(data), dest)
+}
+
+// Delete 删除缓存
+func (c *Cache) Delete(ctx context.Context, key string) error {
+	return c.client.Del(ctx, key).Err()
+}
+
+// Exists 检查缓存是否存在
+func (c *Cache) Exists(ctx context.Context, key string) (bool, error) {
+	result, err := c.client.Exists(ctx, key).Result()
+	return result > 0, err
+}
+
+// SetNX 设置缓存（仅当键不存在时）
+func (c *Cache) SetNX(ctx context.Context, key string, value interface{}, expiration time.Duration) (bool, error) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return false, err
+	}
+	return c.client.SetNX(ctx, key, data, expiration).Result()
+}

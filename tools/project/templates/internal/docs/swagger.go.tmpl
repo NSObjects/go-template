@@ -1,0 +1,21 @@
+package docs
+
+import (
+	"{{.ModulePath}}/internal/docs"
+	"github.com/labstack/echo/v4"
+)
+
+// SwaggerHandler Swagger文档处理器
+func SwaggerHandler(c echo.Context) error {
+	// 这里可以返回Swagger文档
+	// 实际项目中可以使用swaggo/echo-swagger
+	return c.JSON(200, map[string]string{
+		"message": "Swagger documentation",
+		"version": "1.0.0",
+	})
+}
+
+// RegisterSwaggerRoutes 注册Swagger路由
+func RegisterSwaggerRoutes(g *echo.Group) {
+	g.GET("/swagger/*", SwaggerHandler)
+}

@@ -1,0 +1,77 @@
+[system]
+port = ":9322"
+#1 = debug , 2 = online
+level = 1
+# 环境配置: dev, test, prod
+env = "dev"
+
+[mysql]
+# 容器运行时host修改为 数据库服务名称 mysql
+# links:
+#      - mysql
+host = "127.0.0.1"
+docker_host = "db"
+port = "3306"
+database = "test"
+user = "root"
+password = "12345678"
+max_idle_conns = 50
+max_open_conns = 100
+conn_max_lifetime = "1h"
+conn_max_idle_time = "30m"
+
+[mongodb]
+host = ""
+port = "27017"
+user = ""
+password = ""
+
+[log]
+# 日志级别: debug, info, warn, error
+level = "debug"
+# 日志格式: color(开发), json(生产)
+format = "color"
+
+[log.console]
+format = "color"  # json, text, color
+output = "stdout" # stdout, stderr
+
+[log.file]
+# 文件日志配置 - 生产环境启用
+filename = "logs/app.log"
+max_size = 100    # MB
+max_backups = 3
+max_age = 28      # days
+compress = true
+format = "json"   # json, text
+
+[log.elasticsearch]
+url = ""
+index = "echo-admin-logs"
+timeout = "5s"
+
+[log.loki]
+url = ""
+labels = { service = "echo-admin", env = "dev" }
+timeout = "5s"
+
+[jwt]
+secret = "tn)M^P<j,/6$Gr/Wrs"
+expire = 3600
+skip_paths = ["/api/v1/health","/api/v1/info","/api/v1/auth/login","/api/v1/users"]
+
+[cors]
+allow_origins = ["*"]
+allow_headers = ["Origin", "Content-Type", "Accept"]
+allow_methods = ["GET","HEAD","PUT","PATCH","POST","DELETE"]
+allow_credentials = true
+
+[casbin]
+# model 直接内联或使用 model_file 指向文件
+model = ""
+model_file = ""
+
+[kafka]
+brokers = []
+client_id = "echo-admin"
+topic = "demo"

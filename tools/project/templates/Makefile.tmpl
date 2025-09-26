@@ -1,0 +1,91 @@
+# Go parameters
+GOCMD=go
+GOBUILD=$(GOCMD) build
+GOCLEAN=$(GOCMD) clean
+GOTEST=$(GOCMD) test
+GOGET=$(GOCMD) get
+GOMOD=$(GOCMD) mod
+BINARY_NAME={{.ProjectName}}
+BINARY_UNIX=$(BINARY_NAME)_unix
+
+# Build the application
+build:
+	$(GOBUILD) -o $(BINARY_NAME) -v .
+
+# Build for Linux
+build-linux:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_UNIX) -v .
+
+# Clean build files
+clean:
+	$(GOCLEAN)
+	rm -f $(BINARY_NAME)
+	rm -f $(BINARY_UNIX)
+
+# Run tests
+test:
+	$(GOTEST) -v ./...
+
+# Run tests with coverage
+test-coverage:
+	$(GOTEST) -v -coverprofile=coverage.out ./...
+	$(GOCMD) tool cover -html=coverage.out
+
+# Download dependencies
+deps:
+	$(GOMOD) download
+	$(GOMOD) tidy
+
+# Run the application
+run:
+	$(GOBUILD) -o $(BINARY_NAME) -v .
+	./$(BINARY_NAME)
+
+# Run in development mode
+dev:
+	$(GOCMD) run .
+
+# Install dependencies
+install:
+	$(GOGET) -d -v ./...
+
+# Format code
+fmt:
+	$(GOCMD) fmt ./...
+
+# Lint code
+lint:
+	golangci-lint run
+
+# Setup development environment
+dev-setup:
+	cp env.example .env
+	$(GOMOD) tidy
+	$(GOCMD) run . --config=configs/config.toml
+
+# Docker build
+docker-build:
+	docker build -t $(BINARY_NAME) .
+
+# Docker run
+docker-run:
+	docker run -p 8080:8080 $(BINARY_NAME)
+
+# Help
+help:
+	@echo "Available commands:"
+	@echo "  build        - Build the application"
+	@echo "  build-linux  - Build for Linux"
+	@echo "  clean        - Clean build files"
+	@echo "  test         - Run tests"
+	@echo "  test-coverage- Run tests with coverage"
+	@echo "  deps         - Download dependencies"
+	@echo "  run          - Run the application"
+	@echo "  dev          - Run in development mode"
+	@echo "  install      - Install dependencies"
+	@echo "  fmt          - Format code"
+	@echo "  lint         - Lint code"
+	@echo "  dev-setup    - Setup development environment"
+	@echo "  docker-build - Build Docker image"
+	@echo "  docker-run   - Run Docker container"
+	@echo "  help         - Show this help"

@@ -1,0 +1,59 @@
+package configs
+
+import (
+	"context"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
+)
+
+// FileSource 文件配置源
+type FileSource struct {
+	Path string
+}
+
+// Load 加载配置
+func (f FileSource) Load(ctx context.Context) (Config, error) {
+	v := viper.New()
+	v.SetConfigFile(f.Path)
+	v.SetConfigType("toml")
+
+	if err := v.ReadInConfig(); err != nil {
+		return Config{}, err
+	}
+
+	var cfg Config
+	if err := v.Unmarshal(&cfg); err != nil {
+		return Config{}, err
+	}
+
+	return cfg, nil
+}
+
+// Watch 监听文件变化
+func (f FileSource) Watch(ctx context.Context, onChange func(Config)) error {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		return err
+	}
+	defer watcher.Close()
+
+	if err := watcher.Add(f.Path); err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case event := <-watcher.Events:
+			if event.Op&fsnotify.Write == fsnotify.Write {
+				if cfg, err := f.Load(ctx); err == nil {
+					onChange(cfg)
+				}
+			}
+		case err := <-watcher.Errors:
+			return err
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}

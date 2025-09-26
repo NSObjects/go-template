@@ -1,0 +1,34 @@
+# 配置文件说明
+
+本目录包含项目的配置文件。
+
+## 文件说明
+
+- `config.toml` - 主配置文件，包含所有服务的配置项
+- `rbac_model.conf` - Casbin RBAC权限模型配置文件
+
+## 配置项说明
+
+### 系统配置
+- `system.port` - 服务端口
+- `system.level` - 日志级别
+- `system.env` - 运行环境
+
+### 数据库配置
+- `mysql.*` - MySQL数据库配置
+- `redis.*` - Redis缓存配置
+- `mongodb.*` - MongoDB数据库配置
+- `kafka.*` - Kafka消息队列配置
+
+### 认证配置
+- `jwt.*` - JWT认证配置
+- `casbin.*` - Casbin权限控制配置
+
+## 环境变量
+
+可以通过环境变量覆盖配置文件中的值，环境变量格式为：
+`SYSTEM_PORT=:8080`
+
+## 热重载
+
+配置文件支持热重载，修改配置文件后会自动重新加载。

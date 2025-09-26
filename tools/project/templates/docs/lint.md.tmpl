@@ -1,0 +1,52 @@
+# Lint 配置
+
+## golangci-lint 配置
+
+```yaml
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - ineffassign
+    - typecheck
+    - gosec
+    - goconst
+    - misspell
+    - lll
+    - gocritic
+    - gocyclo
+    - gofumpt
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  lll:
+    line-length: 120
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+```
+
+## 运行命令
+
+```bash
+# 安装 golangci-lint
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+# 运行检查
+golangci-lint run
+
+# 自动修复
+golangci-lint run --fix
+```

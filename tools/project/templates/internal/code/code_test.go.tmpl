@@ -1,0 +1,35 @@
+package code
+
+import (
+	"testing"
+)
+
+func TestErrCode(t *testing.T) {
+	tests := []struct {
+		name     string
+		errCode  *ErrCode
+		expected int
+	}{
+		{
+			name:     "ErrSuccess",
+			errCode:  &ErrCode{C: ErrSuccess, HTTP: 200, Ext: "OK"},
+			expected: 200,
+		},
+		{
+			name:     "ErrUnknown",
+			errCode:  &ErrCode{C: ErrUnknown, HTTP: 500, Ext: "Internal server error"},
+			expected: 500,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.errCode.Code() != tt.errCode.C {
+				t.Errorf("Code() = %v, want %v", tt.errCode.Code(), tt.errCode.C)
+			}
+			if tt.errCode.HTTPStatus() != tt.expected {
+				t.Errorf("HTTPStatus() = %v, want %v", tt.errCode.HTTPStatus(), tt.expected)
+			}
+		})
+	}
+}

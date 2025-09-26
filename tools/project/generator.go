@@ -139,15 +139,18 @@ func (g *Generator) prepareOutputDir(outputDir string) error {
 
 func (g *Generator) shouldSkip(rel string) bool {
 	rel = filepath.ToSlash(rel)
-	base := rel
-	if idx := strings.Index(base, "/"); idx != -1 {
-		base = base[:idx]
-	}
 
+	// 检查是否匹配任何排除前缀（支持多级路径）
 	for _, prefix := range g.excludePrefixes {
-		if base == prefix {
+		if strings.HasPrefix(rel, prefix+"/") || rel == prefix {
 			return true
 		}
+	}
+
+	// 检查是否是输出目录本身（避免递归复制）
+	outputBase := filepath.Base(g.cfg.OutputDir)
+	if rel == outputBase || strings.HasPrefix(rel, outputBase+"/") {
+		return true
 	}
 
 	if strings.HasSuffix(rel, ".DS_Store") {

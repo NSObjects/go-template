@@ -1,0 +1,70 @@
+package validator
+
+import (
+	"regexp"
+	"strings"
+
+	"github.com/go-playground/validator/v10"
+)
+
+// CustomValidator 自定义验证器
+type CustomValidator struct {
+	validator *validator.Validate
+}
+
+// NewCustomValidator 创建自定义验证器
+func NewCustomValidator() *CustomValidator {
+	v := validator.New()
+	
+	// 注册自定义验证规则
+	v.RegisterValidation("email", validateEmail)
+	v.RegisterValidation("phone", validatePhone)
+	v.RegisterValidation("username", validateUsername)
+	v.RegisterValidation("password", validatePassword)
+	
+	return &CustomValidator{
+		validator: v,
+	}
+}
+
+// Validate 验证结构体
+func (cv *CustomValidator) Validate(i interface{}) error {
+	return cv.validator.Struct(i)
+}
+
+// validateEmail 验证邮箱
+func validateEmail(fl validator.FieldLevel) bool {
+	email := fl.Field().String()
+	pattern := `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	matched, _ := regexp.MatchString(pattern, email)
+	return matched
+}
+
+// validatePhone 验证手机号
+func validatePhone(fl validator.FieldLevel) bool {
+	phone := fl.Field().String()
+	pattern := `^1[3-9]\d{9}$`
+	matched, _ := regexp.MatchString(pattern, phone)
+	return matched
+}
+
+// validateUsername 验证用户名
+func validateUsername(fl validator.FieldLevel) bool {
+	username := fl.Field().String()
+	pattern := `^[a-zA-Z0-9_]{3,20}$`
+	matched, _ := regexp.MatchString(pattern, username)
+	return matched
+}
+
+// validatePassword 验证密码
+func validatePassword(fl validator.FieldLevel) bool {
+	password := fl.Field().String()
+	if len(password) < 8 {
+		return false
+	}
+	
+	hasLetter := regexp.MustCompile(`[a-zA-Z]`).MatchString(password)
+	hasNumber := regexp.MustCompile(`[0-9]`).MatchString(password)
+	
+	return hasLetter && hasNumber
+}

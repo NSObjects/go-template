@@ -1,0 +1,88 @@
+package configs
+
+import (
+	"bytes"
+	"context"
+	"time"
+
+	"github.com/spf13/viper"
+	clientv3 "go.etcd.io/etcd/client/v3"
+)
+
+// EtcdSource 从 etcd 读取配置，支持 json/yaml/toml 三种格式。
+type EtcdSource struct {
+	Endpoints          []string
+	Key                string
+	Format             string // json|yaml|toml（默认 toml）
+	Username           string
+	Password           string
+	DialTimeoutSeconds int
+}
+
+func (e EtcdSource) Load(ctx context.Context) (Config, error) {
+	dialTimeout := 5 * time.Second
+	if e.DialTimeoutSeconds > 0 {
+		dialTimeout = time.Duration(e.DialTimeoutSeconds) * time.Second
+	}
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   e.Endpoints,
+		Username:    e.Username,
+		Password:    e.Password,
+		DialTimeout: dialTimeout,
+	})
+	if err != nil {
+		return Config{}, err
+	}
+	defer cli.Close()
+
+	resp, err := cli.Get(ctx, e.Key)
+	if err != nil {
+		return Config{}, err
+	}
+	if len(resp.Kvs) == 0 {
+		return Config{}, nil
+	}
+
+	v := viper.New()
+	v.SetConfigType(e.Format)
+	if err := v.ReadConfig(bytes.NewReader(resp.Kvs[0].Value)); err != nil {
+		return Config{}, err
+	}
+
+	var cfg Config
+	if err := v.Unmarshal(&cfg); err != nil {
+		return Config{}, err
+	}
+
+	return cfg, nil
+}
+
+func (e EtcdSource) Watch(ctx context.Context, onChange func(Config)) error {
+	dialTimeout := 5 * time.Second
+	if e.DialTimeoutSeconds > 0 {
+		dialTimeout = time.Duration(e.DialTimeoutSeconds) * time.Second
+	}
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   e.Endpoints,
+		Username:    e.Username,
+		Password:    e.Password,
+		DialTimeout: dialTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	defer cli.Close()
+
+	watchCh := cli.Watch(ctx, e.Key)
+	for watchResp := range watchCh {
+		for _, event := range watchResp.Events {
+			if event.Type == clientv3.EventTypePut {
+				cfg, err := e.Load(ctx)
+				if err == nil {
+					onChange(cfg)
+				}
+			}
+		}
+	}
+	return nil
+}

@@ -1,0 +1,37 @@
+package db
+
+import (
+	"context"
+	"fmt"
+
+	"{{.ModulePath}}/internal/configs"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+func MongoClient(cfg configs.Mongodb) *mongo.Database {
+	// 如果配置为空，返回nil（可选连接）
+	if cfg.Host == "" {
+		return nil
+	}
+
+	uri := "mongodb://"
+	if cfg.Password != "" && cfg.User != "" {
+		uri += cfg.User + ":" + cfg.Password + "@"
+	}
+	uri += cfg.Host + ":" + cfg.Port
+
+	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
+	if err != nil {
+		// 记录错误但不panic，允许应用启动
+		fmt.Printf("Warning: Failed to create MongoDB client: %v\n", err)
+		return nil
+	}
+	if err := client.Connect(context.Background()); err != nil {
+		// 记录错误但不panic，允许应用启动
+		fmt.Printf("Warning: Failed to connect to MongoDB: %v\n", err)
+		return nil
+	}
+	return client.Database(cfg.DataBase)
+}

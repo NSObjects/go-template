@@ -1,0 +1,39 @@
+package query
+
+import (
+	"{{.ModulePath}}/internal/api/data/model"
+	"gorm.io/gen"
+	"gorm.io/gorm"
+)
+
+// Query 查询接口
+type Query struct {
+	*gen.Generator
+}
+
+// Use 使用查询接口
+func Use(db *gorm.DB) *Query {
+	return &Query{
+		Generator: gen.NewGenerator(gen.Config{
+			OutPath: "./internal/api/data/query",
+			Mode:    gen.WithoutContext | gen.WithDefaultQuery | gen.WithQueryInterface,
+		}),
+	}
+}
+
+// GenQuery 生成查询代码
+func GenQuery(db *gorm.DB) {
+	g := gen.NewGenerator(gen.Config{
+		OutPath: "./internal/api/data/query",
+		Mode:    gen.WithoutContext | gen.WithDefaultQuery | gen.WithQueryInterface,
+	})
+
+	// 设置数据库
+	g.UseDB(db)
+
+	// 生成所有表
+	g.ApplyBasic(model.User{})
+
+	// 执行生成
+	g.Execute()
+}

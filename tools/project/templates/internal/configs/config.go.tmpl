@@ -1,0 +1,221 @@
+package configs
+
+import (
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/spf13/viper"
+)
+
+type Environment string
+
+const (
+	ENVIRONMENT Environment = "RUN_ENVIRONMENT"
+)
+
+type EnvironmentType int
+
+const (
+	Dev EnvironmentType = iota
+	Docker
+	Test
+)
+
+var runContext = map[string]EnvironmentType{
+	"":       Dev,
+	"docker": Docker,
+	"test":   Test,
+}
+
+type Level int8
+
+const (
+	// DebugLevel logs are typically voluminous, and are usually disabled in
+	// production.
+	DebugLevel Level = iota + 1
+	// ProsecutionLevel InfoLevel is the default logging priority.
+	ProsecutionLevel
+)
+
+var (
+	Mysql  MysqlConfig
+	System SystemConfig
+	Log    LogConfig
+	Mgo    Mongodb
+	JWT    JWTConfig
+)
+
+type Config struct {
+	Mysql   MysqlConfig        `mapstructure:"mysql"`
+	System  SystemConfig       `mapstructure:"system"`
+	Log     LogConfig          `mapstructure:"log"`
+	Mongodb Mongodb            `mapstructure:"mongodb"`
+	Redis   RedisConfig        `mapstructure:"redis"`
+	JWT     JWTConfig          `mapstructure:"jwt"`
+	CORS    CORSConfig         `mapstructure:"cors"`
+	Casbin  CasbinConfig       `mapstructure:"casbin"`
+	Kafka   KafkaConfig        `mapstructure:"kafka"`
+	Etcd    EtcdClientConfig   `mapstructure:"etcd"`
+	Consul  ConsulClientConfig `mapstructure:"consul"`
+}
+
+type SystemConfig struct {
+	Port  string `mapstructure:"port"`
+	Level Level  `mapstructure:"level"`
+	Env   string `mapstructure:"env"`
+}
+
+type RedisConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	Password string `mapstructure:"password"`
+	Database int    `mapstructure:"database"`
+}
+
+type LogConfig struct {
+	Level  string `mapstructure:"level"`
+	Format string `mapstructure:"format"`
+
+	Console ConsoleSinkConfig `mapstructure:"console"`
+	File    FileSinkConfig    `mapstructure:"file"`
+
+	Elasticsearch ElasticsearchSinkConfig `mapstructure:"elasticsearch"`
+	Loki          LokiSinkConfig          `mapstructure:"loki"`
+}
+
+type ConsoleSinkConfig struct {
+	Format string `mapstructure:"format"`
+	Output string `mapstructure:"output"`
+}
+
+type FileSinkConfig struct {
+	Filename   string `mapstructure:"filename"`
+	MaxSize    int    `mapstructure:"max_size"`
+	MaxBackups int    `mapstructure:"max_backups"`
+	MaxAge     int    `mapstructure:"max_age"`
+	Compress   bool   `mapstructure:"compress"`
+	Format     string `mapstructure:"format"`
+}
+
+type ElasticsearchSinkConfig struct {
+	URL     string        `mapstructure:"url"`
+	Index   string        `mapstructure:"index"`
+	Timeout time.Duration `mapstructure:"timeout"`
+}
+
+type LokiSinkConfig struct {
+	URL     string            `mapstructure:"url"`
+	Labels  map[string]string `mapstructure:"labels"`
+	Timeout time.Duration     `mapstructure:"timeout"`
+}
+
+type MysqlConfig struct {
+	DockerHost   string `mapstructure:"docker_host"`
+	Host         string `mapstructure:"host"`
+	Port         string `mapstructure:"port"`
+	User         string `mapstructure:"user"`
+	Password     string `mapstructure:"password"`
+	MaxOpenConns int    `mapstructure:"max_open_conns"`
+	MaxIdleConns int    `mapstructure:"max_idle_conns"`
+	Database     string `mapstructure:"database"`
+}
+
+type JWTConfig struct {
+	Secret    string   `mapstructure:"secret"`
+	Expire    int      `mapstructure:"expire"`
+	SkipPaths []string `mapstructure:"skip_paths"`
+}
+
+type Mongodb struct {
+	Host     string `mapstructure:"host"`
+	Port     string `mapstructure:"port"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+	DataBase string `mapstructure:"database"`
+}
+
+type CORSConfig struct {
+	AllowOrigins     []string `mapstructure:"allow_origins"`
+	AllowHeaders     []string `mapstructure:"allow_headers"`
+	AllowMethods     []string `mapstructure:"allow_methods"`
+	AllowCredentials bool     `mapstructure:"allow_credentials"`
+}
+
+type CasbinConfig struct {
+	Model     string `mapstructure:"model"`
+	ModelFile string `mapstructure:"model_file"`
+}
+
+type KafkaConfig struct {
+	Brokers  []string `mapstructure:"brokers"`
+	ClientID string   `mapstructure:"client_id"`
+	Topic    string   `mapstructure:"topic"`
+}
+
+type EtcdClientConfig struct {
+	Endpoints          []string `mapstructure:"endpoints"`
+	Key                string   `mapstructure:"key"`
+	Format             string   `mapstructure:"format"`
+	Username           string   `mapstructure:"username"`
+	Password           string   `mapstructure:"password"`
+	DialTimeoutSeconds int      `mapstructure:"dial_timeout_seconds"`
+}
+
+type ConsulClientConfig struct {
+	Address string `mapstructure:"address"`
+	Token   string `mapstructure:"token"`
+	Key     string `mapstructure:"key"`
+	Format  string `mapstructure:"format"`
+}
+
+func InitConfig(configPath string) (err error) {
+
+	if err = viperInit(configPath); err != nil {
+		return
+	}
+
+	var c Config
+	if err = viper.Unmarshal(&c); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	Mysql = c.Mysql
+	System = c.System
+	Log = c.Log
+	Mgo = c.Mongodb
+	JWT = c.JWT
+	return
+}
+
+func NewCfg(p string) Config {
+	viper.SetConfigFile(p)
+	viper.ReadInConfig()
+
+	var cfg Config
+	viper.Unmarshal(&cfg)
+	return cfg
+}
+
+func viperInit(configPath string) error {
+	viper.SetConfigFile(configPath)
+	viper.SetConfigType("toml")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("./configs")
+	viper.AddConfigPath("$HOME/.config")
+	viper.AddConfigPath("/etc/config")
+
+	viper.AutomaticEnv()
+
+	if err := viper.ReadInConfig(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func RunEnvironment() EnvironmentType {
+	env := os.Getenv(string(ENVIRONMENT))
+	return runContext[env]
+}

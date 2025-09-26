@@ -8,7 +8,11 @@ import (
 )
 
 func main() {
-	if err := toolcmd.Execute(); err != nil {
+	// 设置命令名
+	cmd := toolcmd.NewRootCommand()
+	cmd.Use = "gt"
+
+	if err := cmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

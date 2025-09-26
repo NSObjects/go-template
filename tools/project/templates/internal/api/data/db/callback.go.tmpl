@@ -1,0 +1,11 @@
+package db
+
+import (
+	"gorm.io/gorm"
+)
+
+// AfterCreate 创建后的回调函数
+func AfterCreate(db *gorm.DB) {
+	// 在这里添加创建后的回调逻辑
+	// 例如：记录日志、发送通知等
+}
