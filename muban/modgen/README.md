@@ -54,17 +54,17 @@ go run ./muban -- new module --name=user --tests
 go run ./muban -- new module --name=user --force
 
 # 基于 OpenAPI 文档批量生成
-go run ./muban -- new module --all --openapi=doc/openapi.yaml
+go run ./muban -- new module --openapi=doc/openapi.yaml
 ```
 
 ### 参数说明
 
-- `--name`: 模块名称（必需）
+- `--name`: 模块名称。未提供 `--openapi` 时必需，配合 `--openapi` 使用时可选
 - `--tests`: 生成测试用例
 - `--force`: 强制覆盖已存在的文件
 - `--route`: 自定义路由路径（可选，默认为模块名）
 - `--openapi`: 指定 OpenAPI3 文档路径
-- `--all`: 基于 OpenAPI 文档批量生成所有模块（需要配合 `--openapi` 使用）
+- 无 `--name` 且提供 `--openapi` 时会批量生成所有模块
 
 ## 生成的代码结构
 

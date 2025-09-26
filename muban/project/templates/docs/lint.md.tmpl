@@ -3,39 +3,94 @@
 ## golangci-lint 配置
 
 ```yaml
+version: 2
+
 run:
   timeout: 5m
+  tests: true
+  fix: true
   modules-download-mode: readonly
+  allow-parallel-runners: true
+  skip-dirs:
+    - vendor
+  skip-files:
+    - ".*\\.gen\\.go$"
+    - ".*_mock\\.go$"
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    - path: _test\\.go
+      linters:
+        - gocyclo
+        - goconst
+    - path: ".*(\\.gen\\.go|_mock\\.go)$"
+      linters:
+        - revive
+        - gocyclo
+        - dupl
+        - goconst
 
 linters:
+  disable-all: true
   enable:
-    - gofmt
-    - goimports
     - govet
-    - errcheck
     - staticcheck
     - unused
-    - gosimple
+    - errcheck
     - ineffassign
-    - typecheck
-    - gosec
     - goconst
     - misspell
-    - lll
-    - gocritic
     - gocyclo
+    - revive
+    - nolintlint
+    - durationcheck
+    - copyloopvar
+    # - gosec
+
+formatters:
+  enable:
     - gofumpt
+    - goimports
 
 linters-settings:
   gocyclo:
     min-complexity: 15
-  lll:
-    line-length: 120
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
+  goconst:
+    min-len: 2
+    min-occurrences: 3
+  misspell:
+    locale: US
+  revive:
+    severity: warning
+    rules:
+      - name: exported
+      - name: if-return
+      - name: indent-error-flow
+      - name: blank-imports
+      - name: receiver-naming
+      - name: error-naming
+      - name: error-strings
+      - name: errorf
+      - name: unexported-return
+        disabled: true
+  nolintlint:
+    allow-unused: false
+    allow-leading-space: false
+    require-explanation: true
+    require-specific: true
+  gosec:
+    excludes:
+      - G204
+      - G304
+
+formatter-settings:
+  gofumpt:
+    extra-rules: true
+  goimports:
+    local-prefixes: {{ .ModulePath }}
 ```
 
 ## 运行命令

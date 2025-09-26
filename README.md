@@ -31,9 +31,7 @@ go-template 是一个基于 Echo + Fx 的服务模板，围绕 Clean Architectur
 go install github.com/NSObjects/go-template/muban@latest
 
 # 2. 使用 CLI 生成项目（无需预先下载模板仓库）
-muban new project \
-  --module=github.com/acme/awesome-api \
-  --output=../awesome-api
+muban new -m github.com/acme/awesome-api -o ../awesome-api
 
 # 3. 进入新项目目录并启动服务
 cd ../awesome-api
@@ -41,7 +39,84 @@ make dev-setup
 make run
 ```
 
-### 常用命令
+### muban CLI 命令一览
+
+#### `muban new`
+
+使用模板生成一个全新的项目骨架。
+
+- `-m, --module`：新项目的 Go Module 路径（必填）
+- `-o, --output`：生成项目的目标目录，默认使用模块名
+- `-n, --name`：项目展示名称，用于 README、LICENSE 等
+- `-f, --force`：目标目录存在时覆盖
+
+```bash
+# 最常见的项目初始化
+muban new -m github.com/acme/awesome-api -o ../awesome-api
+
+# 指定展示名称并覆盖已存在目录
+muban new -m github.com/acme/awesome-api -n "Awesome API" -f
+```
+
+#### `muban new module`
+
+在现有仓库内生成业务模块脚手架，可选基于 OpenAPI 自动生成 service/biz/data 代码。提供 `--openapi` 时：
+
+- 未指定 `--name` 会一次性生成 OpenAPI 中的所有模块
+- 指定 `--name` 则只生成对应模块
+
+未提供 `--openapi` 时会使用默认模板生成单个模块。
+
+- `-n, --name`：模块名，例如 user、article
+- `--route`：自定义基础路由前缀（默认根据模块名推导）
+- `--openapi`：OpenAPI3 文档路径，用于自动生成 handler 和 DTO
+- `--tests`：同时生成 Table-Driven 风格的测试用例
+- `-f, --force`：覆盖已有文件
+
+```bash
+# 使用默认模板生成 user 模块
+muban new module --name=user
+
+# 基于 OpenAPI 生成 article 模块并附带测试
+muban new module --name=article --openapi=doc/openapi.yaml --tests
+
+# 基于 OpenAPI 一次性生成所有模块
+muban new module --openapi=doc/openapi.yaml
+```
+
+#### `muban codegen`
+
+根据错误码常量生成字符串方法或 Markdown 文档，帮助维护错误码体系。
+
+- `-t, --type`：需要处理的常量类型列表（必填，可逗号分隔）
+- `-o, --output`：输出文件路径
+- `--doc`：生成 Markdown 文档而非 Go 代码
+- `--trimprefix`：去除常量公共前缀
+- `--tags`：指定编译标签
+
+```bash
+# 为 ErrCode 生成字符串方法
+muban codegen -t ErrCode -o internal/pkg/errors/code_string.go
+
+# 生成错误码 Markdown 文档
+muban codegen -t ErrCode --doc -o doc/error-code.md
+```
+
+#### `muban dynamicsql`
+
+读取配置中的数据库连接，使用 GORM Gen 生成动态 SQL 查询接口。
+
+- `--config`：配置文件路径（默认 `configs/config.toml`）
+
+```bash
+# 使用默认配置生成基础查询接口
+muban dynamicsql
+
+# 指定自定义配置文件
+muban dynamicsql --config=configs/config.local.toml
+```
+
+### 常用 Makefile 命令
 
 | 命令 | 说明 |
 | --- | --- |
@@ -57,24 +132,19 @@ make run
 
 ```bash
 # 在目标目录生成新项目
-muban new project \
-  --module=github.com/acme/awesome-api \
-  --output=../awesome-api
+muban new -m github.com/acme/awesome-api -o ../awesome-api
 
 # 自定义展示名称或覆盖目录
-muban new project \
-  --module=github.com/acme/awesome-api \
+muban new -m github.com/acme/awesome-api \
   --name="Awesome API" \
-  --output=../awesome-api \
-  --force
+  -o ../awesome-api \
+  -f
 ```
 
 如果你正在本仓库中开发 CLI，也可以直接运行源码：
 
 ```bash
-go run ./muban -- new project \
-  --module=github.com/acme/awesome-api \
-  --output=../awesome-api
+go run ./muban -- new -m github.com/acme/awesome-api -o ../awesome-api
 ```
 
 或者通过 Makefile 包装：
