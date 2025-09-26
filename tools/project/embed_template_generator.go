@@ -30,6 +30,7 @@ type templateData struct {
 	DisplayName string
 	PackageName string
 	EnvName     string
+
 }
 
 type fileSpec struct {
@@ -141,9 +142,11 @@ func (g *EmbedTemplateGenerator) filesToGenerate() ([]fileSpec, error) {
 			spec.outputPath = strings.TrimSuffix(spec.outputPath, ".tmpl")
 		}
 
+
 		if g.shouldSkip(spec.outputPath) {
 			return nil
 		}
+
 
 		if prev, exists := outputs[spec.outputPath]; exists {
 			return fmt.Errorf("检测到重复模板输出路径: %s (由 %s 和 %s 提供)", spec.outputPath, prev, path)
@@ -230,7 +233,6 @@ func (g *EmbedTemplateGenerator) generateFile(file fileSpec) error {
 		if err != nil {
 			return fmt.Errorf("创建输出文件失败: %w", err)
 		}
-
 		if err := tmpl.Execute(outputFile, g.data); err != nil {
 			closeErr := outputFile.Close()
 			if closeErr != nil {
@@ -242,6 +244,7 @@ func (g *EmbedTemplateGenerator) generateFile(file fileSpec) error {
 		if err := outputFile.Close(); err != nil {
 			return fmt.Errorf("关闭输出文件失败: %w", err)
 		}
+
 	} else {
 		if err := os.WriteFile(outputPath, templateContent, mode); err != nil {
 			return fmt.Errorf("写入文件失败: %w", err)
@@ -423,8 +426,12 @@ func toSnakeCase(input string) string {
 				prevUnderscore = true
 			}
 		}
+
 	}
+	g.logger(format, args...)
+}
 
 	sanitized := strings.Trim(b.String(), "_")
 	return sanitized
+
 }

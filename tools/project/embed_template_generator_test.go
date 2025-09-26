@@ -1,9 +1,11 @@
 package project
 
 import (
+
 	"errors"
 	"fmt"
 	"io"
+
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -13,6 +15,7 @@ import (
 
 func TestGenerateProjectCreatesExecutableScripts(t *testing.T) {
 
+
 	tempDir := t.TempDir()
 
 	generator := NewEmbedTemplateGenerator(
@@ -21,6 +24,7 @@ func TestGenerateProjectCreatesExecutableScripts(t *testing.T) {
 		"demo",
 		WithLogger(func(string, ...interface{}) {}),
 	)
+
 	if err := generator.Generate(); err != nil {
 		t.Fatalf("Generate() error = %v", err)
 	}
@@ -42,6 +46,7 @@ func TestGenerateProjectCreatesExecutableScripts(t *testing.T) {
 	if !strings.Contains(string(goModBytes), "module github.com/example/demo") {
 		t.Fatalf("go.mod does not contain module path: %s", goModBytes)
 	}
+
 
 	if _, err := os.Stat(filepath.Join(tempDir, "go.sum")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("expected go.sum to be skipped, got err=%v", err)
@@ -109,6 +114,7 @@ func TestGenerateProjectSanitizesNames(t *testing.T) {
 
 func TestGenerateProjectWithCustomLoggerAndModes(t *testing.T) {
 
+
 	tempDir := t.TempDir()
 	var logBuilder strings.Builder
 
@@ -155,6 +161,9 @@ func TestGenerateProjectWithCustomLoggerAndModes(t *testing.T) {
 
 func TestRunWithWriterUsesProvidedOutput(t *testing.T) {
 
+	t.Parallel()
+
+
 	tempDir := t.TempDir()
 	targetDir := filepath.Join(tempDir, "myapp")
 
@@ -176,6 +185,7 @@ func TestRunWithWriterUsesProvidedOutput(t *testing.T) {
 		t.Fatalf("expected go.mod to be generated: %v", err)
 	}
 }
+
 
 func TestRunWithWriterRejectsInvalidModulePath(t *testing.T) {
 	tempDir := t.TempDir()
@@ -226,3 +236,4 @@ func TestRunWithWriterRejectsDangerousForce(t *testing.T) {
 		t.Fatalf("返回的错误信息不包含预期提示: %v", err)
 	}
 }
+

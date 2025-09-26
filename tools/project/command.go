@@ -60,6 +60,7 @@ func Run(opts Options) error {
 
 // RunWithWriter 执行生成逻辑并将日志写入指定 writer。
 func RunWithWriter(opts Options, out io.Writer) error {
+
 	modulePath := strings.TrimSpace(opts.ModulePath)
 	if modulePath == "" {
 		return fmt.Errorf("请使用 --module 指定新项目的 Go Module 路径")
@@ -101,7 +102,9 @@ func RunWithWriter(opts Options, out io.Writer) error {
 	}
 
 	fmt.Fprintf(out, "🚀 正在生成新项目: %s\n", projectName)
+
 	fmt.Fprintf(out, "📦 Module: %s\n", modulePath)
+
 	fmt.Fprintf(out, "📁 目标目录: %s\n", outputDir)
 
 	// 使用嵌入模板生成器
