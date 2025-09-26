@@ -108,7 +108,7 @@ new_module() {
     print_info "创建新模块: $module_name"
     
     # 使用改进的modgen工具生成模块
-    go run tools/modgen/main.go --name="$module_name" --force
+    go run muban/modgen/main.go --name="$module_name" --force
     
     print_success "模块 $module_name 创建完成"
 }

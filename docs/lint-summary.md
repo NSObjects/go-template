@@ -53,7 +53,7 @@ make install-lint         # 安装 golangci-lint
 - internal/log/logger.go:55
 - internal/log/logger_test.go:111,145
 - internal/log/loki_sink.go:89
-- tools/modgen/utils/file_utils.go:37
+- muban/modgen/utils/file_utils.go:37
 ```
 
 ### 2. govet (3个) - 中优先级
@@ -61,8 +61,8 @@ make install-lint         # 安装 golangci-lint
 
 ```go
 // 需要修复的文件：
-- tools/modgen/templates/openapi_templates.go:261
-- tools/modgen/templates/test_templates.go:183,550
+- muban/modgen/templates/openapi_templates.go:261
+- muban/modgen/templates/test_templates.go:183,550
 ```
 
 ### 3. staticcheck (15个) - 中优先级

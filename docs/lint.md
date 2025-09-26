@@ -131,7 +131,7 @@ make lint-report
 当前配置跳过了以下目录和文件：
 
 - `vendor/` - 第三方依赖
-- `tools/vendor/` - 工具依赖
+- `muban/vendor/` - 工具依赖
 - `internal/api/data/query/` - 生成的查询代码
 - `.*\.gen\.go$` - 所有生成的 Go 文件
 

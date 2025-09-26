@@ -27,14 +27,17 @@ go-template 是一个基于 Echo + Fx 的服务模板，围绕 Clean Architectur
 ### 初始化项目
 
 ```bash
-# 1. 克隆项目
-git clone git@github.com:NSObjects/go-template.git
-cd go-template
+# 1. 安装 CLI（可在任何目录执行）
+go install github.com/NSObjects/go-template/muban@latest
 
-# 2. 设置开发环境
+# 2. 使用 CLI 生成项目（无需预先下载模板仓库）
+muban new project \
+  --module=github.com/acme/awesome-api \
+  --output=../awesome-api
+
+# 3. 进入新项目目录并启动服务
+cd ../awesome-api
 make dev-setup
-
-# 3. 启动服务
 make run
 ```
 
@@ -50,23 +53,31 @@ make run
 
 ## 🧰 生成新项目
 
-使用内置 CLI 可以把当前模板复制成新的仓库：
+使用 `muban` CLI 可以把模板复制成新的仓库：
 
 ```bash
 # 在目标目录生成新项目
-go run ./tools -- new project \
+muban new project \
   --module=github.com/acme/awesome-api \
   --output=../awesome-api
 
 # 自定义展示名称或覆盖目录
-go run ./tools -- new project \
+muban new project \
   --module=github.com/acme/awesome-api \
   --name="Awesome API" \
   --output=../awesome-api \
   --force
 ```
 
-也可以通过 Makefile 包装：
+如果你正在本仓库中开发 CLI，也可以直接运行源码：
+
+```bash
+go run ./muban -- new project \
+  --module=github.com/acme/awesome-api \
+  --output=../awesome-api
+```
+
+或者通过 Makefile 包装：
 
 ```bash
 make init-project MODULE=github.com/acme/awesome-api OUTPUT=../awesome-api
@@ -82,7 +93,7 @@ go-template/
 ├── internal/           # 业务代码 (api/biz/data/service)
 ├── scripts/            # 开发脚本
 ├── sql/                # 数据库迁移
-├── tools/              # 项目 CLI 与代码生成器
+├── muban/              # 项目 CLI 与代码生成器
 └── Makefile            # 常用任务
 ```
 
