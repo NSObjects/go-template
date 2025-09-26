@@ -45,25 +45,28 @@ muban/modgen/
 
 ```bash
 # 生成基本模块
-go run ./muban -- new module --name=user
+go run ./muban -- module --name=user
 
-# 生成模块并包含测试用例
-go run ./muban -- new module --name=user --tests
+# 跳过测试用例生成
+go run ./muban -- module --name=user --tests=false
 
 # 强制覆盖已存在的文件
-go run ./muban -- new module --name=user --force
+go run ./muban -- module --name=user --force
 
 # 基于 OpenAPI 文档批量生成
-go run ./muban -- new module --openapi=doc/openapi.yaml
+go run ./muban -- module --openapi=doc/openapi.yaml
+
+# 从远程 OpenAPI 文档批量生成
+go run ./muban -- module --openapi=https://example.com/openapi.yaml
 ```
 
 ### 参数说明
 
 - `--name`: 模块名称。未提供 `--openapi` 时必需，配合 `--openapi` 使用时可选
-- `--tests`: 生成测试用例
+- `--tests`: 是否生成测试用例（默认开启，可通过 `--tests=false` 关闭）
 - `--force`: 强制覆盖已存在的文件
 - `--route`: 自定义路由路径（可选，默认为模块名）
-- `--openapi`: 指定 OpenAPI3 文档路径
+- `--openapi`: 指定 OpenAPI3 文档路径或远程 URL
 - 无 `--name` 且提供 `--openapi` 时会批量生成所有模块
 
 ## 生成的代码结构

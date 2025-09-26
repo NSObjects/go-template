@@ -58,7 +58,7 @@ muban new -m github.com/acme/awesome-api -o ../awesome-api
 muban new -m github.com/acme/awesome-api -n "Awesome API" -f
 ```
 
-#### `muban new module`
+#### `muban module`
 
 在现有仓库内生成业务模块脚手架，可选基于 OpenAPI 自动生成 service/biz/data 代码。提供 `--openapi` 时：
 
@@ -69,19 +69,22 @@ muban new -m github.com/acme/awesome-api -n "Awesome API" -f
 
 - `-n, --name`：模块名，例如 user、article
 - `--route`：自定义基础路由前缀（默认根据模块名推导）
-- `--openapi`：OpenAPI3 文档路径，用于自动生成 handler 和 DTO
-- `--tests`：同时生成 Table-Driven 风格的测试用例
+- `--openapi`：OpenAPI3 文档路径或远程 URL，用于自动生成 handler 和 DTO
+- `--tests`：是否生成 Table-Driven 风格的测试用例（默认开启，可使用 `--tests=false` 关闭）
 - `-f, --force`：覆盖已有文件
 
 ```bash
 # 使用默认模板生成 user 模块
-muban new module --name=user
+muban module --name=user
 
-# 基于 OpenAPI 生成 article 模块并附带测试
-muban new module --name=article --openapi=doc/openapi.yaml --tests
+# 基于本地 OpenAPI 生成 article 模块
+muban module --name=article --openapi=doc/openapi.yaml
 
-# 基于 OpenAPI 一次性生成所有模块
-muban new module --openapi=doc/openapi.yaml
+# 从远程 OpenAPI 文档生成模块
+muban module --openapi=https://example.com/openapi.yaml
+
+# 基于 OpenAPI 一次性生成所有模块，并跳过测试用例
+muban module --openapi=doc/openapi.yaml --tests=false
 ```
 
 #### `muban codegen`

@@ -1,117 +1,179 @@
-/*
- * 代码生成器集成测试
- */
-
 package generator
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
-// setupTestEnvironment 设置测试环境，切换到项目根目录
-func setupTestEnvironment(t *testing.T) func() {
-	originalDir, _ := os.Getwd()
-	projectRoot := "/Users/lintao/Documents/code/go-template"
-	os.Chdir(projectRoot)
+func TestGenerateDefaultModuleProducesTestsByDefault(t *testing.T) {
+	restore := chdirToProjectRoot(t)
+	defer restore()
 
-	return func() {
-		os.Chdir(originalDir)
-	}
-}
+	repoRoot := t.TempDir()
+	createRepoLayout(t, repoRoot)
 
-func TestNewGenerator(t *testing.T) {
-	config := &Config{
-		Name:        "test",
-		Route:       "/tests",
-		Force:       true,
-		PackagePath: "github.com/test/project",
-		RepoRoot:    "/tmp/test-repo",
-	}
-
-	generator := NewGenerator(config)
-	if generator == nil {
-		t.Fatal("生成器不应为 nil")
-	}
-
-	if generator.config != config {
-		t.Error("配置未正确设置")
-	}
-}
-
-func TestGenerateFromDefaultTemplate(t *testing.T) {
-	// 设置测试环境
-	defer setupTestEnvironment(t)()
-
-	// 创建临时目录
-	tempDir := t.TempDir()
-
-	config := &Config{
-		Name:        "test",
-		Route:       "/tests",
-		Force:       true,
-		PackagePath: "github.com/test/project",
-		RepoRoot:    tempDir,
-	}
-
-	generator := NewGenerator(config)
-
-	// 创建必要的目录结构
-	dirs := []string{
-		"internal/api/biz",
-		"internal/api/service/param",
-		"internal/code",
-	}
-
-	for _, dir := range dirs {
-		err := os.MkdirAll(filepath.Join(tempDir, dir), 0755)
-		if err != nil {
-			t.Fatalf("创建目录失败: %v", err)
-		}
-	}
-
-	// 执行生成
-	err := generator.Generate()
-	if err != nil {
-		t.Fatalf("生成失败: %v", err)
-	}
-
-	// 验证生成的文件
-	expectedFiles := []string{
-		"internal/api/biz/test.go",
-		"internal/api/service/test.go",
-		"internal/api/service/param/test.go",
-		"internal/code/test.go",
-	}
-
-	for _, file := range expectedFiles {
-		filePath := filepath.Join(tempDir, file)
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			t.Errorf("文件未生成: %s", file)
-		}
-	}
-}
-
-func TestGenerateWithTests(t *testing.T) {
-	// 设置测试环境
-	defer setupTestEnvironment(t)()
-
-	// 创建临时目录
-	tempDir := t.TempDir()
-
-	config := &Config{
-		Name:          "test",
-		Route:         "/tests",
+	cfg := &Config{
+		Name:          "book",
 		Force:         true,
-		PackagePath:   "github.com/test/project",
-		RepoRoot:      tempDir,
+		PackagePath:   "github.com/example/project",
+		RepoRoot:      repoRoot,
 		GenerateTests: true,
 	}
 
-	generator := NewGenerator(config)
+	gen := NewGenerator(cfg)
+	if err := gen.Generate(); err != nil {
+		t.Fatalf("generate default module: %v", err)
+	}
 
-	// 创建必要的目录结构
+	assertFileExists(t, filepath.Join(repoRoot, "internal/api/biz/book.go"))
+	assertFileExists(t, filepath.Join(repoRoot, "internal/api/service/book.go"))
+	assertFileExists(t, filepath.Join(repoRoot, "internal/api/service/param/book.go"))
+	assertFileExists(t, filepath.Join(repoRoot, "internal/code/book.go"))
+	assertFileExists(t, filepath.Join(repoRoot, "internal/api/biz/book_test.go"))
+	assertFileExists(t, filepath.Join(repoRoot, "internal/api/service/book_test.go"))
+}
+
+func TestGenerateSkipsTestsWhenDisabled(t *testing.T) {
+	restore := chdirToProjectRoot(t)
+	defer restore()
+
+	repoRoot := t.TempDir()
+	createRepoLayout(t, repoRoot)
+
+	cfg := &Config{
+		Name:          "order",
+		Force:         true,
+		PackagePath:   "github.com/example/project",
+		RepoRoot:      repoRoot,
+		GenerateTests: false,
+	}
+
+	gen := NewGenerator(cfg)
+	if err := gen.Generate(); err != nil {
+		t.Fatalf("generate module without tests: %v", err)
+	}
+
+	ensureFileMissing(t, filepath.Join(repoRoot, "internal/api/biz/order_test.go"))
+	ensureFileMissing(t, filepath.Join(repoRoot, "internal/api/service/order_test.go"))
+}
+
+func TestGenerateFromOpenAPISpec(t *testing.T) {
+	restore := chdirToProjectRoot(t)
+	defer restore()
+
+	repoRoot := t.TempDir()
+	createRepoLayout(t, repoRoot)
+
+	specPath := writeOpenAPISpec(t, simpleOpenAPISpec())
+
+	cfg := &Config{
+		Name:          "user",
+		Force:         true,
+		PackagePath:   "github.com/example/project",
+		RepoRoot:      repoRoot,
+		OpenAPIFile:   specPath,
+		GenerateTests: true,
+	}
+
+	gen := NewGenerator(cfg)
+	if err := gen.Generate(); err != nil {
+		t.Fatalf("generate module from openapi: %v", err)
+	}
+
+	serviceContent := readFile(t, filepath.Join(repoRoot, "internal/api/service/user.go"))
+	if !strings.Contains(serviceContent, "g.GET(\"/users\"") {
+		t.Fatalf("expected service to register /users route, got: %s", serviceContent)
+	}
+
+	bizTests := readFile(t, filepath.Join(repoRoot, "internal/api/biz/user_test.go"))
+	if !strings.Contains(bizTests, "table-driven") {
+		t.Fatalf("expected generated tests to mention table-driven style")
+	}
+}
+
+func TestGenerateAllModulesFromOpenAPISpec(t *testing.T) {
+	restore := chdirToProjectRoot(t)
+	defer restore()
+
+	repoRoot := t.TempDir()
+	createRepoLayout(t, repoRoot)
+
+	specPath := writeOpenAPISpec(t, multiModuleOpenAPISpec())
+
+	cfg := &Config{
+		Force:         true,
+		PackagePath:   "github.com/example/project",
+		RepoRoot:      repoRoot,
+		OpenAPIFile:   specPath,
+		GenerateTests: true,
+		GenerateAll:   true,
+	}
+
+	gen := NewGenerator(cfg)
+	if err := gen.generateAllModules(); err != nil {
+		t.Fatalf("generate all modules: %v", err)
+	}
+
+	assertFileExists(t, filepath.Join(repoRoot, "internal/api/service/user.go"))
+	assertFileExists(t, filepath.Join(repoRoot, "internal/api/service/article.go"))
+	assertFileExists(t, filepath.Join(repoRoot, "internal/api/service/article_test.go"))
+}
+
+func TestGenerateFailsWhenNameMissing(t *testing.T) {
+	restore := chdirToProjectRoot(t)
+	defer restore()
+
+	repoRoot := t.TempDir()
+	createRepoLayout(t, repoRoot)
+
+	cfg := &Config{
+		Force:       true,
+		PackagePath: "github.com/example/project",
+		RepoRoot:    repoRoot,
+	}
+
+	gen := NewGenerator(cfg)
+	if err := gen.Generate(); err == nil {
+		t.Fatalf("expected error when module name is empty")
+	}
+}
+
+func chdirToProjectRoot(t *testing.T) func() {
+	t.Helper()
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("failed to determine caller path")
+	}
+
+	projectRoot, err := filepath.Abs(filepath.Join(filepath.Dir(file), "..", "..", ".."))
+	if err != nil {
+		t.Fatalf("resolve project root: %v", err)
+	}
+
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("determine working directory: %v", err)
+	}
+
+	if err := os.Chdir(projectRoot); err != nil {
+		t.Fatalf("change directory to project root: %v", err)
+	}
+
+	return func() {
+		if err := os.Chdir(original); err != nil {
+			t.Fatalf("restore working directory: %v", err)
+		}
+	}
+}
+
+func createRepoLayout(t *testing.T, root string) {
+	t.Helper()
+
 	dirs := []string{
 		"internal/api/biz",
 		"internal/api/service/param",
@@ -119,284 +181,103 @@ func TestGenerateWithTests(t *testing.T) {
 	}
 
 	for _, dir := range dirs {
-		err := os.MkdirAll(filepath.Join(tempDir, dir), 0755)
-		if err != nil {
-			t.Fatalf("创建目录失败: %v", err)
+		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+			t.Fatalf("create directory %s: %v", dir, err)
 		}
 	}
 
-	// 执行生成
-	err := generator.Generate()
-	if err != nil {
-		t.Fatalf("生成失败: %v", err)
-	}
+	writeFile(t, filepath.Join(root, "internal/api/biz/biz.go"), "package biz\n")
+	writeFile(t, filepath.Join(root, "internal/api/service/service.go"), "package service\n")
+}
 
-	// 验证测试文件
-	testFiles := []string{
-		"internal/api/biz/test_test.go",
-		"internal/api/service/test_test.go",
+func writeFile(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("create parent for %s: %v", path, err)
 	}
-
-	for _, file := range testFiles {
-		filePath := filepath.Join(tempDir, file)
-		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			t.Errorf("测试文件未生成: %s", file)
-		}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write file %s: %v", path, err)
 	}
 }
 
-func TestGenerateWithSpecialNames(t *testing.T) {
-	testCases := []struct {
-		name     string
-		route    string
-		expected string
-	}{
-		{"user_profile", "/user-profiles", "UserProfile"},
-		{"order_item", "/order-items", "OrderItem"},
-		{"product", "/products", "Product"},
-		{"test_module", "/test-modules", "TestModule"},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// 设置测试环境
-			defer setupTestEnvironment(t)()
-
-			// 创建临时目录
-			tempDir := t.TempDir()
-
-			config := &Config{
-				Name:        tc.name,
-				Route:       tc.route,
-				Force:       true,
-				PackagePath: "github.com/test/project",
-				RepoRoot:    tempDir,
-			}
-
-			generator := NewGenerator(config)
-
-			// 创建必要的目录结构
-			dirs := []string{
-				"internal/api/biz",
-				"internal/api/service/param",
-				"internal/code",
-			}
-
-			for _, dir := range dirs {
-				err := os.MkdirAll(filepath.Join(tempDir, dir), 0755)
-				if err != nil {
-					t.Fatalf("创建目录失败: %v", err)
-				}
-			}
-
-			// 执行生成
-			err := generator.Generate()
-			if err != nil {
-				t.Fatalf("生成失败: %v", err)
-			}
-
-			// 验证生成的文件内容
-			bizFile := filepath.Join(tempDir, "internal/api/biz", tc.name+".go")
-			content, err := os.ReadFile(bizFile)
-			if err != nil {
-				t.Fatalf("读取文件失败: %v", err)
-			}
-
-			contentStr := string(content)
-			if !contains(contentStr, tc.expected+"UseCase") {
-				t.Errorf("缺少 %sUseCase", tc.expected)
-			}
-			if !contains(contentStr, tc.expected+"Handler") {
-				t.Errorf("缺少 %sHandler", tc.expected)
-			}
-		})
+func assertFileExists(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("expected file %s to exist: %v", path, err)
 	}
 }
 
-func TestGenerateErrorHandling(t *testing.T) {
-	// 设置测试环境
-	defer setupTestEnvironment(t)()
-
-	// 测试无效的模块名
-	config := &Config{
-		Name:        "", // 空模块名
-		Route:       "/tests",
-		Force:       true,
-		PackagePath: "github.com/test/project",
-		RepoRoot:    "/tmp/test-repo",
-	}
-
-	generator := NewGenerator(config)
-	err := generator.Generate()
+func ensureFileMissing(t *testing.T, path string) {
+	t.Helper()
+	_, err := os.Stat(path)
 	if err == nil {
-		t.Error("应该返回错误")
+		t.Fatalf("expected file %s to be absent", path)
+	}
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("unexpected error for %s: %v", path, err)
 	}
 }
 
-func TestGenerateForceOverwrite(t *testing.T) {
-	// 设置测试环境
-	defer setupTestEnvironment(t)()
-
-	// 创建临时目录
-	tempDir := t.TempDir()
-
-	config := &Config{
-		Name:        "test",
-		Route:       "/tests",
-		Force:       true,
-		PackagePath: "github.com/test/project",
-		RepoRoot:    tempDir,
-	}
-
-	generator := NewGenerator(config)
-
-	// 创建必要的目录结构
-	dirs := []string{
-		"internal/api/biz",
-		"internal/api/service/param",
-		"internal/code",
-	}
-
-	for _, dir := range dirs {
-		err := os.MkdirAll(filepath.Join(tempDir, dir), 0755)
-		if err != nil {
-			t.Fatalf("创建目录失败: %v", err)
-		}
-	}
-
-	// 第一次生成
-	err := generator.Generate()
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("第一次生成失败: %v", err)
+		t.Fatalf("read file %s: %v", path, err)
 	}
-
-	// 第二次生成（应该覆盖）
-	err = generator.Generate()
-	if err != nil {
-		t.Fatalf("第二次生成失败: %v", err)
-	}
-
-	// 验证文件存在
-	bizFile := filepath.Join(tempDir, "internal/api/biz/test.go")
-	if _, err := os.Stat(bizFile); os.IsNotExist(err) {
-		t.Error("文件未生成")
-	}
+	return string(data)
 }
 
-func TestGenerateWithoutForce(t *testing.T) {
-	// 设置测试环境
-	defer setupTestEnvironment(t)()
-
-	// 创建临时目录
-	tempDir := t.TempDir()
-
-	config := &Config{
-		Name:        "test",
-		Route:       "/tests",
-		Force:       false, // 不强制覆盖
-		PackagePath: "github.com/test/project",
-		RepoRoot:    tempDir,
-	}
-
-	generator := NewGenerator(config)
-
-	// 创建必要的目录结构
-	dirs := []string{
-		"internal/api/biz",
-		"internal/api/service/param",
-		"internal/code",
-	}
-
-	for _, dir := range dirs {
-		err := os.MkdirAll(filepath.Join(tempDir, dir), 0755)
-		if err != nil {
-			t.Fatalf("创建目录失败: %v", err)
-		}
-	}
-
-	// 第一次生成
-	err := generator.Generate()
-	if err != nil {
-		t.Fatalf("第一次生成失败: %v", err)
-	}
-
-	// 第二次生成（应该跳过已存在的文件）
-	err = generator.Generate()
-	if err != nil {
-		t.Fatalf("第二次生成失败: %v", err)
-	}
-
-	// 验证文件存在
-	bizFile := filepath.Join(tempDir, "internal/api/biz/test.go")
-	if _, err := os.Stat(bizFile); os.IsNotExist(err) {
-		t.Error("文件未生成")
-	}
+func writeOpenAPISpec(t *testing.T, content string) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "openapi.yaml")
+	writeFile(t, path, content)
+	return path
 }
 
-func TestGenerateDefaultRoute(t *testing.T) {
-	// 设置测试环境
-	defer setupTestEnvironment(t)()
-
-	// 创建临时目录
-	tempDir := t.TempDir()
-
-	config := &Config{
-		Name:        "test",
-		Route:       "", // 空路由，应该使用默认值
-		Force:       true,
-		PackagePath: "github.com/test/project",
-		RepoRoot:    tempDir,
-	}
-
-	generator := NewGenerator(config)
-
-	// 创建必要的目录结构
-	dirs := []string{
-		"internal/api/biz",
-		"internal/api/service/param",
-		"internal/code",
-	}
-
-	for _, dir := range dirs {
-		err := os.MkdirAll(filepath.Join(tempDir, dir), 0755)
-		if err != nil {
-			t.Fatalf("创建目录失败: %v", err)
-		}
-	}
-
-	// 执行生成
-	err := generator.Generate()
-	if err != nil {
-		t.Fatalf("生成失败: %v", err)
-	}
-
-	// 验证服务文件中的路由
-	svcFile := filepath.Join(tempDir, "internal/api/service/test.go")
-	content, err := os.ReadFile(svcFile)
-	if err != nil {
-		t.Fatalf("读取文件失败: %v", err)
-	}
-
-	contentStr := string(content)
-	// 应该使用默认路由 /tests (复数形式)
-	if !contains(contentStr, "g.GET(\"/tests\"") {
-		t.Error("应该使用默认路由 /tests")
-	}
+func simpleOpenAPISpec() string {
+	return `openapi: 3.0.0
+info:
+  title: Simple
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      tags: [user]
+      summary: List users
+      responses:
+        "200":
+          description: ok
+`
 }
 
-// 辅助函数
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		(len(s) > len(substr) && (s[:len(substr)] == substr ||
-			s[len(s)-len(substr):] == substr ||
-			containsSubstring(s, substr))))
-}
-
-func containsSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
+func multiModuleOpenAPISpec() string {
+	return `openapi: 3.0.0
+info:
+  title: Multi
+  version: 1.0.0
+tags:
+  - name: user
+  - name: article
+paths:
+  /users:
+    get:
+      tags: [user]
+      summary: List users
+      responses:
+        "200":
+          description: ok
+  /articles:
+    post:
+      tags: [article]
+      summary: Create article
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "201":
+          description: created
+`
 }

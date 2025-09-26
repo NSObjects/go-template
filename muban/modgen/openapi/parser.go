@@ -7,7 +7,10 @@ package openapi
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -17,29 +20,91 @@ import (
 
 // ParseOpenAPI3 解析OpenAPI3文档
 func ParseOpenAPI3(filePath string) (*OpenAPI3, error) {
-	data, err := ioutil.ReadFile(filePath)
+	data, format, err := loadOpenAPIData(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("读取文件失败: %v", err)
+		return nil, err
 	}
 
 	var openapi OpenAPI3
-
-	// 根据文件扩展名选择解析方式
-	ext := strings.ToLower(filepath.Ext(filePath))
-	switch ext {
-	case ".yaml", ".yml":
-		err = yaml.Unmarshal(data, &openapi)
-	case ".json":
-		err = json.Unmarshal(data, &openapi)
-	default:
-		return nil, fmt.Errorf("不支持的文件格式: %s", ext)
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("解析OpenAPI文档失败: %v", err)
+	if err := unmarshalOpenAPIDoc(data, format, &openapi); err != nil {
+		return nil, err
 	}
 
 	return &openapi, nil
+}
+
+func loadOpenAPIData(source string) ([]byte, string, error) {
+	if isRemoteURL(source) {
+		resp, err := http.Get(source)
+		if err != nil {
+			return nil, "", fmt.Errorf("获取远程OpenAPI文档失败: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, "", fmt.Errorf("获取远程OpenAPI文档失败: HTTP %d", resp.StatusCode)
+		}
+
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, "", fmt.Errorf("读取远程OpenAPI文档失败: %v", err)
+		}
+
+		ext := strings.ToLower(filepath.Ext(resp.Request.URL.Path))
+		if ext == "" {
+			ext = strings.ToLower(filepath.Ext(source))
+		}
+		if ext == "" {
+			contentType := resp.Header.Get("Content-Type")
+			switch {
+			case strings.Contains(strings.ToLower(contentType), "json"):
+				ext = ".json"
+			case strings.Contains(strings.ToLower(contentType), "yaml") || strings.Contains(strings.ToLower(contentType), "yml"):
+				ext = ".yaml"
+			}
+		}
+
+		return data, ext, nil
+	}
+
+	data, err := os.ReadFile(source)
+	if err != nil {
+		return nil, "", fmt.Errorf("读取文件失败: %v", err)
+	}
+
+	return data, strings.ToLower(filepath.Ext(source)), nil
+}
+
+func isRemoteURL(source string) bool {
+	parsed, err := url.Parse(source)
+	if err != nil {
+		return false
+	}
+
+	return parsed.Scheme == "http" || parsed.Scheme == "https"
+}
+
+func unmarshalOpenAPIDoc(data []byte, format string, openapi *OpenAPI3) error {
+	switch format {
+	case ".yaml", ".yml":
+		if err := yaml.Unmarshal(data, openapi); err != nil {
+			return fmt.Errorf("解析OpenAPI文档失败: %v", err)
+		}
+		return nil
+	case ".json":
+		if err := json.Unmarshal(data, openapi); err != nil {
+			return fmt.Errorf("解析OpenAPI文档失败: %v", err)
+		}
+		return nil
+	default:
+		if err := yaml.Unmarshal(data, openapi); err == nil {
+			return nil
+		}
+		if err := json.Unmarshal(data, openapi); err == nil {
+			return nil
+		}
+		return fmt.Errorf("解析OpenAPI文档失败: 无法识别文档格式，请使用 .yaml/.yml 或 .json 文件")
+	}
 }
 
 // GenerateFromOpenAPI 从OpenAPI3文档生成API模块
