@@ -38,9 +38,9 @@ func NewCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.GenerateTests, "tests", false, "同时生成测试用例（Table-driven测试）")
 	cmd.Flags().BoolVar(&opts.GenerateAll, "all", false, "生成所有API模块（需要指定OpenAPI文档）")
 
-	cmd.Example = "  go run ./tools -- new module --name=user\n" +
-		"  go run ./tools -- new module --name=user --openapi=doc/openapi.yaml --tests\n" +
-		"  go run ./tools -- new module --all --openapi=doc/openapi.yaml"
+	cmd.Example = "  go run ./muban -- new module --name=user\n" +
+		"  go run ./muban -- new module --name=user --openapi=doc/openapi.yaml --tests\n" +
+		"  go run ./muban -- new module --all --openapi=doc/openapi.yaml"
 
 	cmd.SilenceUsage = true
 

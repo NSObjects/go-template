@@ -1,6 +1,6 @@
 # =============================================================================
 # Go Template Project Makefile
-# 整合了所有tools目录下的工具，提供完整的开发工作流
+# 整合了所有 muban 目录下的工具，提供完整的开发工作流
 # =============================================================================
 
 # 默认目标
@@ -84,25 +84,25 @@ vet:
 # 代码检查（使用golangci-lint）
 lint:
 	@echo "$(BLUE)[INFO]$(NC) Running linter..."
-	@golangci-lint run --skip-dirs=vendor,tools/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' || true
+	@golangci-lint run --skip-dirs=vendor,muban/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' || true
 	@echo "$(GREEN)[SUCCESS]$(NC) Linting completed"
 
 # 严格代码检查（失败时退出）
 lint-strict:
 	@echo "$(BLUE)[INFO]$(NC) Running strict linter..."
-	@golangci-lint run --skip-dirs=vendor,tools/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
+	@golangci-lint run --skip-dirs=vendor,muban/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
 	@echo "$(GREEN)[SUCCESS]$(NC) Strict linting completed"
 
 # 快速代码检查（只运行快速linter）
 lint-fast:
 	@echo "$(BLUE)[INFO]$(NC) Running fast linter..."
-	@golangci-lint run --fast-only --skip-dirs=vendor,tools/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
+	@golangci-lint run --fast-only --skip-dirs=vendor,muban/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
 	@echo "$(GREEN)[SUCCESS]$(NC) Fast linting completed"
 
 # 修复可自动修复的问题
 lint-fix:
 	@echo "$(BLUE)[INFO]$(NC) Running linter with auto-fix..."
-	@golangci-lint run --fix --skip-dirs=vendor,tools/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
+	@golangci-lint run --fix --skip-dirs=vendor,muban/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
 	@echo "$(GREEN)[SUCCESS]$(NC) Linting with auto-fix completed"
 
 # 检查特定目录
@@ -112,13 +112,13 @@ lint-dir:
 		exit 1; \
 	fi
 	@echo "$(BLUE)[INFO]$(NC) Running linter on directory: $(DIR)"
-	@golangci-lint run --skip-dirs=vendor,tools/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' $(DIR)
+	@golangci-lint run --skip-dirs=vendor,muban/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' $(DIR)
 	@echo "$(GREEN)[SUCCESS]$(NC) Directory linting completed"
 
 # 生成lint报告
 lint-report:
 	@echo "$(BLUE)[INFO]$(NC) Generating lint report..."
-	@golangci-lint run --output.checkstyle.path=golangci-report.xml --skip-dirs=vendor,tools/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' || true
+	@golangci-lint run --output.checkstyle.path=golangci-report.xml --skip-dirs=vendor,muban/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' || true
 	@echo "$(GREEN)[SUCCESS]$(NC) Lint report generated: golangci-report.xml"
 
 # 安装golangci-lint
@@ -164,15 +164,15 @@ init-project:
 		FORCE_FLAG=""; \
 		if [ "$(FORCE)" = "1" ]; then FORCE_FLAG="--force"; fi; \
 		echo "$(BLUE)[INFO]$(NC) Generating project skeleton: $(MODULE) -> $$OUTPUT_DIR"; \
-            go run ./tools -- new project --module=$(MODULE) --output=$$OUTPUT_DIR $$NAME_FLAG $$FORCE_FLAG; \
+            go run ./muban -- new project --module=$(MODULE) --output=$$OUTPUT_DIR $$NAME_FLAG $$FORCE_FLAG; \
 		echo "$(GREEN)[SUCCESS]$(NC) Project generated at $$OUTPUT_DIR"
 
 
 # 生成错误码和文档
 gen-code:
        @echo "$(BLUE)[INFO]$(NC) Generating error codes and documentation..."
-       @go run ./tools -- codegen --type=int ./internal/code
-       @go run ./tools -- codegen --type=int --doc --output=./internal/code/error_code_generated.md ./internal/code
+       @go run ./muban -- codegen --type=int ./internal/code
+       @go run ./muban -- codegen --type=int --doc --output=./internal/code/error_code_generated.md ./internal/code
 	@echo "$(GREEN)[SUCCESS]$(NC) Error code generation completed"
 
 # 生成业务模块（基础模板）
@@ -182,7 +182,7 @@ gen-module:
 		exit 1; \
 	fi
        @echo "$(BLUE)[INFO]$(NC) Generating module: $(NAME)"
-      @go run ./tools -- new module --name=$(NAME) --force
+      @go run ./muban -- new module --name=$(NAME) --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) generation completed"
 
 # 生成模块和测试用例
@@ -192,7 +192,7 @@ gen-module-tests:
 		exit 1; \
 	fi
        @echo "$(BLUE)[INFO]$(NC) Generating module with tests: $(NAME)"
-      @go run ./tools -- new module --name=$(NAME) --tests --force
+      @go run ./muban -- new module --name=$(NAME) --tests --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) with tests generation completed"
 
 # 从OpenAPI文档生成模块
@@ -203,7 +203,7 @@ gen-module-openapi:
 	fi
        @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
        echo "$(BLUE)[INFO]$(NC) Generating module from OpenAPI: $(NAME) ($$OPENAPI_FILE)"; \
-      go run ./tools -- new module --name=$(NAME) --openapi=$$OPENAPI_FILE --force
+      go run ./muban -- new module --name=$(NAME) --openapi=$$OPENAPI_FILE --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) generated from OpenAPI"
 
 # 从OpenAPI生成模块和测试用例（Table-driven测试）
@@ -214,21 +214,21 @@ gen-module-openapi-tests:
 	fi
        @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
        echo "$(BLUE)[INFO]$(NC) Generating module from OpenAPI with tests: $(NAME) ($$OPENAPI_FILE)"; \
-      go run ./tools -- new module --name=$(NAME) --openapi=$$OPENAPI_FILE --tests --force
+      go run ./muban -- new module --name=$(NAME) --openapi=$$OPENAPI_FILE --tests --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) with tests generated from OpenAPI"
 
 # 生成所有API模块（从OpenAPI）
 gen-all-modules:
        @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
        echo "$(BLUE)[INFO]$(NC) Generating all modules from OpenAPI: $$OPENAPI_FILE"; \
-      go run -mod=mod ./tools -- new module --all --openapi=$$OPENAPI_FILE --force
+      go run -mod=mod ./muban -- new module --all --openapi=$$OPENAPI_FILE --force
 	@echo "$(GREEN)[SUCCESS]$(NC) All modules generated from OpenAPI"
 
 # 生成所有API模块和测试用例（从OpenAPI）
 gen-all-modules-tests:
        @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
        echo "$(BLUE)[INFO]$(NC) Generating all modules with tests from OpenAPI: $$OPENAPI_FILE"; \
-      go run -mod=mod ./tools -- new module --all --openapi=$$OPENAPI_FILE --tests --force
+      go run -mod=mod ./muban -- new module --all --openapi=$$OPENAPI_FILE --tests --force
 	@echo "$(GREEN)[SUCCESS]$(NC) All modules with tests generated from OpenAPI"
 
 # 生成模块（指定路由）
@@ -238,7 +238,7 @@ gen-module-route:
 		exit 1; \
 	fi
        @echo "$(BLUE)[INFO]$(NC) Generating module with custom route: $(NAME) -> $(ROUTE)"
-      @go run ./tools -- new module --name=$(NAME) --route=$(ROUTE) --force
+      @go run ./muban -- new module --name=$(NAME) --route=$(ROUTE) --force
 	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) with route $(ROUTE) generation completed"
 
 # 生成数据库模型和查询
@@ -271,7 +271,7 @@ db-gen-table:
 # 生成Dynamic SQL查询方法
 db-gen-dynamic:
        @echo "$(BLUE)[INFO]$(NC) Generating Dynamic SQL queries..."
-       @go run ./tools -- dynamic-sql --config=configs/config.toml
+       @go run ./muban -- dynamic-sql --config=configs/config.toml
 	@echo "$(GREEN)[SUCCESS]$(NC) Dynamic SQL generation completed"
 
 # 完整生成（数据库 + 错误码）
@@ -381,7 +381,7 @@ security-scan:
 # 生成Swagger文档
 docs-swagger:
 	@echo "$(BLUE)[INFO]$(NC) Generating Swagger documentation..."
-	@go run tools/docs/swagger_generator.go
+	@go run muban/docs/swagger_generator.go
 	@echo "$(GREEN)[SUCCESS]$(NC) Swagger documentation generated"
 
 # 生成API文档

@@ -122,7 +122,7 @@ func collectTemplateCandidates(wd string) []string {
 	relPaths := []string{
 		"tmpl",
 		filepath.Join("templates", "tmpl"),
-		filepath.Join("tools", "modgen", "templates", "tmpl"),
+		filepath.Join("muban", "modgen", "templates", "tmpl"),
 	}
 
 	for dir := wd; ; dir = filepath.Dir(dir) {

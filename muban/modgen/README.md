@@ -18,7 +18,7 @@ ModGen 是一个基于 Go `text/template` 的代码生成工具，用于快速�
 ## 架构
 
 ```
-tools/modgen/
+muban/modgen/
 ├── README.md            # 使用说明
 ├── command.go           # Cobra 子命令入口
 ├── generator/           # 代码生成器核心
@@ -45,16 +45,16 @@ tools/modgen/
 
 ```bash
 # 生成基本模块
-go run ./tools -- new module --name=user
+go run ./muban -- new module --name=user
 
 # 生成模块并包含测试用例
-go run ./tools -- new module --name=user --tests
+go run ./muban -- new module --name=user --tests
 
 # 强制覆盖已存在的文件
-go run ./tools -- new module --name=user --force
+go run ./muban -- new module --name=user --force
 
 # 基于 OpenAPI 文档批量生成
-go run ./tools -- new module --all --openapi=doc/openapi.yaml
+go run ./muban -- new module --all --openapi=doc/openapi.yaml
 ```
 
 ### 参数说明
@@ -122,16 +122,16 @@ type TemplateData struct {
 
 ```bash
 # 运行所有测试
-go test ./tools/modgen/... -v
+go test ./muban/modgen/... -v
 
 # 运行模板测试
-go test ./tools/modgen/templates/ -v
+go test ./muban/modgen/templates/ -v
 
 # 运行生成器测试
-go test ./tools/modgen/generator/ -v
+go test ./muban/modgen/generator/ -v
 
 # 运行性能测试
-go test ./tools/modgen/templates/ -bench=.
+go test ./muban/modgen/templates/ -bench=.
 ```
 
 ### 测试覆盖
