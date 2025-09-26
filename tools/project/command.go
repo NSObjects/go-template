@@ -2,6 +2,7 @@ package project
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,7 +26,7 @@ func NewCommand() *cobra.Command {
 		Use:   "project",
 		Short: "从当前模板仓库生成一个全新的项目骨架",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return Run(opts)
+			return RunWithWriter(opts, cmd.OutOrStdout())
 		},
 	}
 
@@ -52,6 +53,11 @@ func NewCommand() *cobra.Command {
 
 // Run executes the project generation workflow based on options.
 func Run(opts Options) error {
+	return RunWithWriter(opts, os.Stdout)
+}
+
+// RunWithWriter 执行生成逻辑并将日志写入指定 writer。
+func RunWithWriter(opts Options, out io.Writer) error {
 	if opts.ModulePath == "" {
 		return fmt.Errorf("请使用 --module 指定新项目的 Go Module 路径")
 	}
@@ -84,16 +90,23 @@ func Run(opts Options) error {
 		}
 	}
 
-	fmt.Printf("🚀 正在生成新项目: %s\n", projectName)
-	fmt.Printf("📦 Module: %s\n", opts.ModulePath)
-	fmt.Printf("📁 目标目录: %s\n", outputDir)
+	fmt.Fprintf(out, "🚀 正在生成新项目: %s\n", projectName)
+	fmt.Fprintf(out, "📦 Module: %s\n", opts.ModulePath)
+	fmt.Fprintf(out, "📁 目标目录: %s\n", outputDir)
 
 	// 使用嵌入模板生成器
-	generator := NewEmbedTemplateGenerator(outputDir, opts.ModulePath, projectName)
+	generator := NewEmbedTemplateGenerator(
+		outputDir,
+		opts.ModulePath,
+		projectName,
+		WithLogger(func(format string, args ...interface{}) {
+			fmt.Fprintf(out, format, args...)
+		}),
+	)
 	if err := generator.Generate(); err != nil {
 		return fmt.Errorf("生成项目失败: %w", err)
 	}
 
-	fmt.Printf("✅ 项目生成完成！接下来可进入目录 %s 并执行 make dev-setup\n", outputDir)
+	fmt.Fprintf(out, "✅ 项目生成完成！接下来可进入目录 %s 并执行 make dev-setup\n", outputDir)
 	return nil
 }
