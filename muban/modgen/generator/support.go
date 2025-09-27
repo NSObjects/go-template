@@ -40,6 +40,7 @@ func (g *Generator) ensureContextSupport() error {
 		return fmt.Errorf("创建模板渲染器失败: %w", err)
 	}
 
+
 	content, err := renderer.RenderContextSupport()
 	if err != nil {
 		return fmt.Errorf("渲染 context 支持模板失败: %w", err)
@@ -80,6 +81,7 @@ func ensureLegacyContextTraceStub(target string) error {
 	}
 
 	content := string(data)
+
 	trimmed := strings.TrimSpace(content)
 	if trimmed == strings.TrimSpace(legacyContextTraceStub) {
 		return nil
@@ -88,6 +90,7 @@ func ensureLegacyContextTraceStub(target string) error {
 	if trimmed == "" || trimmed == "package utils" {
 		if err := os.WriteFile(target, []byte(legacyContextTraceStub), 0o644); err != nil {
 			return fmt.Errorf("写入兼容性 context_trace.go 失败: %w", err)
+
 		}
 		fmt.Printf("重写兼容性文件: %s\n", target)
 		return nil
@@ -103,6 +106,7 @@ func ensureLegacyContextTraceStub(target string) error {
 			return nil
 		}
 	}
+
 
 	return nil
 }
