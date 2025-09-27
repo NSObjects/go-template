@@ -102,6 +102,62 @@ func TestRenderService(t *testing.T) {
 	}
 }
 
+func TestRenderContextSupport(t *testing.T) {
+	renderer, err := NewTemplateRenderer()
+	if err != nil {
+		t.Fatalf("创建模板渲染器失败: %v", err)
+	}
+
+	content, err := renderer.RenderContextSupport()
+	if err != nil {
+		t.Fatalf("渲染 context 支持模板失败: %v", err)
+	}
+
+	checks := []string{
+		"package utils",
+		"type TraceContext struct",
+		"func ExtractTraceContext",
+		"func BuildContext",
+		"func GetTraceID",
+		"func GetRequestID",
+		"func GetUserID",
+		"func GetStartTime",
+		"func WithTraceInfo",
+	}
+
+	for _, expected := range checks {
+		if !strings.Contains(content, expected) {
+			t.Errorf("context 支持模板缺少内容: %s", expected)
+		}
+	}
+}
+
+func TestRenderRespSupport(t *testing.T) {
+	renderer, err := NewTemplateRenderer()
+	if err != nil {
+		t.Fatalf("创建模板渲染器失败: %v", err)
+	}
+
+	content, err := renderer.RenderRespSupport()
+	if err != nil {
+		t.Fatalf("渲染 resp 支持模板失败: %v", err)
+	}
+
+	checks := []string{
+		"package resp",
+		"type operateSuccessBody struct",
+		"type singleDataBody struct",
+		"func OperateSuccess",
+		"func OneDataResponse",
+	}
+
+	for _, expected := range checks {
+		if !strings.Contains(content, expected) {
+			t.Errorf("resp 支持模板缺少内容: %s", expected)
+		}
+	}
+}
+
 func TestRenderParam(t *testing.T) {
 	renderer, err := NewTemplateRenderer()
 	if err != nil {

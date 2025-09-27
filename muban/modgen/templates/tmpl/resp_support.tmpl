@@ -1,0 +1,35 @@
+package resp
+
+import (
+    "net/http"
+
+    "github.com/labstack/echo/v4"
+)
+
+type operateSuccessBody struct {
+    Code int    `json:"code"`
+    Msg  string `json:"msg"`
+}
+
+type singleDataBody struct {
+    Code int         `json:"code"`
+    Msg  string      `json:"msg"`
+    Data interface{} `json:"data"`
+}
+
+func OperateSuccess(c echo.Context) error {
+    payload := operateSuccessBody{
+        Code: http.StatusOK,
+        Msg:  "success",
+    }
+    return c.JSON(http.StatusOK, payload)
+}
+
+func OneDataResponse(data interface{}, c echo.Context) error {
+    payload := singleDataBody{
+        Code: http.StatusOK,
+        Msg:  "success",
+        Data: data,
+    }
+    return c.JSON(http.StatusOK, payload)
+}
