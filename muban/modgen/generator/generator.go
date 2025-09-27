@@ -41,6 +41,10 @@ func NewGenerator(config *Config) *Generator {
 
 // Generate 执行代码生成
 func (g *Generator) Generate() error {
+	if err := g.ensureSupportFiles(); err != nil {
+		return err
+	}
+
 	// 如果生成所有模块
 	if g.config.GenerateAll {
 		return g.generateAllModules()

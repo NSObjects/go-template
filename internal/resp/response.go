@@ -110,6 +110,7 @@ func OperateSuccess(c echo.Context) error {
 		Msg  string `json:"msg"`
 	}
 
+	rjson.Code = http.StatusOK
 	rjson.Msg = "success"
 
 	return c.JSON(http.StatusOK, rjson)
@@ -123,6 +124,8 @@ func ListDataResponse(arr interface{}, total int64, c echo.Context) error {
 	}
 
 	r := ListResponse{
+		Code: http.StatusOK,
+		Msg:  "success",
 		Data: ListData{
 			List:  arr,
 			Total: total,
@@ -134,6 +137,8 @@ func ListDataResponse(arr interface{}, total int64, c echo.Context) error {
 
 func OneDataResponse(data interface{}, c echo.Context) error {
 	r := DataResponse{
+		Code: http.StatusOK,
+		Msg:  "success",
 		Data: data,
 	}
 
