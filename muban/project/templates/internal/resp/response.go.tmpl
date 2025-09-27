@@ -7,46 +7,48 @@
 package resp
 
 import (
-	"net/http"
-	"reflect"
-	"time"
+        "net/http"
+        "reflect"
+        "time"
 
-	"log/slog"
+        "log/slog"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/marmotedu/errors"
 	"{{.ModulePath}}/internal/code"
 	"{{.ModulePath}}/internal/log"
+
 )
 
 type ListResponse struct {
-	Code int      `json:"code"`
-	Msg  string   `json:"msg"`
-	Data ListData `json:"data"`
+        Code int      `json:"code"`
+        Msg  string   `json:"msg"`
+        Data ListData `json:"data"`
 }
 
 type ListData struct {
-	Total int64       `json:"total"`
-	List  interface{} `json:"list" `
+        Total int64       `json:"total"`
+        List  interface{} `json:"list" `
 }
 
 type DataResponse struct {
-	Code int         `json:"code"`
-	Msg  string      `json:"msg"`
-	Data interface{} `json:"data"`
+        Code int         `json:"code"`
+        Msg  string      `json:"msg"`
+        Data interface{} `json:"data"`
 }
 
 // ErrorResponse 统一错误响应结构
 type ErrorResponse struct {
-	Code      int    `json:"code"`       // 业务错误码
-	Message   string `json:"message"`    // 错误消息
-	RequestID string `json:"request_id"` // 请求ID（用于追踪）
-	Timestamp int64  `json:"timestamp"`  // 错误发生时间戳
+        Code      int    `json:"code"`       // 业务错误码
+        Message   string `json:"message"`    // 错误消息
+        RequestID string `json:"request_id"` // 请求ID（用于追踪）
+        Timestamp int64  `json:"timestamp"`  // 错误发生时间戳
 }
 
 // APIError 返回API错误
 func APIError(err error, c echo.Context) error {
+
 	if err == nil {
 		return errors.New("error can't be nil")
 	}
@@ -74,10 +76,12 @@ func APIError(err error, c echo.Context) error {
 	logError(err, errorCode, codeError.String(), rjson.RequestID, c)
 
 	return c.JSON(httpStatus, rjson)
+
 }
 
 // logError 统一错误日志记录
 func logError(err error, errorCode int, message, requestID string, c echo.Context) {
+
 	fields := []slog.Attr{
 		slog.Int("code", errorCode),
 		slog.String("message", message),
@@ -153,4 +157,5 @@ func getRequestID(c echo.Context) string {
 
 func generateRequestID() string {
 	return uuid.NewString()
+
 }
