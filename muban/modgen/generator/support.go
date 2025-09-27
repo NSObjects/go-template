@@ -39,105 +39,25 @@ func (g *Generator) ensureContextSupport() error {
 		return nil
 	}
 
-	content := `package utils
+	renderer, err := g.templateRenderer()
+	if err != nil {
+		return fmt.Errorf("创建模板渲染器失败: %w", err)
+	}
 
-import (
-    "context"
-    "time"
-
-    "github.com/labstack/echo/v4"
-)
-
-type TraceContext struct {
-    TraceID   string
-    SpanID    string
-    RequestID string
-    UserID    string
-    StartTime time.Time
-}
-
-func ExtractTraceContext(c echo.Context) *TraceContext {
-    tc := &TraceContext{
-        StartTime: time.Now(),
-    }
-
-    if requestID := c.Request().Header.Get("X-Request-ID"); requestID != "" {
-        tc.RequestID = requestID
-    } else if requestID := c.Response().Header().Get("X-Request-ID"); requestID != "" {
-        tc.RequestID = requestID
-    }
-
-    if traceID := c.Request().Header.Get("X-Trace-ID"); traceID != "" {
-        tc.TraceID = traceID
-    }
-
-    if spanID := c.Request().Header.Get("X-Span-ID"); spanID != "" {
-        tc.SpanID = spanID
-    }
-
-    if userID := c.Get("user_id"); userID != nil {
-        if uid, ok := userID.(string); ok {
-            tc.UserID = uid
-        }
-    }
-
-    return tc
-}
-
-func BuildContext(c echo.Context) context.Context {
-    ctx := c.Request().Context()
-    tc := ExtractTraceContext(c)
-
-    ctx = context.WithValue(ctx, "trace_id", tc.TraceID)
-    ctx = context.WithValue(ctx, "span_id", tc.SpanID)
-    ctx = context.WithValue(ctx, "request_id", tc.RequestID)
-    ctx = context.WithValue(ctx, "user_id", tc.UserID)
-    ctx = context.WithValue(ctx, "start_time", tc.StartTime)
-
-    return ctx
-}
-
-func GetTraceID(ctx context.Context) string {
-    if traceID, ok := ctx.Value("trace_id").(string); ok {
-        return traceID
-    }
-    return ""
-}
-
-func GetRequestID(ctx context.Context) string {
-    if requestID, ok := ctx.Value("request_id").(string); ok {
-        return requestID
-    }
-    return ""
-}
-
-func GetUserID(ctx context.Context) string {
-    if userID, ok := ctx.Value("user_id").(string); ok {
-        return userID
-    }
-    return ""
-}
-
-func GetStartTime(ctx context.Context) time.Time {
-    if startTime, ok := ctx.Value("start_time").(time.Time); ok {
-        return startTime
-    }
-    return time.Now()
-}
-
-func WithTraceInfo(ctx context.Context, traceID, spanID, requestID, userID string) context.Context {
-    ctx = context.WithValue(ctx, "trace_id", traceID)
-    ctx = context.WithValue(ctx, "span_id", spanID)
-    ctx = context.WithValue(ctx, "request_id", requestID)
-    ctx = context.WithValue(ctx, "user_id", userID)
-    ctx = context.WithValue(ctx, "start_time", time.Now())
-    return ctx
-}
-`
+	content, err := renderer.RenderContextSupport()
+	if err != nil {
+		return fmt.Errorf("渲染 context 支持模板失败: %w", err)
+	}
 
 	modutils.MustWrite(target, content, false)
 	return nil
 }
+
+const legacyContextTraceStub = `package utils
+
+// Deprecated: context_trace.go 已被迁移至 context.go。本文件仅用于占位，
+// 以便在升级模板时避免重复定义并提示迁移到新的实现。
+`
 
 func removeLegacyContextSupport(target string) error {
 	data, err := os.ReadFile(target)
@@ -150,27 +70,33 @@ func removeLegacyContextSupport(target string) error {
 
 	content := string(data)
 	markers := []string{
-		"type TraceContext struct {",
-		"func ExtractTraceContext(c echo.Context) *TraceContext {",
-		"func BuildContext(c echo.Context) context.Context {",
-		"func GetTraceID(ctx context.Context) string {",
-		"func GetRequestID(ctx context.Context) string {",
-		"func GetUserID(ctx context.Context) string {",
-		"func GetStartTime(ctx context.Context) time.Time {",
-		"func WithTraceInfo(ctx context.Context, traceID, spanID, requestID, userID string) context.Context {",
+		"TraceContext struct",
+		"ExtractTraceContext",
+		"BuildContext",
+		"GetTraceID",
+		"GetRequestID",
+		"GetUserID",
+		"GetStartTime",
+		"WithTraceInfo",
 	}
 
+	matchCount := 0
 	for _, marker := range markers {
-		if !strings.Contains(content, marker) {
-			return nil
+		if strings.Contains(content, marker) {
+			matchCount++
 		}
 	}
 
-	if err := os.Remove(target); err != nil {
-		return fmt.Errorf("移除遗留 context_trace.go 失败: %w", err)
+	// 如果旧文件的特征都不匹配，则无需处理。
+	if matchCount < 3 {
+		return nil
 	}
 
-	fmt.Printf("移除冗余文件: %s\n", target)
+	if err := os.WriteFile(target, []byte(legacyContextTraceStub), 0o644); err != nil {
+		return fmt.Errorf("写入兼容性 context_trace.go 失败: %w", err)
+	}
+
+	fmt.Printf("重写兼容性文件: %s\n", target)
 	return nil
 }
 
@@ -194,42 +120,15 @@ func (g *Generator) ensureRespSupport() error {
 		return nil
 	}
 
-	content := `package resp
+	renderer, err := g.templateRenderer()
+	if err != nil {
+		return fmt.Errorf("创建模板渲染器失败: %w", err)
+	}
 
-import (
-    "net/http"
-
-    "github.com/labstack/echo/v4"
-)
-
-type operateSuccessBody struct {
-    Code int    ` + "`json:\"code\"`" + `
-    Msg  string ` + "`json:\"msg\"`" + `
-}
-
-type singleDataBody struct {
-    Code int         ` + "`json:\"code\"`" + `
-    Msg  string      ` + "`json:\"msg\"`" + `
-    Data interface{} ` + "`json:\"data\"`" + `
-}
-
-func OperateSuccess(c echo.Context) error {
-    payload := operateSuccessBody{
-        Code: http.StatusOK,
-        Msg:  "success",
-    }
-    return c.JSON(http.StatusOK, payload)
-}
-
-func OneDataResponse(data interface{}, c echo.Context) error {
-    payload := singleDataBody{
-        Code: http.StatusOK,
-        Msg:  "success",
-        Data: data,
-    }
-    return c.JSON(http.StatusOK, payload)
-}
-`
+	content, err := renderer.RenderRespSupport()
+	if err != nil {
+		return fmt.Errorf("渲染 resp 支持模板失败: %w", err)
+	}
 
 	modutils.MustWrite(target, content, false)
 	return nil
