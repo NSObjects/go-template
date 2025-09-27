@@ -6,7 +6,9 @@ package templates
 
 import (
 	"bytes"
+	"embed"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +17,9 @@ import (
 
 	"github.com/NSObjects/go-template/muban/modgen/openapi"
 )
+
+//go:embed tmpl/*.tmpl
+var embeddedTemplates embed.FS
 
 // TemplateData 模板数据
 type TemplateData struct {
@@ -52,11 +57,6 @@ func NewTemplateRenderer() (*TemplateRenderer, error) {
 }
 
 func loadRenderer() (*TemplateRenderer, error) {
-	templateDir, err := locateTemplateDir()
-	if err != nil {
-		return nil, err
-	}
-
 	tr := &TemplateRenderer{templates: make(map[string]*template.Template)}
 
 	funcMap := template.FuncMap{
@@ -64,7 +64,7 @@ func loadRenderer() (*TemplateRenderer, error) {
 		"contains":  strings.Contains,
 	}
 
-	templates := []string{
+	templateNames := []string{
 		"biz",
 		"service",
 		"param",
@@ -78,17 +78,49 @@ func loadRenderer() (*TemplateRenderer, error) {
 		"code_openapi",
 	}
 
-	for _, name := range templates {
+	if templateDir, err := locateTemplateDir(); err == nil {
+		if err := tr.loadFromDirectory(templateDir, templateNames, funcMap); err == nil {
+			return tr, nil
+		}
+	}
+
+	if err := tr.loadFromEmbeddedFS(templateNames, funcMap); err != nil {
+		return nil, err
+	}
+
+	return tr, nil
+}
+
+func (tr *TemplateRenderer) loadFromDirectory(templateDir string, templateNames []string, funcMap template.FuncMap) error {
+	for _, name := range templateNames {
 		templatePath := filepath.Join(templateDir, name+".tmpl")
 
 		tmpl, err := template.New(filepath.Base(templatePath)).Funcs(funcMap).ParseFiles(templatePath)
 		if err != nil {
-			return nil, fmt.Errorf("加载模板 %s 失败，路径: %s, 错误: %w", name, templatePath, err)
+			return fmt.Errorf("加载模板 %s 失败，路径: %s, 错误: %w", name, templatePath, err)
 		}
 		tr.templates[name] = tmpl
 	}
 
-	return tr, nil
+	return nil
+}
+
+func (tr *TemplateRenderer) loadFromEmbeddedFS(templateNames []string, funcMap template.FuncMap) error {
+	for _, name := range templateNames {
+		content, err := fs.ReadFile(embeddedTemplates, fmt.Sprintf("tmpl/%s.tmpl", name))
+		if err != nil {
+			return fmt.Errorf("加载嵌入模板 %s 失败: %w", name, err)
+		}
+
+		tmpl, err := template.New(name + ".tmpl").Funcs(funcMap).Parse(string(content))
+		if err != nil {
+			return fmt.Errorf("解析嵌入模板 %s 失败: %w", name, err)
+		}
+
+		tr.templates[name] = tmpl
+	}
+
+	return nil
 }
 
 func locateTemplateDir() (string, error) {
