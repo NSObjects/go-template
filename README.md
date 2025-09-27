@@ -110,6 +110,7 @@ muban codegen -t ErrCode --doc -o doc/error-code.md
 读取配置中的数据库连接，使用 GORM Gen 生成动态 SQL 查询接口。
 
 - `--config`：配置文件路径（默认 `configs/config.toml`）
+- `-t, --table`：仅生成指定表（多个表使用逗号分隔）
 
 ```bash
 # 使用默认配置生成基础查询接口
@@ -117,6 +118,9 @@ muban dynamicsql
 
 # 指定自定义配置文件
 muban dynamicsql --config=configs/config.local.toml
+
+# 仅为 user 表生成查询接口
+muban dynamicsql -t user
 ```
 
 ### 常用 Makefile 命令
