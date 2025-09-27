@@ -47,15 +47,17 @@ func (g *Generator) ensureContextSupport() error {
 
 	modutils.MustWrite(supportTarget, content, true)
 	return ensureLegacyContextTraceStub(legacyTarget)
+
 }
 
 const legacyContextTraceStub = `package utils
 
+
 // Deprecated: context_trace.go 已被迁移至 context_support.go。
 // 本文件仅用于兼容老版本引用，同时避免重复定义。
 `
-
 func ensureLegacyContextTraceStub(target string) error {
+
 	data, err := os.ReadFile(target)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -72,6 +74,7 @@ func ensureLegacyContextTraceStub(target string) error {
 	}
 
 	content := string(data)
+
 	trimmed := strings.TrimSpace(content)
 	if trimmed == strings.TrimSpace(legacyContextTraceStub) {
 		return nil
