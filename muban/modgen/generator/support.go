@@ -27,16 +27,12 @@ func (g *Generator) ensureContextSupport() error {
 	if err != nil {
 		return fmt.Errorf("检查 utils 上下文支持函数失败: %w", err)
 	}
-	target := filepath.Join(utilsDir, "context_trace.go")
+
+	supportTarget := filepath.Join(g.config.RepoRoot, "internal", "utils", "context_support.go")
+	legacyTarget := filepath.Join(g.config.RepoRoot, "internal", "utils", "context_trace.go")
 
 	if has {
-		if err := removeLegacyContextSupport(target); err != nil {
-			return err
-		}
-		return nil
-	}
-	if _, err := os.Stat(target); err == nil {
-		return nil
+		return ensureLegacyContextTraceStub(legacyTarget)
 	}
 
 	renderer, err := g.templateRenderer()
@@ -44,59 +40,74 @@ func (g *Generator) ensureContextSupport() error {
 		return fmt.Errorf("创建模板渲染器失败: %w", err)
 	}
 
+
 	content, err := renderer.RenderContextSupport()
 	if err != nil {
 		return fmt.Errorf("渲染 context 支持模板失败: %w", err)
 	}
 
-	modutils.MustWrite(target, content, false)
-	return nil
+	modutils.MustWrite(supportTarget, content, true)
+	return ensureLegacyContextTraceStub(legacyTarget)
 }
 
-const legacyContextTraceStub = `package utils
+const legacyContextTraceStub = "package utils\n\n" +
+	"// Deprecated: 该文件仅用于兼容早期依赖 `context_trace.go` 的代码。\n" +
+	"// 链路追踪相关实现已迁移至 context_support.go，请更新引用。\n"
 
-// Deprecated: context_trace.go 已被迁移至 context.go。本文件仅用于占位，
-// 以便在升级模板时避免重复定义并提示迁移到新的实现。
-`
+var legacyContextTraceSymbols = []string{
+	"func BuildContext",
+	"func ExtractTraceContext",
+	"func GetTraceID",
+	"func GetRequestID",
+	"func GetUserID",
+	"func GetStartTime",
+	"func WithTraceInfo",
+}
 
-func removeLegacyContextSupport(target string) error {
+func ensureLegacyContextTraceStub(target string) error {
 	data, err := os.ReadFile(target)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return fmt.Errorf("创建兼容性文件目录失败: %w", err)
+			}
+			if err := os.WriteFile(target, []byte(legacyContextTraceStub), 0o644); err != nil {
+				return fmt.Errorf("写入兼容性 context_trace.go 失败: %w", err)
+			}
+			fmt.Printf("写入兼容性文件: %s\n", target)
 			return nil
 		}
 		return fmt.Errorf("读取遗留 context_trace.go 失败: %w", err)
 	}
 
 	content := string(data)
-	markers := []string{
-		"TraceContext struct",
-		"ExtractTraceContext",
-		"BuildContext",
-		"GetTraceID",
-		"GetRequestID",
-		"GetUserID",
-		"GetStartTime",
-		"WithTraceInfo",
-	}
 
-	matchCount := 0
-	for _, marker := range markers {
-		if strings.Contains(content, marker) {
-			matchCount++
-		}
-	}
-
-	// 如果旧文件的特征都不匹配，则无需处理。
-	if matchCount < 3 {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == strings.TrimSpace(legacyContextTraceStub) {
 		return nil
 	}
 
-	if err := os.WriteFile(target, []byte(legacyContextTraceStub), 0o644); err != nil {
-		return fmt.Errorf("写入兼容性 context_trace.go 失败: %w", err)
+	if trimmed == "" || trimmed == "package utils" {
+		if err := os.WriteFile(target, []byte(legacyContextTraceStub), 0o644); err != nil {
+			return fmt.Errorf("写入兼容性 context_trace.go 失败: %w", err)
+
+		}
+		fmt.Printf("重写兼容性文件: %s\n", target)
+		return nil
 	}
 
-	fmt.Printf("重写兼容性文件: %s\n", target)
+	for _, symbol := range legacyContextTraceSymbols {
+		if strings.Contains(content, symbol) {
+			if err := os.WriteFile(target, []byte(legacyContextTraceStub), 0o644); err != nil {
+				return fmt.Errorf("写入兼容性 context_trace.go 失败: %w", err)
+			}
+
+			fmt.Printf("重写兼容性文件: %s\n", target)
+			return nil
+		}
+	}
+
+
 	return nil
 }
 
