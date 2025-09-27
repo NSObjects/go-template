@@ -2,6 +2,7 @@ package dynamicsql
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/NSObjects/go-template/internal/configs"
@@ -129,6 +130,7 @@ type IBusinessQuery interface {
 
 type Options struct {
 	Config string
+	Table  string
 }
 
 func NewCommand() *cobra.Command {
@@ -143,6 +145,7 @@ func NewCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&opts.Config, "config", "configs/config.toml", "config file path")
+	cmd.Flags().StringVarP(&opts.Table, "table", "t", "", "specify target table (comma separated for multiple)")
 
 	return cmd
 }
@@ -172,18 +175,47 @@ func Run(opts Options) error {
 
 	g.UseDB(db)
 
-	g.ApplyBasic(g.GenerateAllTable()...)
+	models, err := getTargetModels(g, opts.Table)
+	if err != nil {
+		return err
+	}
 
-	g.ApplyInterface(func(ICommonQuery) {}, g.GenerateAllTable()...)
-	g.ApplyInterface(func(IPaginationQuery) {}, g.GenerateAllTable()...)
-	g.ApplyInterface(func(ISearchQuery) {}, g.GenerateAllTable()...)
-	g.ApplyInterface(func(IStatusQuery) {}, g.GenerateAllTable()...)
-	g.ApplyInterface(func(IAdvancedQuery) {}, g.GenerateAllTable()...)
-	g.ApplyInterface(func(IBusinessQuery) {}, g.GenerateAllTable()...)
+	g.ApplyBasic(models...)
+
+	g.ApplyInterface(func(ICommonQuery) {}, models...)
+	g.ApplyInterface(func(IPaginationQuery) {}, models...)
+	g.ApplyInterface(func(ISearchQuery) {}, models...)
+	g.ApplyInterface(func(IStatusQuery) {}, models...)
+	g.ApplyInterface(func(IAdvancedQuery) {}, models...)
+	g.ApplyInterface(func(IBusinessQuery) {}, models...)
 
 	g.Execute()
 
 	fmt.Println("Basic Dynamic SQL generation completed!")
 
 	return nil
+}
+
+func getTargetModels(g *gen.Generator, tableOpt string) ([]gen.Model, error) {
+	if tableOpt == "" {
+		return g.GenerateAllTable(), nil
+	}
+
+	tableNames := strings.Split(tableOpt, ",")
+	models := make([]gen.Model, 0, len(tableNames))
+
+	for _, name := range tableNames {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+
+		models = append(models, g.GenerateModel(name))
+	}
+
+	if len(models) == 0 {
+		return nil, fmt.Errorf("no valid table names provided")
+	}
+
+	return models, nil
 }
