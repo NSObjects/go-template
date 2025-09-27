@@ -27,150 +27,83 @@ func (g *Generator) ensureContextSupport() error {
 	if err != nil {
 		return fmt.Errorf("检查 utils 上下文支持函数失败: %w", err)
 	}
-	target := filepath.Join(utilsDir, "context_trace.go")
+
+	supportTarget := filepath.Join(g.config.RepoRoot, "internal", "utils", "context_support.go")
+	legacyTarget := filepath.Join(g.config.RepoRoot, "internal", "utils", "context_trace.go")
 
 	if has {
-		if err := removeLegacyContextSupport(target); err != nil {
-			return err
-		}
-		return nil
-	}
-	if _, err := os.Stat(target); err == nil {
-		return nil
+		return ensureLegacyContextTraceStub(legacyTarget)
 	}
 
-	content := `package utils
+	renderer, err := g.templateRenderer()
+	if err != nil {
+		return fmt.Errorf("创建模板渲染器失败: %w", err)
+	}
 
-import (
-    "context"
-    "time"
+	content, err := renderer.RenderContextSupport()
+	if err != nil {
+		return fmt.Errorf("渲染 context 支持模板失败: %w", err)
+	}
 
-    "github.com/labstack/echo/v4"
-)
-
-type TraceContext struct {
-    TraceID   string
-    SpanID    string
-    RequestID string
-    UserID    string
-    StartTime time.Time
+	modutils.MustWrite(supportTarget, content, true)
+	return ensureLegacyContextTraceStub(legacyTarget)
 }
 
-func ExtractTraceContext(c echo.Context) *TraceContext {
-    tc := &TraceContext{
-        StartTime: time.Now(),
-    }
+const legacyContextTraceStub = "package utils\n\n" +
+	"// Deprecated: 该文件仅用于兼容早期依赖 `context_trace.go` 的代码。\n" +
+	"// 链路追踪相关实现已迁移至 context_support.go，请更新引用。\n"
 
-    if requestID := c.Request().Header.Get("X-Request-ID"); requestID != "" {
-        tc.RequestID = requestID
-    } else if requestID := c.Response().Header().Get("X-Request-ID"); requestID != "" {
-        tc.RequestID = requestID
-    }
-
-    if traceID := c.Request().Header.Get("X-Trace-ID"); traceID != "" {
-        tc.TraceID = traceID
-    }
-
-    if spanID := c.Request().Header.Get("X-Span-ID"); spanID != "" {
-        tc.SpanID = spanID
-    }
-
-    if userID := c.Get("user_id"); userID != nil {
-        if uid, ok := userID.(string); ok {
-            tc.UserID = uid
-        }
-    }
-
-    return tc
+var legacyContextTraceSymbols = []string{
+	"func BuildContext",
+	"func ExtractTraceContext",
+	"func GetTraceID",
+	"func GetRequestID",
+	"func GetUserID",
+	"func GetStartTime",
+	"func WithTraceInfo",
 }
 
-func BuildContext(c echo.Context) context.Context {
-    ctx := c.Request().Context()
-    tc := ExtractTraceContext(c)
-
-    ctx = context.WithValue(ctx, "trace_id", tc.TraceID)
-    ctx = context.WithValue(ctx, "span_id", tc.SpanID)
-    ctx = context.WithValue(ctx, "request_id", tc.RequestID)
-    ctx = context.WithValue(ctx, "user_id", tc.UserID)
-    ctx = context.WithValue(ctx, "start_time", tc.StartTime)
-
-    return ctx
-}
-
-func GetTraceID(ctx context.Context) string {
-    if traceID, ok := ctx.Value("trace_id").(string); ok {
-        return traceID
-    }
-    return ""
-}
-
-func GetRequestID(ctx context.Context) string {
-    if requestID, ok := ctx.Value("request_id").(string); ok {
-        return requestID
-    }
-    return ""
-}
-
-func GetUserID(ctx context.Context) string {
-    if userID, ok := ctx.Value("user_id").(string); ok {
-        return userID
-    }
-    return ""
-}
-
-func GetStartTime(ctx context.Context) time.Time {
-    if startTime, ok := ctx.Value("start_time").(time.Time); ok {
-        return startTime
-    }
-    return time.Now()
-}
-
-func WithTraceInfo(ctx context.Context, traceID, spanID, requestID, userID string) context.Context {
-    ctx = context.WithValue(ctx, "trace_id", traceID)
-    ctx = context.WithValue(ctx, "span_id", spanID)
-    ctx = context.WithValue(ctx, "request_id", requestID)
-    ctx = context.WithValue(ctx, "user_id", userID)
-    ctx = context.WithValue(ctx, "start_time", time.Now())
-    return ctx
-}
-`
-
-	modutils.MustWrite(target, content, false)
-	return nil
-}
-
-func removeLegacyContextSupport(target string) error {
+func ensureLegacyContextTraceStub(target string) error {
 	data, err := os.ReadFile(target)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return fmt.Errorf("创建兼容性文件目录失败: %w", err)
+			}
+			if err := os.WriteFile(target, []byte(legacyContextTraceStub), 0o644); err != nil {
+				return fmt.Errorf("写入兼容性 context_trace.go 失败: %w", err)
+			}
+			fmt.Printf("写入兼容性文件: %s\n", target)
 			return nil
 		}
 		return fmt.Errorf("读取遗留 context_trace.go 失败: %w", err)
 	}
 
 	content := string(data)
-	markers := []string{
-		"type TraceContext struct {",
-		"func ExtractTraceContext(c echo.Context) *TraceContext {",
-		"func BuildContext(c echo.Context) context.Context {",
-		"func GetTraceID(ctx context.Context) string {",
-		"func GetRequestID(ctx context.Context) string {",
-		"func GetUserID(ctx context.Context) string {",
-		"func GetStartTime(ctx context.Context) time.Time {",
-		"func WithTraceInfo(ctx context.Context, traceID, spanID, requestID, userID string) context.Context {",
+	trimmed := strings.TrimSpace(content)
+	if trimmed == strings.TrimSpace(legacyContextTraceStub) {
+		return nil
 	}
 
-	for _, marker := range markers {
-		if !strings.Contains(content, marker) {
+	if trimmed == "" || trimmed == "package utils" {
+		if err := os.WriteFile(target, []byte(legacyContextTraceStub), 0o644); err != nil {
+			return fmt.Errorf("写入兼容性 context_trace.go 失败: %w", err)
+		}
+		fmt.Printf("重写兼容性文件: %s\n", target)
+		return nil
+	}
+
+	for _, symbol := range legacyContextTraceSymbols {
+		if strings.Contains(content, symbol) {
+			if err := os.WriteFile(target, []byte(legacyContextTraceStub), 0o644); err != nil {
+				return fmt.Errorf("写入兼容性 context_trace.go 失败: %w", err)
+			}
+
+			fmt.Printf("重写兼容性文件: %s\n", target)
 			return nil
 		}
 	}
 
-	if err := os.Remove(target); err != nil {
-		return fmt.Errorf("移除遗留 context_trace.go 失败: %w", err)
-	}
-
-	fmt.Printf("移除冗余文件: %s\n", target)
 	return nil
 }
 
@@ -194,42 +127,15 @@ func (g *Generator) ensureRespSupport() error {
 		return nil
 	}
 
-	content := `package resp
+	renderer, err := g.templateRenderer()
+	if err != nil {
+		return fmt.Errorf("创建模板渲染器失败: %w", err)
+	}
 
-import (
-    "net/http"
-
-    "github.com/labstack/echo/v4"
-)
-
-type operateSuccessBody struct {
-    Code int    ` + "`json:\"code\"`" + `
-    Msg  string ` + "`json:\"msg\"`" + `
-}
-
-type singleDataBody struct {
-    Code int         ` + "`json:\"code\"`" + `
-    Msg  string      ` + "`json:\"msg\"`" + `
-    Data interface{} ` + "`json:\"data\"`" + `
-}
-
-func OperateSuccess(c echo.Context) error {
-    payload := operateSuccessBody{
-        Code: http.StatusOK,
-        Msg:  "success",
-    }
-    return c.JSON(http.StatusOK, payload)
-}
-
-func OneDataResponse(data interface{}, c echo.Context) error {
-    payload := singleDataBody{
-        Code: http.StatusOK,
-        Msg:  "success",
-        Data: data,
-    }
-    return c.JSON(http.StatusOK, payload)
-}
-`
+	content, err := renderer.RenderRespSupport()
+	if err != nil {
+		return fmt.Errorf("渲染 resp 支持模板失败: %w", err)
+	}
 
 	modutils.MustWrite(target, content, false)
 	return nil
