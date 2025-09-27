@@ -70,3 +70,5 @@ func BuildContext(c echo.Context) {}
 	require.NoError(t, err)
 	require.Equal(t, strings.TrimSpace(legacyContextTraceStub), strings.TrimSpace(string(legacyData)))
 }
+
+
