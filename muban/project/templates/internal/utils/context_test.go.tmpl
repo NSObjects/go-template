@@ -1,54 +1,253 @@
 package utils
 
 import (
-	"context"
-	"testing"
+        "context"
+        "net/http"
+        "net/http/httptest"
+        "testing"
+        "time"
+
+        "github.com/labstack/echo/v4"
+        "github.com/stretchr/testify/assert"
 )
 
-func TestWithUserID(t *testing.T) {
-	ctx := context.Background()
-	userID := uint(123)
-	
-	ctx = WithUserID(ctx, userID)
-	
-	retrievedID, ok := GetUserID(ctx)
-	if !ok {
-		t.Fatal("expected to get user ID from context")
-	}
-	
-	if retrievedID != userID {
-		t.Errorf("expected user ID %d, got %d", userID, retrievedID)
-	}
+func TestExtractTraceContext(t *testing.T) {
+        tests := []struct {
+                name          string
+                headers       map[string]string
+                userID        interface{}
+                expectedTrace *TraceContext
+        }{
+                {
+                        name: "complete trace info",
+                        headers: map[string]string{
+                                "X-Request-ID": "req-123",
+                                "X-Trace-ID":   "trace-456",
+                                "X-Span-ID":    "span-789",
+                        },
+                        userID: "user-001",
+                        expectedTrace: &TraceContext{
+                                TraceID:   "trace-456",
+                                SpanID:    "span-789",
+                                RequestID: "req-123",
+                                UserID:    "user-001",
+                        },
+                },
+                {
+                        name: "minimal trace info",
+                        headers: map[string]string{
+                                "X-Request-ID": "req-456",
+                        },
+                        userID: nil,
+                        expectedTrace: &TraceContext{
+                                TraceID:   "",
+                                SpanID:    "",
+                                RequestID: "req-456",
+                                UserID:    "",
+                        },
+                },
+                {
+                        name:    "no trace info",
+                        headers: map[string]string{},
+                        userID:  nil,
+                        expectedTrace: &TraceContext{
+                                TraceID:   "",
+                                SpanID:    "",
+                                RequestID: "",
+                                UserID:    "",
+                        },
+                },
+        }
+
+        for _, tt := range tests {
+                t.Run(tt.name, func(t *testing.T) {
+                        e := echo.New()
+                        req := httptest.NewRequest(http.MethodGet, "/test", nil)
+                        for key, value := range tt.headers {
+                                req.Header.Set(key, value)
+                        }
+
+                        rec := httptest.NewRecorder()
+                        c := e.NewContext(req, rec)
+
+                        if tt.userID != nil {
+                                c.Set("user_id", tt.userID)
+                        }
+
+                        trace := ExtractTraceContext(c)
+
+                        assert.Equal(t, tt.expectedTrace.TraceID, trace.TraceID)
+                        assert.Equal(t, tt.expectedTrace.SpanID, trace.SpanID)
+                        assert.Equal(t, tt.expectedTrace.RequestID, trace.RequestID)
+                        assert.Equal(t, tt.expectedTrace.UserID, trace.UserID)
+                        assert.NotZero(t, trace.StartTime)
+                })
+        }
 }
 
-func TestWithUsername(t *testing.T) {
-	ctx := context.Background()
-	username := "testuser"
-	
-	ctx = WithUsername(ctx, username)
-	
-	retrievedUsername, ok := GetUsername(ctx)
-	if !ok {
-		t.Fatal("expected to get username from context")
-	}
-	
-	if retrievedUsername != username {
-		t.Errorf("expected username %s, got %s", username, retrievedUsername)
-	}
+func TestBuildContext(t *testing.T) {
+        e := echo.New()
+        req := httptest.NewRequest(http.MethodGet, "/test", nil)
+        req.Header.Set("X-Request-ID", "req-123")
+        req.Header.Set("X-Trace-ID", "trace-456")
+        req.Header.Set("X-Span-ID", "span-789")
+
+        rec := httptest.NewRecorder()
+        c := e.NewContext(req, rec)
+        c.Set("user_id", "user-001")
+
+        ctx := BuildContext(c)
+
+        assert.Equal(t, "trace-456", GetTraceID(ctx))
+        assert.Equal(t, "span-789", ctx.Value("span_id"))
+        assert.Equal(t, "req-123", GetRequestID(ctx))
+        assert.Equal(t, "user-001", GetUserID(ctx))
+        assert.NotZero(t, GetStartTime(ctx))
 }
 
-func TestWithRequestID(t *testing.T) {
-	ctx := context.Background()
-	requestID := "req-123"
-	
-	ctx = WithRequestID(ctx, requestID)
-	
-	retrievedRequestID, ok := GetRequestID(ctx)
-	if !ok {
-		t.Fatal("expected to get request ID from context")
-	}
-	
-	if retrievedRequestID != requestID {
-		t.Errorf("expected request ID %s, got %s", requestID, retrievedRequestID)
-	}
+func TestGetTraceID(t *testing.T) {
+        tests := []struct {
+                name     string
+                ctx      context.Context
+                expected string
+        }{
+                {
+                        name:     "with trace ID",
+                        ctx:      context.WithValue(context.Background(), "trace_id", "trace-123"),
+                        expected: "trace-123",
+                },
+                {
+                        name:     "without trace ID",
+                        ctx:      context.Background(),
+                        expected: "",
+                },
+                {
+                        name:     "invalid trace ID type",
+                        ctx:      context.WithValue(context.Background(), "trace_id", 123),
+                        expected: "",
+                },
+        }
+
+        for _, tt := range tests {
+                t.Run(tt.name, func(t *testing.T) {
+                        result := GetTraceID(tt.ctx)
+                        assert.Equal(t, tt.expected, result)
+                })
+        }
+}
+
+func TestGetRequestID(t *testing.T) {
+        tests := []struct {
+                name     string
+                ctx      context.Context
+                expected string
+        }{
+                {
+                        name:     "with request ID",
+                        ctx:      context.WithValue(context.Background(), "request_id", "req-123"),
+                        expected: "req-123",
+                },
+                {
+                        name:     "without request ID",
+                        ctx:      context.Background(),
+                        expected: "",
+                },
+                {
+                        name:     "invalid request ID type",
+                        ctx:      context.WithValue(context.Background(), "request_id", 123),
+                        expected: "",
+                },
+        }
+
+        for _, tt := range tests {
+                t.Run(tt.name, func(t *testing.T) {
+                        result := GetRequestID(tt.ctx)
+                        assert.Equal(t, tt.expected, result)
+                })
+        }
+}
+
+func TestGetUserID(t *testing.T) {
+        tests := []struct {
+                name     string
+                ctx      context.Context
+                expected string
+        }{
+                {
+                        name:     "with user ID",
+                        ctx:      context.WithValue(context.Background(), "user_id", "user-123"),
+                        expected: "user-123",
+                },
+                {
+                        name:     "without user ID",
+                        ctx:      context.Background(),
+                        expected: "",
+                },
+                {
+                        name:     "invalid user ID type",
+                        ctx:      context.WithValue(context.Background(), "user_id", 123),
+                        expected: "",
+                },
+        }
+
+        for _, tt := range tests {
+                t.Run(tt.name, func(t *testing.T) {
+                        result := GetUserID(tt.ctx)
+                        assert.Equal(t, tt.expected, result)
+                })
+        }
+}
+
+func TestGetStartTime(t *testing.T) {
+        now := time.Now()
+
+        tests := []struct {
+                name     string
+                ctx      context.Context
+                expected time.Time
+        }{
+                {
+                        name:     "with start time",
+                        ctx:      context.WithValue(context.Background(), "start_time", now),
+                        expected: now,
+                },
+                {
+                        name:     "without start time",
+                        ctx:      context.Background(),
+                        expected: time.Now(),
+                },
+                {
+                        name:     "invalid start time type",
+                        ctx:      context.WithValue(context.Background(), "start_time", "invalid"),
+                        expected: time.Now(),
+                },
+        }
+
+        for _, tt := range tests {
+                t.Run(tt.name, func(t *testing.T) {
+                        result := GetStartTime(tt.ctx)
+                        if tt.name == "with start time" {
+                                assert.Equal(t, tt.expected, result)
+                        } else {
+                                assert.True(t, result.After(now.Add(-time.Second)))
+                                assert.True(t, result.Before(now.Add(time.Second)))
+                        }
+                })
+        }
+}
+
+func TestWithTraceInfo(t *testing.T) {
+        ctx := context.Background()
+        traceID := "trace-123"
+        spanID := "span-456"
+        requestID := "req-789"
+        userID := "user-001"
+
+        newCtx := WithTraceInfo(ctx, traceID, spanID, requestID, userID)
+
+        assert.Equal(t, traceID, GetTraceID(newCtx))
+        assert.Equal(t, spanID, newCtx.Value("span_id"))
+        assert.Equal(t, requestID, GetRequestID(newCtx))
+        assert.Equal(t, userID, GetUserID(newCtx))
+        assert.NotZero(t, GetStartTime(newCtx))
 }

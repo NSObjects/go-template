@@ -1,56 +1,101 @@
 package utils
 
 import (
-	"context"
-	"time"
+        "context"
+        "time"
+
+        "github.com/labstack/echo/v4"
 )
 
-// ContextKey 上下文键类型
-type ContextKey string
-
-const (
-	// UserIDKey 用户ID键
-	UserIDKey ContextKey = "user_id"
-	// UsernameKey 用户名键
-	UsernameKey ContextKey = "username"
-	// RequestIDKey 请求ID键
-	RequestIDKey ContextKey = "request_id"
-)
-
-// WithUserID 添加上下文中的用户ID
-func WithUserID(ctx context.Context, userID uint) context.Context {
-	return context.WithValue(ctx, UserIDKey, userID)
+// TraceContext 链路追踪上下文信息
+type TraceContext struct {
+        TraceID   string
+        SpanID    string
+        RequestID string
+        UserID    string
+        StartTime time.Time
 }
 
-// GetUserID 从上下文中获取用户ID
-func GetUserID(ctx context.Context) (uint, bool) {
-	userID, ok := ctx.Value(UserIDKey).(uint)
-	return userID, ok
+// ExtractTraceContext 从echo.Context中提取链路追踪信息
+func ExtractTraceContext(c echo.Context) *TraceContext {
+        tc := &TraceContext{
+                StartTime: time.Now(),
+        }
+
+        if requestID := c.Request().Header.Get("X-Request-ID"); requestID != "" {
+                tc.RequestID = requestID
+        } else if requestID := c.Response().Header().Get("X-Request-ID"); requestID != "" {
+                tc.RequestID = requestID
+        }
+
+        if traceID := c.Request().Header.Get("X-Trace-ID"); traceID != "" {
+                tc.TraceID = traceID
+        }
+        if spanID := c.Request().Header.Get("X-Span-ID"); spanID != "" {
+                tc.SpanID = spanID
+        }
+
+        if userID := c.Get("user_id"); userID != nil {
+                if uid, ok := userID.(string); ok {
+                        tc.UserID = uid
+                }
+        }
+
+        return tc
 }
 
-// WithUsername 添加上下文中的用户名
-func WithUsername(ctx context.Context, username string) context.Context {
-	return context.WithValue(ctx, UsernameKey, username)
+// BuildContext 构造包含链路追踪信息的标准context.Context
+func BuildContext(c echo.Context) context.Context {
+        ctx := c.Request().Context()
+        tc := ExtractTraceContext(c)
+
+        ctx = context.WithValue(ctx, "trace_id", tc.TraceID)
+        ctx = context.WithValue(ctx, "span_id", tc.SpanID)
+        ctx = context.WithValue(ctx, "request_id", tc.RequestID)
+        ctx = context.WithValue(ctx, "user_id", tc.UserID)
+        ctx = context.WithValue(ctx, "start_time", tc.StartTime)
+
+        return ctx
 }
 
-// GetUsername 从上下文中获取用户名
-func GetUsername(ctx context.Context) (string, bool) {
-	username, ok := ctx.Value(UsernameKey).(string)
-	return username, ok
+// GetTraceID 从context中获取TraceID
+func GetTraceID(ctx context.Context) string {
+        if traceID, ok := ctx.Value("trace_id").(string); ok {
+                return traceID
+        }
+        return ""
 }
 
-// WithRequestID 添加上下文中的请求ID
-func WithRequestID(ctx context.Context, requestID string) context.Context {
-	return context.WithValue(ctx, RequestIDKey, requestID)
+// GetRequestID 从context中获取RequestID
+func GetRequestID(ctx context.Context) string {
+        if requestID, ok := ctx.Value("request_id").(string); ok {
+                return requestID
+        }
+        return ""
 }
 
-// GetRequestID 从上下文中获取请求ID
-func GetRequestID(ctx context.Context) (string, bool) {
-	requestID, ok := ctx.Value(RequestIDKey).(string)
-	return requestID, ok
+// GetUserID 从context中获取UserID
+func GetUserID(ctx context.Context) string {
+        if userID, ok := ctx.Value("user_id").(string); ok {
+                return userID
+        }
+        return ""
 }
 
-// WithTimeout 添加上下文超时
-func WithTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(ctx, timeout)
+// GetStartTime 从context中获取请求开始时间
+func GetStartTime(ctx context.Context) time.Time {
+        if startTime, ok := ctx.Value("start_time").(time.Time); ok {
+                return startTime
+        }
+        return time.Now()
+}
+
+// WithTraceInfo 为context添加链路追踪信息
+func WithTraceInfo(ctx context.Context, traceID, spanID, requestID, userID string) context.Context {
+        ctx = context.WithValue(ctx, "trace_id", traceID)
+        ctx = context.WithValue(ctx, "span_id", spanID)
+        ctx = context.WithValue(ctx, "request_id", requestID)
+        ctx = context.WithValue(ctx, "user_id", userID)
+        ctx = context.WithValue(ctx, "start_time", time.Now())
+        return ctx
 }

@@ -1,52 +1,80 @@
 package resp
 
 import (
-	"net/http"
-	"net/http/httptest"
-	"testing"
+        "errors"
+        "net/http/httptest"
+        "testing"
 
-	"github.com/labstack/echo/v4"
-	"github.com/stretchr/testify/assert"
+        "github.com/labstack/echo/v4"
 )
 
-func TestSuccess(t *testing.T) {
-	data := map[string]string{"message": "test"}
-	response := Success(data)
-
-	assert.Equal(t, 200, response.Code)
-	assert.Equal(t, "success", response.Message)
-	assert.Equal(t, data, response.Data)
+func getContext() echo.Context {
+        e := echo.New()
+        req := httptest.NewRequest(http.MethodGet, "/", nil)
+        req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+        rec := httptest.NewRecorder()
+        return e.NewContext(req, rec)
 }
 
-func TestError(t *testing.T) {
-	response := Error(400, "Bad Request")
+func TestAPIError(t *testing.T) {
+        tests := []struct {
+                name    string
+                err     error
+                wantErr bool
+        }{
+                {
+                        name:    "with error",
+                        err:     errors.New("api error"),
+                        wantErr: false,
+                },
+                {
+                        name:    "nil error",
+                        err:     nil,
+                        wantErr: true,
+                },
+        }
 
-	assert.Equal(t, 400, response.Code)
-	assert.Equal(t, "Bad Request", response.Message)
-	assert.Nil(t, response.Data)
+        for _, tt := range tests {
+                t.Run(tt.name, func(t *testing.T) {
+                        if err := APIError(tt.err, getContext()); (err != nil) != tt.wantErr {
+                                t.Errorf("APIError() error = %v, wantErr %v", err, tt.wantErr)
+                        }
+                })
+        }
 }
 
-func TestSuccessJSON(t *testing.T) {
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	data := map[string]string{"message": "test"}
-	err := SuccessJSON(c, data)
-
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusOK, rec.Code)
+func TestOperateSuccess(t *testing.T) {
+        if err := OperateSuccess(getContext()); err != nil {
+                t.Fatalf("OperateSuccess() error = %v", err)
+        }
 }
 
-func TestErrorJSON(t *testing.T) {
-	e := echo.New()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
+func TestListDataResponse(t *testing.T) {
+        tests := []struct {
+                name    string
+                arr     interface{}
+                total   int64
+                wantErr bool
+        }{
+                {
+                        name:    "nil list",
+                        arr:     nil,
+                        total:   0,
+                        wantErr: false,
+                },
+        }
 
-	err := ErrorJSON(c, http.StatusBadRequest, "Bad Request")
+        for _, tt := range tests {
+                t.Run(tt.name, func(t *testing.T) {
+                        if err := ListDataResponse(tt.arr, tt.total, getContext()); (err != nil) != tt.wantErr {
+                                t.Errorf("ListDataResponse() error = %v, wantErr %v", err, tt.wantErr)
+                        }
+                })
+        }
+}
 
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
+func TestOneDataResponse(t *testing.T) {
+        if err := OneDataResponse(nil, getContext()); err != nil {
+                t.Fatalf("OneDataResponse() error = %v", err)
+        }
 }

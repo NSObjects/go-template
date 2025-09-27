@@ -1,11 +1,9 @@
 package service
 
 import (
-	"net/http"
-
-	"{{.ModulePath}}/internal/resp"
-	"github.com/labstack/echo/v4"
-	"go.uber.org/fx"
+        "{{.ModulePath}}/internal/resp"
+        "github.com/labstack/echo/v4"
+        "go.uber.org/fx"
 )
 
 // ExampleRouter 示例路由
@@ -13,125 +11,117 @@ type ExampleRouter struct{}
 
 // NewExampleRouter 创建示例路由
 func NewExampleRouter() *ExampleRouter {
-	return &ExampleRouter{}
+        return &ExampleRouter{}
 }
 
 // RegisterRouter 注册路由
 func (r *ExampleRouter) RegisterRouter(g *echo.Group, middlewareFunc ...echo.MiddlewareFunc) {
-	// 用户相关路由
-	users := g.Group("/users")
-	users.GET("", r.GetUsers)
-	users.GET("/:id", r.GetUser)
-	users.POST("", r.CreateUser)
-	users.PUT("/:id", r.UpdateUser)
-	users.DELETE("/:id", r.DeleteUser)
+        users := g.Group("/users")
+        users.GET("", r.GetUsers)
+        users.GET("/:id", r.GetUser)
+        users.POST("", r.CreateUser)
+        users.PUT("/:id", r.UpdateUser)
+        users.DELETE("/:id", r.DeleteUser)
 
-	// 系统信息路由
-	system := g.Group("/system")
-	system.GET("/info", r.GetSystemInfo)
-	system.GET("/version", r.GetVersion)
+        system := g.Group("/system")
+        system.GET("/info", r.GetSystemInfo)
+        system.GET("/version", r.GetVersion)
 }
 
 // GetUsers 获取用户列表
 func (r *ExampleRouter) GetUsers(c echo.Context) error {
-	// 示例数据
-	users := []map[string]interface{}{
-		{"id": 1, "name": "张三", "email": "zhangsan@example.com"},
-		{"id": 2, "name": "李四", "email": "lisi@example.com"},
-	}
-	return c.JSON(http.StatusOK, resp.Success(users))
+        users := []map[string]interface{}{
+                {"id": 1, "name": "张三", "email": "zhangsan@example.com"},
+                {"id": 2, "name": "李四", "email": "lisi@example.com"},
+        }
+        return resp.ListDataResponse(users, int64(len(users)), c)
 }
 
 // GetUser 获取单个用户
 func (r *ExampleRouter) GetUser(c echo.Context) error {
-	id := c.Param("id")
-	user := map[string]interface{}{
-		"id":    id,
-		"name":  "示例用户",
-		"email": "user@example.com",
-	}
-	return c.JSON(http.StatusOK, resp.Success(user))
+        id := c.Param("id")
+        user := map[string]interface{}{
+                "id":    id,
+                "name":  "示例用户",
+                "email": "user@example.com",
+        }
+        return resp.OneDataResponse(user, c)
 }
 
 // CreateUser 创建用户
 func (r *ExampleRouter) CreateUser(c echo.Context) error {
-	var req struct {
-		Name  string `json:"name" validate:"required"`
-		Email string `json:"email" validate:"required,email"`
-	}
+        var req struct {
+                Name  string `json:"name" validate:"required"`
+                Email string `json:"email" validate:"required,email"`
+        }
 
-	if err := BindAndValidate(c, &req); err != nil {
-		return err
-	}
+        if err := BindAndValidate(c, &req); err != nil {
+                return err
+        }
 
-	// 模拟创建用户
-	user := map[string]interface{}{
-		"id":    3,
-		"name":  req.Name,
-		"email": req.Email,
-	}
+        user := map[string]interface{}{
+                "id":    3,
+                "name":  req.Name,
+                "email": req.Email,
+        }
 
-	return c.JSON(http.StatusCreated, resp.Success(user))
+        return resp.OneDataResponse(user, c)
 }
 
 // UpdateUser 更新用户
 func (r *ExampleRouter) UpdateUser(c echo.Context) error {
-	id := c.Param("id")
-	var req struct {
-		Name  string `json:"name"`
-		Email string `json:"email" validate:"email"`
-	}
+        id := c.Param("id")
+        var req struct {
+                Name  string `json:"name"`
+                Email string `json:"email" validate:"email"`
+        }
 
-	if err := BindAndValidate(c, &req); err != nil {
-		return err
-	}
+        if err := BindAndValidate(c, &req); err != nil {
+                return err
+        }
 
-	// 模拟更新用户
-	user := map[string]interface{}{
-		"id":    id,
-		"name":  req.Name,
-		"email": req.Email,
-	}
+        user := map[string]interface{}{
+                "id":    id,
+                "name":  req.Name,
+                "email": req.Email,
+        }
 
-	return c.JSON(http.StatusOK, resp.Success(user))
+        return resp.OneDataResponse(user, c)
 }
 
 // DeleteUser 删除用户
 func (r *ExampleRouter) DeleteUser(c echo.Context) error {
-	id := c.Param("id")
-	return c.JSON(http.StatusOK, resp.Success(map[string]string{
-		"message": "用户删除成功",
-		"id":      id,
-	}))
+        _ = c.Param("id")
+        return resp.OperateSuccess(c)
 }
 
 // GetSystemInfo 获取系统信息
 func (r *ExampleRouter) GetSystemInfo(c echo.Context) error {
-	info := map[string]interface{}{
-            "name":    "{{.DisplayName}}",
-		"version": "1.0.0",
-		"status":  "running",
-		"uptime":  "1h 30m",
-	}
-	return c.JSON(http.StatusOK, resp.Success(info))
+        info := map[string]interface{}{
+                "name":    "{{.DisplayName}}",
+                "version": "1.0.0",
+                "status":  "running",
+                "uptime":  "1h 30m",
+        }
+        return resp.OneDataResponse(info, c)
 }
 
 // GetVersion 获取版本信息
 func (r *ExampleRouter) GetVersion(c echo.Context) error {
-	version := map[string]string{
-		"version": "1.0.0",
-		"build":   "2024-01-01",
-		"commit":  "abc123",
-	}
-	return c.JSON(http.StatusOK, resp.Success(version))
+        version := map[string]string{
+                "version": "1.0.0",
+                "build":   "2024-01-01",
+                "commit":  "abc123",
+        }
+        return resp.OneDataResponse(version, c)
 }
 
 // ExampleRouterModule 示例路由模块
 var ExampleRouterModule = fx.Options(
-	fx.Provide(NewExampleRouter),
-	fx.Provide(fx.Annotate(
-		NewExampleRouter,
-		fx.As(new(RegisterRouter)),
-		fx.ResultTags(`group:"routes"`),
-	)),
+        fx.Provide(NewExampleRouter),
+        fx.Provide(fx.Annotate(
+                NewExampleRouter,
+                fx.As(new(RegisterRouter)),
+                fx.ResultTags(`group:"routes"`),
+        )),
 )
