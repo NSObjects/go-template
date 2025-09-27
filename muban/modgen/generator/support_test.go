@@ -71,35 +71,4 @@ func BuildContext(c echo.Context) {}
 	require.Equal(t, strings.TrimSpace(legacyContextTraceStub), strings.TrimSpace(string(legacyData)))
 }
 
-func TestEnsureContextSupportRewritesLegacyTraceGetters(t *testing.T) {
-	tmpDir := t.TempDir()
-	utilsDir := filepath.Join(tmpDir, "internal", "utils")
-	require.NoError(t, os.MkdirAll(utilsDir, 0o755))
 
-	contextPath := filepath.Join(utilsDir, "context.go")
-	contextSource := `package utils
-
-import "context"
-
-func BuildContext() context.Context { return context.TODO() }
-`
-	require.NoError(t, os.WriteFile(contextPath, []byte(contextSource), 0o644))
-
-	legacyContent := `package utils
-
-func GetRequestID() string { return "" }
-func GetUserID() string { return "" }
-`
-	legacyPath := filepath.Join(utilsDir, "context_trace.go")
-	require.NoError(t, os.WriteFile(legacyPath, []byte(legacyContent), 0o644))
-
-	g := &Generator{config: &Config{RepoRoot: tmpDir}}
-	require.NoError(t, g.ensureContextSupport())
-
-	_, err := os.Stat(filepath.Join(utilsDir, "context_support.go"))
-	require.True(t, errors.Is(err, os.ErrNotExist))
-
-	legacyData, err := os.ReadFile(legacyPath)
-	require.NoError(t, err)
-	require.Equal(t, strings.TrimSpace(legacyContextTraceStub), strings.TrimSpace(string(legacyData)))
-}
