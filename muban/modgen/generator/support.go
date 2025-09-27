@@ -27,11 +27,14 @@ func (g *Generator) ensureContextSupport() error {
 	if err != nil {
 		return fmt.Errorf("检查 utils 上下文支持函数失败: %w", err)
 	}
+	target := filepath.Join(utilsDir, "context_trace.go")
+
 	if has {
+		if err := removeLegacyContextSupport(target); err != nil {
+			return err
+		}
 		return nil
 	}
-
-	target := filepath.Join(utilsDir, "context_trace.go")
 	if _, err := os.Stat(target); err == nil {
 		return nil
 	}
@@ -133,6 +136,41 @@ func WithTraceInfo(ctx context.Context, traceID, spanID, requestID, userID strin
 `
 
 	modutils.MustWrite(target, content, false)
+	return nil
+}
+
+func removeLegacyContextSupport(target string) error {
+	data, err := os.ReadFile(target)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("读取遗留 context_trace.go 失败: %w", err)
+	}
+
+	content := string(data)
+	markers := []string{
+		"type TraceContext struct {",
+		"func ExtractTraceContext(c echo.Context) *TraceContext {",
+		"func BuildContext(c echo.Context) context.Context {",
+		"func GetTraceID(ctx context.Context) string {",
+		"func GetRequestID(ctx context.Context) string {",
+		"func GetUserID(ctx context.Context) string {",
+		"func GetStartTime(ctx context.Context) time.Time {",
+		"func WithTraceInfo(ctx context.Context, traceID, spanID, requestID, userID string) context.Context {",
+	}
+
+	for _, marker := range markers {
+		if !strings.Contains(content, marker) {
+			return nil
+		}
+	}
+
+	if err := os.Remove(target); err != nil {
+		return fmt.Errorf("移除遗留 context_trace.go 失败: %w", err)
+	}
+
+	fmt.Printf("移除冗余文件: %s\n", target)
 	return nil
 }
 
