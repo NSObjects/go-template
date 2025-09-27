@@ -7,164 +7,145 @@
 package resp
 
 import (
-	"net/http"
-	"reflect"
-	"time"
+        "net/http"
+        "reflect"
+        "time"
 
-	"log/slog"
+        "log/slog"
 
-	"{{.ModulePath}}/internal/code"
-	"{{.ModulePath}}/internal/log"
-	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
-	"github.com/marmotedu/errors"
+        "{{.ModulePath}}/internal/code"
+        "{{.ModulePath}}/internal/log"
+        "github.com/google/uuid"
+        "github.com/labstack/echo/v4"
+        "github.com/marmotedu/errors"
 )
 
 type ListResponse struct {
-	Code int      `json:"code"`
-	Msg  string   `json:"msg"`
-	Data ListData `json:"data"`
+        Code int      `json:"code"`
+        Msg  string   `json:"msg"`
+        Data ListData `json:"data"`
 }
 
 type ListData struct {
-	Total int64       `json:"total"`
-	List  interface{} `json:"list" `
+        Total int64       `json:"total"`
+        List  interface{} `json:"list" `
 }
 
 type DataResponse struct {
-	Code int         `json:"code"`
-	Msg  string      `json:"msg"`
-	Data interface{} `json:"data"`
+        Code int         `json:"code"`
+        Msg  string      `json:"msg"`
+        Data interface{} `json:"data"`
 }
 
 // ErrorResponse 统一错误响应结构
 type ErrorResponse struct {
-	Code      int    `json:"code"`       // 业务错误码
-	Message   string `json:"message"`    // 错误消息
-	RequestID string `json:"request_id"` // 请求ID（用于追踪）
-	Timestamp int64  `json:"timestamp"`  // 错误发生时间戳
+        Code      int    `json:"code"`       // 业务错误码
+        Message   string `json:"message"`    // 错误消息
+        RequestID string `json:"request_id"` // 请求ID（用于追踪）
+        Timestamp int64  `json:"timestamp"`  // 错误发生时间戳
 }
 
 // APIError 返回API错误
 func APIError(err error, c echo.Context) error {
-	if err == nil {
-		return errors.New("error can't be nil")
-	}
+        if err == nil {
+                return errors.New("error can't be nil")
+        }
 
-	// 解析错误码
-	codeError := errors.ParseCoder(err)
-	if codeError == nil {
-		err = code.WrapInternalServerError(err, "internal server error")
-		codeError = errors.ParseCoder(err)
-	}
-	if codeError == nil {
-		err = errors.WithCode(code.ErrInternalServer, "%s", "internal server error")
-		codeError = errors.ParseCoder(err)
-	}
-	errorCode := codeError.Code()
+        codeError := errors.ParseCoder(err)
+        if codeError == nil {
+                err = code.WrapInternalServerError(err, "internal server error")
+                codeError = errors.ParseCoder(err)
+        }
+        if codeError == nil {
+                err = errors.WithCode(code.ErrInternalServer, "%s", "internal server error")
+                codeError = errors.ParseCoder(err)
+        }
+        errorCode := codeError.Code()
 
-	// 获取HTTP状态码（只支持200,400,401,403,404,500）
-	httpStatus := code.HTTPStatus(errorCode)
+        httpStatus := code.HTTPStatus(errorCode)
 
-	// 构建错误响应
-	rjson := ErrorResponse{
-		Code:      errorCode,
-		Message:   codeError.String(),
-		RequestID: getRequestID(c),
-		Timestamp: time.Now().Unix(),
-	}
+        rjson := ErrorResponse{
+                Code:      errorCode,
+                Message:   codeError.String(),
+                RequestID: getRequestID(c),
+                Timestamp: time.Now().Unix(),
+        }
 
-	// 统一记录错误日志（所有错误都打印到日志）
-	logError(err, errorCode, codeError.String(), rjson.RequestID, c)
+        logError(err, errorCode, codeError.String(), rjson.RequestID, c)
 
-	// 返回对应的HTTP状态码
-	return c.JSON(httpStatus, rjson)
+        return c.JSON(httpStatus, rjson)
 }
 
 // logError 统一错误日志记录
 func logError(err error, errorCode int, message, requestID string, c echo.Context) {
-	// 构建基础日志字段
-	fields := []slog.Attr{
-		slog.Int("code", errorCode),
-		slog.String("message", message),
-		slog.String("request_id", requestID),
-		slog.String("method", c.Request().Method),
-		slog.String("uri", c.Request().RequestURI),
-		slog.String("user_agent", c.Request().UserAgent()),
-		slog.String("error", err.Error()),
-	}
+        fields := []slog.Attr{
+                slog.Int("code", errorCode),
+                slog.String("message", message),
+                slog.String("request_id", requestID),
+                slog.String("method", c.Request().Method),
+                slog.String("uri", c.Request().RequestURI),
+                slog.String("user_agent", c.Request().UserAgent()),
+                slog.String("error", err.Error()),
+        }
 
-	// 根据错误类型选择日志级别
-	if code.IsInternalError(errorCode) {
-		// 内部错误：记录详细日志
-		log.Error("Internal Error", fields...)
-	} else {
-		// 业务错误：记录警告日志
-		log.Warn("Business Error", fields...)
-	}
+        if code.IsInternalError(errorCode) {
+                log.Error("Internal Error", fields...)
+        } else {
+                log.Warn("Business Error", fields...)
+        }
 }
 
-// getRequestID 获取请求ID
+func OperateSuccess(c echo.Context) error {
+        var rjson struct {
+                Code int    `json:"code"`
+                Msg  string `json:"msg"`
+        }
+
+        rjson.Msg = "success"
+
+        return c.JSON(http.StatusOK, rjson)
+}
+
+func ListDataResponse(arr interface{}, total int64, c echo.Context) error {
+        if arr == nil {
+                arr = make([]interface{}, 0)
+        } else if reflect.ValueOf(arr).IsNil() {
+                arr = make([]interface{}, 0)
+        }
+
+        r := ListResponse{
+                Data: ListData{
+                        List:  arr,
+                        Total: total,
+                },
+        }
+
+        return c.JSONPretty(http.StatusOK, r, "  ")
+}
+
+func OneDataResponse(data interface{}, c echo.Context) error {
+        r := DataResponse{
+                Data: data,
+        }
+
+        return c.JSON(http.StatusOK, r)
+}
+
+// getRequestID 获取请求ID，用于错误追踪
 func getRequestID(c echo.Context) string {
-	requestID := c.Request().Header.Get("X-Request-ID")
-	if requestID == "" {
-		requestID = uuid.New().String()
-	}
-	return requestID
+        if requestID := c.Request().Header.Get("X-Request-ID"); requestID != "" {
+                return requestID
+        }
+
+        if requestID := c.Response().Header().Get("X-Request-ID"); requestID != "" {
+                return requestID
+        }
+
+        requestID := generateRequestID()
+        c.Response().Header().Set("X-Request-ID", requestID)
+        return requestID
 }
 
-// Success 成功响应
-func Success(data interface{}) *DataResponse {
-	return &DataResponse{
-		Code: 200,
-		Msg:  "success",
-		Data: data,
-	}
-}
-
-// ListDataResponse 列表数据响应
-func ListDataResponse(list interface{}, total int64, c echo.Context) error {
-	return c.JSON(http.StatusOK, ListResponse{
-		Code: 200,
-		Msg:  "success",
-		Data: ListData{
-			Total: total,
-			List:  list,
-		},
-	})
-}
-
-// Error 错误响应
-func Error(code int, message string) *DataResponse {
-	return &DataResponse{
-		Code: code,
-		Msg:  message,
-	}
-}
-
-// JSON 返回JSON响应
-func JSON(c echo.Context, statusCode int, response interface{}) error {
-	return c.JSON(statusCode, response)
-}
-
-// SuccessJSON 成功JSON响应
-func SuccessJSON(c echo.Context, data interface{}) error {
-	return c.JSON(http.StatusOK, Success(data))
-}
-
-// ErrorJSON 错误JSON响应
-func ErrorJSON(c echo.Context, statusCode int, message string) error {
-	return c.JSON(statusCode, Error(statusCode, message))
-}
-
-// IsNil 检查值是否为nil
-func IsNil(i interface{}) bool {
-	if i == nil {
-		return true
-	}
-	switch reflect.TypeOf(i).Kind() {
-	case reflect.Ptr, reflect.Map, reflect.Array, reflect.Chan, reflect.Slice:
-		return reflect.ValueOf(i).IsNil()
-	}
-	return false
+func generateRequestID() string {
+        return uuid.NewString()
 }
