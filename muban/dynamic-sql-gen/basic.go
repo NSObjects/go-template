@@ -3,7 +3,7 @@ package dynamicsql
 import (
 	"fmt"
 	"strings"
-	"time"
+	"sync/atomic"
 	"unicode"
 
 	"github.com/NSObjects/go-template/internal/configs"
@@ -14,119 +14,32 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-// 通用查询接口 - 适用于所有模型的基础CRUD操作
-type ICommonQuery interface {
-	// GetByID
-	// SELECT * FROM @@table WHERE id = @id
-	GetByID(id uint) (gen.T, error)
+// InterfaceBinder controls how query interfaces are attached to generated models.
+type InterfaceBinder func(*gen.Generator, []interface{})
 
-	// GetByIDs
-	// SELECT * FROM @@table WHERE id IN @ids
-	GetByIDs(ids []uint) ([]gen.T, error)
+var interfaceBinder atomic.Value
 
-	// CountRecords
-	// SELECT COUNT(*) FROM @@table
-	CountRecords() (int64, error)
-
-	// Exists
-	// SELECT 1 FROM @@table WHERE id = @id LIMIT 1
-	Exists(id uint) (bool, error)
-
-	// DeleteByID
-	// DELETE FROM @@table WHERE id = @id
-	DeleteByID(id uint) error
-
-	// DeleteByIDs
-	// DELETE FROM @@table WHERE id IN @ids
-	DeleteByIDs(ids []uint) error
+func init() {
+	interfaceBinder.Store(InterfaceBinder(defaultInterfaceBinder))
 }
 
-// 分页查询接口 - 适用于需要分页的模型
-type IPaginationQuery interface {
-	// GetPage
-	// SELECT * FROM @@table ORDER BY @orderBy LIMIT @limit OFFSET @offset
-	GetPage(offset, limit int, orderBy string) ([]gen.T, error)
-
-	// GetPageWithCondition
-	// SELECT * FROM @@table WHERE @condition ORDER BY @orderBy LIMIT @limit OFFSET @offset
-	GetPageWithCondition(condition string, offset, limit int, orderBy string) ([]gen.T, error)
+// SetInterfaceBinder overrides the default interface binding behavior used during
+// dynamic SQL generation. Passing nil resets the default behavior which only
+// registers basic CRUD methods.
+func SetInterfaceBinder(binder InterfaceBinder) {
+	if binder == nil {
+		interfaceBinder.Store(InterfaceBinder(defaultInterfaceBinder))
+		return
+	}
+	interfaceBinder.Store(binder)
 }
 
-// 搜索查询接口 - 适用于需要搜索功能的模型
-type ISearchQuery interface {
-	// Search
-	// SELECT * FROM @@table WHERE @field LIKE @keyword
-	Search(field, keyword string) ([]gen.T, error)
+func defaultInterfaceBinder(g *gen.Generator, models []interface{}) {
+	if g == nil || len(models) == 0 {
+		return
+	}
 
-	// SearchMultiple
-	// SELECT * FROM @@table WHERE @field1 LIKE @keyword OR @field2 LIKE @keyword
-	SearchMultiple(field1, field2, keyword string) ([]gen.T, error)
-}
-
-// 状态查询接口 - 适用于有状态字段的模型
-type IStatusQuery interface {
-	// GetByStatus
-	// SELECT * FROM @@table WHERE status = @status
-	GetByStatus(status int) ([]gen.T, error)
-
-	// UpdateStatus
-	// UPDATE @@table SET status = @status WHERE id = @id
-	UpdateStatus(id uint, status int) error
-
-	// GetActive
-	// SELECT * FROM @@table WHERE status = 1
-	GetActive() ([]gen.T, error)
-
-	// GetInactive
-	// SELECT * FROM @@table WHERE status = 0
-	GetInactive() ([]gen.T, error)
-}
-
-// 高级查询接口 - 支持模板表达式
-type IAdvancedQuery interface {
-	// FilterWithCondition - 使用where模板表达式
-	// SELECT * FROM @@table
-	// {{where}}
-	//   {{if condition != ""}}
-	//     @condition
-	//   {{end}}
-	// {{end}}
-	FilterWithCondition(condition string) ([]gen.T, error)
-
-	// FilterWithTime - 使用if/else模板表达式
-	// SELECT * FROM @@table
-	// {{if !start.IsZero()}}
-	//   WHERE created_at > @start
-	// {{end}}
-	// {{if !end.IsZero()}}
-	//   AND created_at < @end
-	// {{end}}
-	FilterWithTime(start, end time.Time) ([]gen.T, error)
-
-	// UpdateWithSet - 使用set模板表达式
-	// UPDATE @@table
-	// {{set}}
-	//   {{if name != ""}} name=@name, {{end}}
-	//   {{if age > 0}} age=@age, {{end}}
-	//   updated_at=NOW()
-	// {{end}}
-	// WHERE id=@id
-	UpdateWithSet(name string, age int, id uint) error
-}
-
-// 业务特定查询接口 - 适用于特定业务场景
-type IBusinessQuery interface {
-	// GetByField - 通用字段查询
-	// SELECT * FROM @@table WHERE @@field = @value
-	GetByField(field, value string) (gen.T, error)
-
-	// GetByFields - 多字段查询
-	// SELECT * FROM @@table WHERE @@field1 = @value1 AND @@field2 = @value2
-	GetByFields(field1, value1, field2, value2 string) ([]gen.T, error)
-
-	// BatchUpdate - 批量更新
-	// UPDATE @@table SET @@field = @value WHERE id IN @ids
-	BatchUpdate(field, value string, ids []uint) error
+	g.ApplyBasic(models...)
 }
 
 type Options struct {
@@ -210,7 +123,8 @@ func Run(opts Options) error {
 		return fmt.Errorf("no models generated, please verify database schema and table filters")
 	}
 
-	applyQueryInterfaces(generator, models)
+	binder := interfaceBinder.Load().(InterfaceBinder)
+	binder(generator, models)
 
 	if err := executeGenerator(generator); err != nil {
 		return err
@@ -246,27 +160,6 @@ func buildGenerator(opts Options) (*gen.Generator, error) {
 	generator := gen.NewGenerator(cfg)
 
 	return generator, nil
-}
-
-func applyQueryInterfaces(g *gen.Generator, models []interface{}) {
-	if len(models) == 0 {
-		return
-	}
-
-	g.ApplyBasic(models...)
-
-	interfaces := []interface{}{
-		func(ICommonQuery) {},
-		func(IPaginationQuery) {},
-		func(ISearchQuery) {},
-		func(IStatusQuery) {},
-		func(IAdvancedQuery) {},
-		func(IBusinessQuery) {},
-	}
-
-	for _, iface := range interfaces {
-		g.ApplyInterface(iface, models...)
-	}
 }
 
 func getTargetModels(g *gen.Generator, tableOpt string) ([]interface{}, error) {
