@@ -432,13 +432,13 @@ func (c casbinRuleDo) GetInactive() (result []model.CasbinRule, err error) {
 
 // FilterWithCondition - 使用where模板表达式
 // SELECT * FROM @@table
-// {{where}}
+// {{"{{"}}where{{"}}"}}
 //
-//	{{if condition != ""}}
+//	{{"{{"}}if condition != ""{{"}}"}}
 //	  @condition
-//	{{end}}
+//	{{"{{"}}end{{"}}"}}
 //
-// {{end}}
+// {{"{{"}}end{{"}}"}}
 func (c casbinRuleDo) FilterWithCondition(condition string) (result []model.CasbinRule, err error) {
 	var params []interface{}
 
@@ -460,16 +460,16 @@ func (c casbinRuleDo) FilterWithCondition(condition string) (result []model.Casb
 
 // FilterWithTime - 使用if/else模板表达式
 // SELECT * FROM @@table
-// {{if !start.IsZero()}}
+// {{"{{"}}if !start.IsZero(){{"}}"}}
 //
 //	WHERE created_at > @start
 //
-// {{end}}
-// {{if !end.IsZero()}}
+// {{"{{"}}end{{"}}"}}
+// {{"{{"}}if !end.IsZero(){{"}}"}}
 //
 //	AND created_at < @end
 //
-// {{end}}
+// {{"{{"}}end{{"}}"}}
 func (c casbinRuleDo) FilterWithTime(start time.Time, end time.Time) (result []model.CasbinRule, err error) {
 	var params []interface{}
 
@@ -493,13 +493,13 @@ func (c casbinRuleDo) FilterWithTime(start time.Time, end time.Time) (result []m
 
 // UpdateWithSet - 使用set模板表达式
 // UPDATE @@table
-// {{set}}
+// {{"{{"}}set{{"}}"}}
 //
-//	{{if name != ""}} name=@name, {{end}}
-//	{{if age > 0}} age=@age, {{end}}
+//	{{"{{"}}if name != ""{{"}}"}} name=@name, {{"{{"}}end{{"}}"}}
+//	{{"{{"}}if age > 0{{"}}"}} age=@age, {{"{{"}}end{{"}}"}}
 //	updated_at=NOW()
 //
-// {{end}}
+// {{"{{"}}end{{"}}"}}
 // WHERE id=@id
 func (c casbinRuleDo) UpdateWithSet(name string, age int, id uint) (err error) {
 	var params []interface{}
