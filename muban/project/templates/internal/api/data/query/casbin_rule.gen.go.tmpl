@@ -6,6 +6,8 @@ package query
 
 import (
 	"context"
+	"database/sql"
+	"strings"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -13,10 +15,13 @@ import (
 
 	"gorm.io/gen"
 	"gorm.io/gen/field"
+	"gorm.io/gen/helper"
 
 	"gorm.io/plugin/dbresolver"
 
 	"{{.ModulePath}}/internal/api/data/model"
+
+	"time"
 )
 
 func newCasbinRule(db *gorm.DB, opts ...gen.DOOption) casbinRule {
@@ -27,7 +32,7 @@ func newCasbinRule(db *gorm.DB, opts ...gen.DOOption) casbinRule {
 
 	tableName := _casbinRule.casbinRuleDo.TableName()
 	_casbinRule.ALL = field.NewAsterisk(tableName)
-	_casbinRule.ID = field.NewUint64(tableName, "id")
+	_casbinRule.ID = field.NewInt64(tableName, "id")
 	_casbinRule.Ptype = field.NewString(tableName, "ptype")
 	_casbinRule.V0 = field.NewString(tableName, "v0")
 	_casbinRule.V1 = field.NewString(tableName, "v1")
@@ -35,8 +40,6 @@ func newCasbinRule(db *gorm.DB, opts ...gen.DOOption) casbinRule {
 	_casbinRule.V3 = field.NewString(tableName, "v3")
 	_casbinRule.V4 = field.NewString(tableName, "v4")
 	_casbinRule.V5 = field.NewString(tableName, "v5")
-	_casbinRule.V6 = field.NewString(tableName, "v6")
-	_casbinRule.V7 = field.NewString(tableName, "v7")
 
 	_casbinRule.fillFieldMap()
 
@@ -44,10 +47,10 @@ func newCasbinRule(db *gorm.DB, opts ...gen.DOOption) casbinRule {
 }
 
 type casbinRule struct {
-	casbinRuleDo casbinRuleDo
+	casbinRuleDo
 
 	ALL   field.Asterisk
-	ID    field.Uint64
+	ID    field.Int64
 	Ptype field.String
 	V0    field.String
 	V1    field.String
@@ -55,8 +58,6 @@ type casbinRule struct {
 	V3    field.String
 	V4    field.String
 	V5    field.String
-	V6    field.String
-	V7    field.String
 
 	fieldMap map[string]field.Expr
 }
@@ -73,7 +74,7 @@ func (c casbinRule) As(alias string) *casbinRule {
 
 func (c *casbinRule) updateTableName(table string) *casbinRule {
 	c.ALL = field.NewAsterisk(table)
-	c.ID = field.NewUint64(table, "id")
+	c.ID = field.NewInt64(table, "id")
 	c.Ptype = field.NewString(table, "ptype")
 	c.V0 = field.NewString(table, "v0")
 	c.V1 = field.NewString(table, "v1")
@@ -81,36 +82,23 @@ func (c *casbinRule) updateTableName(table string) *casbinRule {
 	c.V3 = field.NewString(table, "v3")
 	c.V4 = field.NewString(table, "v4")
 	c.V5 = field.NewString(table, "v5")
-	c.V6 = field.NewString(table, "v6")
-	c.V7 = field.NewString(table, "v7")
 
 	c.fillFieldMap()
 
 	return c
 }
 
-func (c *casbinRule) WithContext(ctx context.Context) *casbinRuleDo { return c.casbinRuleDo.WithContext(ctx) }
-
-func (c casbinRule) TableName() string { return c.casbinRuleDo.TableName() }
-
-func (c casbinRule) Alias() string { return c.casbinRuleDo.Alias() }
-
-func (c casbinRule) Columns(cols ...field.Expr) gen.Columns { return c.casbinRuleDo.Columns(cols...) }
-
 func (c *casbinRule) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 	_f, ok := c.fieldMap[fieldName]
-	if !ok {
+	if !ok || _f == nil {
 		return nil, false
 	}
-	// 类型断言，确保返回的是 OrderExpr 类型
-	if orderExpr, ok := _f.(field.OrderExpr); ok {
-		return orderExpr, true
-	}
-	return nil, false
+	_oe, ok := _f.(field.OrderExpr)
+	return _oe, ok
 }
 
 func (c *casbinRule) fillFieldMap() {
-	c.fieldMap = make(map[string]field.Expr, 11)
+	c.fieldMap = make(map[string]field.Expr, 8)
 	c.fieldMap["id"] = c.ID
 	c.fieldMap["ptype"] = c.Ptype
 	c.fieldMap["v0"] = c.V0
@@ -119,8 +107,6 @@ func (c *casbinRule) fillFieldMap() {
 	c.fieldMap["v3"] = c.V3
 	c.fieldMap["v4"] = c.V4
 	c.fieldMap["v5"] = c.V5
-	c.fieldMap["v6"] = c.V6
-	c.fieldMap["v7"] = c.V7
 }
 
 func (c casbinRule) clone(db *gorm.DB) casbinRule {
@@ -135,95 +121,551 @@ func (c casbinRule) replaceDB(db *gorm.DB) casbinRule {
 
 type casbinRuleDo struct{ gen.DO }
 
-func (c casbinRuleDo) Debug() *casbinRuleDo {
+type ICasbinRuleDo interface {
+	gen.SubQuery
+	Debug() ICasbinRuleDo
+	WithContext(ctx context.Context) ICasbinRuleDo
+	WithResult(fc func(tx gen.Dao)) gen.ResultInfo
+	ReplaceDB(db *gorm.DB)
+	ReadDB() ICasbinRuleDo
+	WriteDB() ICasbinRuleDo
+	As(alias string) gen.Dao
+	Session(config *gorm.Session) ICasbinRuleDo
+	Columns(cols ...field.Expr) gen.Columns
+	Clauses(conds ...clause.Expression) ICasbinRuleDo
+	Not(conds ...gen.Condition) ICasbinRuleDo
+	Or(conds ...gen.Condition) ICasbinRuleDo
+	Select(conds ...field.Expr) ICasbinRuleDo
+	Where(conds ...gen.Condition) ICasbinRuleDo
+	Order(conds ...field.Expr) ICasbinRuleDo
+	Distinct(cols ...field.Expr) ICasbinRuleDo
+	Omit(cols ...field.Expr) ICasbinRuleDo
+	Join(table schema.Tabler, on ...field.Expr) ICasbinRuleDo
+	LeftJoin(table schema.Tabler, on ...field.Expr) ICasbinRuleDo
+	RightJoin(table schema.Tabler, on ...field.Expr) ICasbinRuleDo
+	Group(cols ...field.Expr) ICasbinRuleDo
+	Having(conds ...gen.Condition) ICasbinRuleDo
+	Limit(limit int) ICasbinRuleDo
+	Offset(offset int) ICasbinRuleDo
+	Count() (count int64, err error)
+	Scopes(funcs ...func(gen.Dao) gen.Dao) ICasbinRuleDo
+	Unscoped() ICasbinRuleDo
+	Create(values ...*model.CasbinRule) error
+	CreateInBatches(values []*model.CasbinRule, batchSize int) error
+	Save(values ...*model.CasbinRule) error
+	First() (*model.CasbinRule, error)
+	Take() (*model.CasbinRule, error)
+	Last() (*model.CasbinRule, error)
+	Find() ([]*model.CasbinRule, error)
+	FindInBatch(batchSize int, fc func(tx gen.Dao, batch int) error) (results []*model.CasbinRule, err error)
+	FindInBatches(result *[]*model.CasbinRule, batchSize int, fc func(tx gen.Dao, batch int) error) error
+	Pluck(column field.Expr, dest interface{}) error
+	Delete(...*model.CasbinRule) (info gen.ResultInfo, err error)
+	Update(column field.Expr, value interface{}) (info gen.ResultInfo, err error)
+	UpdateSimple(columns ...field.AssignExpr) (info gen.ResultInfo, err error)
+	Updates(value interface{}) (info gen.ResultInfo, err error)
+	UpdateColumn(column field.Expr, value interface{}) (info gen.ResultInfo, err error)
+	UpdateColumnSimple(columns ...field.AssignExpr) (info gen.ResultInfo, err error)
+	UpdateColumns(value interface{}) (info gen.ResultInfo, err error)
+	UpdateFrom(q gen.SubQuery) gen.Dao
+	Attrs(attrs ...field.AssignExpr) ICasbinRuleDo
+	Assign(attrs ...field.AssignExpr) ICasbinRuleDo
+	Joins(fields ...field.RelationField) ICasbinRuleDo
+	Preload(fields ...field.RelationField) ICasbinRuleDo
+	FirstOrInit() (*model.CasbinRule, error)
+	FirstOrCreate() (*model.CasbinRule, error)
+	FindByPage(offset int, limit int) (result []*model.CasbinRule, count int64, err error)
+	ScanByPage(result interface{}, offset int, limit int) (count int64, err error)
+	Rows() (*sql.Rows, error)
+	Row() *sql.Row
+	Scan(result interface{}) (err error)
+	Returning(value interface{}, columns ...string) ICasbinRuleDo
+	UnderlyingDB() *gorm.DB
+	schema.Tabler
+
+	GetByID(id uint) (result model.CasbinRule, err error)
+	GetByIDs(ids []uint) (result []model.CasbinRule, err error)
+	CountRecords() (result int64, err error)
+	Exists(id uint) (result bool, err error)
+	DeleteByID(id uint) (err error)
+	DeleteByIDs(ids []uint) (err error)
+	GetPage(offset int, limit int, orderBy string) (result []model.CasbinRule, err error)
+	GetPageWithCondition(condition string, offset int, limit int, orderBy string) (result []model.CasbinRule, err error)
+	Search(field string, keyword string) (result []model.CasbinRule, err error)
+	SearchMultiple(field1 string, field2 string, keyword string) (result []model.CasbinRule, err error)
+	GetByStatus(status int) (result []model.CasbinRule, err error)
+	UpdateStatus(id uint, status int) (err error)
+	GetActive() (result []model.CasbinRule, err error)
+	GetInactive() (result []model.CasbinRule, err error)
+	FilterWithCondition(condition string) (result []model.CasbinRule, err error)
+	FilterWithTime(start time.Time, end time.Time) (result []model.CasbinRule, err error)
+	UpdateWithSet(name string, age int, id uint) (err error)
+	GetByField(field string, value string) (result model.CasbinRule, err error)
+	GetByFields(field1 string, value1 string, field2 string, value2 string) (result []model.CasbinRule, err error)
+	BatchUpdate(field string, value string, ids []uint) (err error)
+}
+
+// GetByID
+// SELECT * FROM @@table WHERE id = @id
+func (c casbinRuleDo) GetByID(id uint) (result model.CasbinRule, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, id)
+	generateSQL.WriteString("SELECT * FROM casbin_rule WHERE id = ? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String(), params...).Take(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// GetByIDs
+// SELECT * FROM @@table WHERE id IN @ids
+func (c casbinRuleDo) GetByIDs(ids []uint) (result []model.CasbinRule, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, ids)
+	generateSQL.WriteString("SELECT * FROM casbin_rule WHERE id IN ? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// CountRecords
+// SELECT COUNT(*) FROM @@table
+func (c casbinRuleDo) CountRecords() (result int64, err error) {
+	var generateSQL strings.Builder
+	generateSQL.WriteString("SELECT COUNT(*) FROM casbin_rule ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String()).Take(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// Exists
+// SELECT 1 FROM @@table WHERE id = @id LIMIT 1
+func (c casbinRuleDo) Exists(id uint) (result bool, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, id)
+	generateSQL.WriteString("SELECT 1 FROM casbin_rule WHERE id = ? LIMIT 1 ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String(), params...).Take(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// DeleteByID
+// DELETE FROM @@table WHERE id = @id
+func (c casbinRuleDo) DeleteByID(id uint) (err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, id)
+	generateSQL.WriteString("DELETE FROM casbin_rule WHERE id = ? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Exec(generateSQL.String(), params...) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// DeleteByIDs
+// DELETE FROM @@table WHERE id IN @ids
+func (c casbinRuleDo) DeleteByIDs(ids []uint) (err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, ids)
+	generateSQL.WriteString("DELETE FROM casbin_rule WHERE id IN ? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Exec(generateSQL.String(), params...) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// GetPage
+// SELECT * FROM @@table ORDER BY @orderBy LIMIT @limit OFFSET @offset
+func (c casbinRuleDo) GetPage(offset int, limit int, orderBy string) (result []model.CasbinRule, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, orderBy)
+	params = append(params, limit)
+	params = append(params, offset)
+	generateSQL.WriteString("SELECT * FROM casbin_rule ORDER BY ? LIMIT ? OFFSET ? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// GetPageWithCondition
+// SELECT * FROM @@table WHERE @condition ORDER BY @orderBy LIMIT @limit OFFSET @offset
+func (c casbinRuleDo) GetPageWithCondition(condition string, offset int, limit int, orderBy string) (result []model.CasbinRule, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, condition)
+	params = append(params, orderBy)
+	params = append(params, limit)
+	params = append(params, offset)
+	generateSQL.WriteString("SELECT * FROM casbin_rule WHERE ? ORDER BY ? LIMIT ? OFFSET ? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// Search
+// SELECT * FROM @@table WHERE @field LIKE @keyword
+func (c casbinRuleDo) Search(field string, keyword string) (result []model.CasbinRule, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, field)
+	params = append(params, keyword)
+	generateSQL.WriteString("SELECT * FROM casbin_rule WHERE ? LIKE ? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// SearchMultiple
+// SELECT * FROM @@table WHERE @field1 LIKE @keyword OR @field2 LIKE @keyword
+func (c casbinRuleDo) SearchMultiple(field1 string, field2 string, keyword string) (result []model.CasbinRule, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, field1)
+	params = append(params, keyword)
+	params = append(params, field2)
+	params = append(params, keyword)
+	generateSQL.WriteString("SELECT * FROM casbin_rule WHERE ? LIKE ? OR ? LIKE ? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// GetByStatus
+// SELECT * FROM @@table WHERE status = @status
+func (c casbinRuleDo) GetByStatus(status int) (result []model.CasbinRule, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, status)
+	generateSQL.WriteString("SELECT * FROM casbin_rule WHERE status = ? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// UpdateStatus
+// UPDATE @@table SET status = @status WHERE id = @id
+func (c casbinRuleDo) UpdateStatus(id uint, status int) (err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, status)
+	params = append(params, id)
+	generateSQL.WriteString("UPDATE casbin_rule SET status = ? WHERE id = ? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Exec(generateSQL.String(), params...) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// GetActive
+// SELECT * FROM @@table WHERE status = 1
+func (c casbinRuleDo) GetActive() (result []model.CasbinRule, err error) {
+	var generateSQL strings.Builder
+	generateSQL.WriteString("SELECT * FROM casbin_rule WHERE status = 1 ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String()).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// GetInactive
+// SELECT * FROM @@table WHERE status = 0
+func (c casbinRuleDo) GetInactive() (result []model.CasbinRule, err error) {
+	var generateSQL strings.Builder
+	generateSQL.WriteString("SELECT * FROM casbin_rule WHERE status = 0 ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String()).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// FilterWithCondition - 使用where模板表达式
+// SELECT * FROM @@table
+// {{where}}
+//
+//	{{if condition != ""}}
+//	  @condition
+//	{{end}}
+//
+// {{end}}
+func (c casbinRuleDo) FilterWithCondition(condition string) (result []model.CasbinRule, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	generateSQL.WriteString("- 使用where模板表达式 SELECT * FROM casbin_rule ")
+	var whereSQL0 strings.Builder
+	if condition != "" {
+		params = append(params, condition)
+		whereSQL0.WriteString("? ")
+	}
+	helper.JoinWhereBuilder(&generateSQL, whereSQL0)
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// FilterWithTime - 使用if/else模板表达式
+// SELECT * FROM @@table
+// {{if !start.IsZero()}}
+//
+//	WHERE created_at > @start
+//
+// {{end}}
+// {{if !end.IsZero()}}
+//
+//	AND created_at < @end
+//
+// {{end}}
+func (c casbinRuleDo) FilterWithTime(start time.Time, end time.Time) (result []model.CasbinRule, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	generateSQL.WriteString("- 使用if/else模板表达式 SELECT * FROM casbin_rule ")
+	if !start.IsZero() {
+		params = append(params, start)
+		generateSQL.WriteString("WHERE created_at > ? ")
+	}
+	if !end.IsZero() {
+		params = append(params, end)
+		generateSQL.WriteString("AND created_at < ? ")
+	}
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// UpdateWithSet - 使用set模板表达式
+// UPDATE @@table
+// {{set}}
+//
+//	{{if name != ""}} name=@name, {{end}}
+//	{{if age > 0}} age=@age, {{end}}
+//	updated_at=NOW()
+//
+// {{end}}
+// WHERE id=@id
+func (c casbinRuleDo) UpdateWithSet(name string, age int, id uint) (err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	generateSQL.WriteString("- 使用set模板表达式 UPDATE casbin_rule ")
+	var setSQL0 strings.Builder
+	if name != "" {
+		params = append(params, name)
+		setSQL0.WriteString("name=?, ")
+	}
+	if age > 0 {
+		params = append(params, age)
+		setSQL0.WriteString("age=?, ")
+	}
+	setSQL0.WriteString("updated_at=NOW() ")
+	helper.JoinSetBuilder(&generateSQL, setSQL0)
+	params = append(params, id)
+	generateSQL.WriteString("WHERE id=? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Exec(generateSQL.String(), params...) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// GetByField - 通用字段查询
+// SELECT * FROM @@table WHERE @@field = @value
+func (c casbinRuleDo) GetByField(field string, value string) (result model.CasbinRule, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, value)
+	generateSQL.WriteString("- 通用字段查询 SELECT * FROM casbin_rule WHERE " + c.Quote(field) + " = ? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String(), params...).Take(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// GetByFields - 多字段查询
+// SELECT * FROM @@table WHERE @@field1 = @value1 AND @@field2 = @value2
+func (c casbinRuleDo) GetByFields(field1 string, value1 string, field2 string, value2 string) (result []model.CasbinRule, err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, value1)
+	params = append(params, value2)
+	generateSQL.WriteString("- 多字段查询 SELECT * FROM casbin_rule WHERE " + c.Quote(field1) + " = ? AND " + c.Quote(field2) + " = ? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Raw(generateSQL.String(), params...).Find(&result) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+// BatchUpdate - 批量更新
+// UPDATE @@table SET @@field = @value WHERE id IN @ids
+func (c casbinRuleDo) BatchUpdate(field string, value string, ids []uint) (err error) {
+	var params []interface{}
+
+	var generateSQL strings.Builder
+	params = append(params, value)
+	params = append(params, ids)
+	generateSQL.WriteString("- 批量更新 UPDATE casbin_rule SET " + c.Quote(field) + " = ? WHERE id IN ? ")
+
+	var executeSQL *gorm.DB
+	executeSQL = c.UnderlyingDB().Exec(generateSQL.String(), params...) // ignore_security_alert
+	err = executeSQL.Error
+
+	return
+}
+
+func (c casbinRuleDo) Debug() ICasbinRuleDo {
 	return c.withDO(c.DO.Debug())
 }
 
-func (c casbinRuleDo) WithContext(ctx context.Context) *casbinRuleDo {
+func (c casbinRuleDo) WithContext(ctx context.Context) ICasbinRuleDo {
 	return c.withDO(c.DO.WithContext(ctx))
 }
 
-func (c casbinRuleDo) ReadDB() *casbinRuleDo {
+func (c casbinRuleDo) ReadDB() ICasbinRuleDo {
 	return c.Clauses(dbresolver.Read)
 }
 
-func (c casbinRuleDo) WriteDB() *casbinRuleDo {
+func (c casbinRuleDo) WriteDB() ICasbinRuleDo {
 	return c.Clauses(dbresolver.Write)
 }
 
-func (c casbinRuleDo) Session(config *gorm.Session) *casbinRuleDo {
+func (c casbinRuleDo) Session(config *gorm.Session) ICasbinRuleDo {
 	return c.withDO(c.DO.Session(config))
 }
 
-func (c casbinRuleDo) Clauses(conds ...clause.Expression) *casbinRuleDo {
+func (c casbinRuleDo) Clauses(conds ...clause.Expression) ICasbinRuleDo {
 	return c.withDO(c.DO.Clauses(conds...))
 }
 
-func (c casbinRuleDo) Returning(value interface{}, columns ...string) *casbinRuleDo {
+func (c casbinRuleDo) Returning(value interface{}, columns ...string) ICasbinRuleDo {
 	return c.withDO(c.DO.Returning(value, columns...))
 }
 
-func (c casbinRuleDo) Not(conds ...gen.Condition) *casbinRuleDo {
+func (c casbinRuleDo) Not(conds ...gen.Condition) ICasbinRuleDo {
 	return c.withDO(c.DO.Not(conds...))
 }
 
-func (c casbinRuleDo) Or(conds ...gen.Condition) *casbinRuleDo {
+func (c casbinRuleDo) Or(conds ...gen.Condition) ICasbinRuleDo {
 	return c.withDO(c.DO.Or(conds...))
 }
 
-func (c casbinRuleDo) Select(conds ...field.Expr) *casbinRuleDo {
+func (c casbinRuleDo) Select(conds ...field.Expr) ICasbinRuleDo {
 	return c.withDO(c.DO.Select(conds...))
 }
 
-func (c casbinRuleDo) Where(conds ...gen.Condition) *casbinRuleDo {
+func (c casbinRuleDo) Where(conds ...gen.Condition) ICasbinRuleDo {
 	return c.withDO(c.DO.Where(conds...))
 }
 
-func (c casbinRuleDo) Order(conds ...field.Expr) *casbinRuleDo {
+func (c casbinRuleDo) Order(conds ...field.Expr) ICasbinRuleDo {
 	return c.withDO(c.DO.Order(conds...))
 }
 
-func (c casbinRuleDo) Distinct(cols ...field.Expr) *casbinRuleDo {
+func (c casbinRuleDo) Distinct(cols ...field.Expr) ICasbinRuleDo {
 	return c.withDO(c.DO.Distinct(cols...))
 }
 
-func (c casbinRuleDo) Omit(cols ...field.Expr) *casbinRuleDo {
+func (c casbinRuleDo) Omit(cols ...field.Expr) ICasbinRuleDo {
 	return c.withDO(c.DO.Omit(cols...))
 }
 
-func (c casbinRuleDo) Join(table schema.Tabler, on ...field.Expr) *casbinRuleDo {
+func (c casbinRuleDo) Join(table schema.Tabler, on ...field.Expr) ICasbinRuleDo {
 	return c.withDO(c.DO.Join(table, on...))
 }
 
-func (c casbinRuleDo) LeftJoin(table schema.Tabler, on ...field.Expr) *casbinRuleDo {
+func (c casbinRuleDo) LeftJoin(table schema.Tabler, on ...field.Expr) ICasbinRuleDo {
 	return c.withDO(c.DO.LeftJoin(table, on...))
 }
 
-func (c casbinRuleDo) RightJoin(table schema.Tabler, on ...field.Expr) *casbinRuleDo {
+func (c casbinRuleDo) RightJoin(table schema.Tabler, on ...field.Expr) ICasbinRuleDo {
 	return c.withDO(c.DO.RightJoin(table, on...))
 }
 
-func (c casbinRuleDo) Group(cols ...field.Expr) *casbinRuleDo {
+func (c casbinRuleDo) Group(cols ...field.Expr) ICasbinRuleDo {
 	return c.withDO(c.DO.Group(cols...))
 }
 
-func (c casbinRuleDo) Having(conds ...gen.Condition) *casbinRuleDo {
+func (c casbinRuleDo) Having(conds ...gen.Condition) ICasbinRuleDo {
 	return c.withDO(c.DO.Having(conds...))
 }
 
-func (c casbinRuleDo) Limit(limit int) *casbinRuleDo {
+func (c casbinRuleDo) Limit(limit int) ICasbinRuleDo {
 	return c.withDO(c.DO.Limit(limit))
 }
 
-func (c casbinRuleDo) Offset(offset int) *casbinRuleDo {
+func (c casbinRuleDo) Offset(offset int) ICasbinRuleDo {
 	return c.withDO(c.DO.Offset(offset))
 }
 
-func (c casbinRuleDo) Scopes(funcs ...func(gen.Dao) gen.Dao) *casbinRuleDo {
+func (c casbinRuleDo) Scopes(funcs ...func(gen.Dao) gen.Dao) ICasbinRuleDo {
 	return c.withDO(c.DO.Scopes(funcs...))
 }
 
-func (c casbinRuleDo) Unscoped() *casbinRuleDo {
+func (c casbinRuleDo) Unscoped() ICasbinRuleDo {
 	return c.withDO(c.DO.Unscoped())
 }
 
@@ -238,6 +680,8 @@ func (c casbinRuleDo) CreateInBatches(values []*model.CasbinRule, batchSize int)
 	return c.DO.CreateInBatches(values, batchSize)
 }
 
+// Save : !!! underlying implementation is different with GORM
+// The method is equivalent to executing the statement: db.Clauses(clause.OnConflict{UpdateAll: true}).Create(values)
 func (c casbinRuleDo) Save(values ...*model.CasbinRule) error {
 	if len(values) == 0 {
 		return nil
@@ -287,22 +731,22 @@ func (c casbinRuleDo) FindInBatches(result *[]*model.CasbinRule, batchSize int, 
 	return c.DO.FindInBatches(result, batchSize, fc)
 }
 
-func (c casbinRuleDo) Attrs(attrs ...field.AssignExpr) *casbinRuleDo {
+func (c casbinRuleDo) Attrs(attrs ...field.AssignExpr) ICasbinRuleDo {
 	return c.withDO(c.DO.Attrs(attrs...))
 }
 
-func (c casbinRuleDo) Assign(attrs ...field.AssignExpr) *casbinRuleDo {
+func (c casbinRuleDo) Assign(attrs ...field.AssignExpr) ICasbinRuleDo {
 	return c.withDO(c.DO.Assign(attrs...))
 }
 
-func (c casbinRuleDo) Joins(fields ...field.RelationField) *casbinRuleDo {
+func (c casbinRuleDo) Joins(fields ...field.RelationField) ICasbinRuleDo {
 	for _, _f := range fields {
 		c = *c.withDO(c.DO.Joins(_f))
 	}
 	return &c
 }
 
-func (c casbinRuleDo) Preload(fields ...field.RelationField) *casbinRuleDo {
+func (c casbinRuleDo) Preload(fields ...field.RelationField) ICasbinRuleDo {
 	for _, _f := range fields {
 		c = *c.withDO(c.DO.Preload(_f))
 	}
@@ -326,12 +770,17 @@ func (c casbinRuleDo) FirstOrCreate() (*model.CasbinRule, error) {
 }
 
 func (c casbinRuleDo) FindByPage(offset int, limit int) (result []*model.CasbinRule, count int64, err error) {
-	count, err = c.Count()
+	result, err = c.Offset(offset).Limit(limit).Find()
 	if err != nil {
 		return
 	}
 
-	result, err = c.Offset(offset).Limit(limit).Find()
+	if size := len(result); 0 < limit && 0 < size && size < limit {
+		count = int64(size + offset)
+		return
+	}
+
+	count, err = c.Offset(-1).Limit(-1).Count()
 	return
 }
 

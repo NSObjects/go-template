@@ -1,11 +1,26 @@
+/*
+ *
+ * callback.go
+ * db
+ *
+ * Created by lintao on 2024/1/3 17:02
+ * Copyright © 2020-2024 LINTAO. All rights reserved.
+ *
+ */
+
 package db
 
 import (
+	"fmt"
+
 	"gorm.io/gorm"
 )
 
-// AfterCreate 创建后的回调函数
 func AfterCreate(db *gorm.DB) {
-	// 在这里添加创建后的回调逻辑
-	// 例如：记录日志、发送通知等
+	if db.Error == nil &&
+		db.Statement.Schema != nil &&
+		!db.Statement.SkipHooks &&
+		(db.Statement.Schema.AfterCreate || db.Statement.Schema.AfterSave) {
+		fmt.Println("BeforeCreate", db.Statement.Schema.Name)
+	}
 }

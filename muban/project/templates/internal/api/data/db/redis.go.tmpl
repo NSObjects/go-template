@@ -1,19 +1,19 @@
+/*
+ * Created by lintao on 2023/7/26 下午3:51
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
+ *
+ */
+
 package db
 
 import (
 	"context"
-	"fmt"
 
 	"{{.ModulePath}}/internal/configs"
 	redis "github.com/redis/go-redis/v9"
 )
 
 func NewRedis(cfg configs.RedisConfig) *redis.Client {
-	// 如果配置为空，返回nil（可选连接）
-	if cfg.Host == "" {
-		return nil
-	}
-
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.Host + ":" + cfg.Port,
 		Password: cfg.Password, // no password set
@@ -21,9 +21,7 @@ func NewRedis(cfg configs.RedisConfig) *redis.Client {
 	})
 	err := rdb.Ping(context.Background()).Err()
 	if err != nil {
-		// 记录错误但不panic，允许应用启动
-		fmt.Printf("Warning: Failed to connect to Redis: %v\n", err)
-		return nil
+		panic(err)
 	}
 	return rdb
 }
