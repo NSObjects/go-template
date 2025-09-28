@@ -71,7 +71,10 @@ func Casbin(enforce *casbin.Enforcer, config *CasbinConfig) echo.MiddlewareFunc 
 				return "", nil
 			}
 
-			user := token.Claims.(*utils.JwtCustomClaims)
+			user, ok := token.Claims.(*utils.JwtCustomClaims)
+			if !ok {
+				return "", errors.WrapC(errors.New("invalid token claims type"), code.ErrSignatureInvalid, "JWT签名无效")
+			}
 			if user == nil {
 				return "", nil
 			}
