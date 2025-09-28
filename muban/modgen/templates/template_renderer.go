@@ -62,6 +62,7 @@ func loadRenderer() (*TemplateRenderer, error) {
 	funcMap := template.FuncMap{
 		"hasPrefix": strings.HasPrefix,
 		"contains":  strings.Contains,
+		"upper":     strings.ToUpper,
 	}
 
 	templateNames := []string{
