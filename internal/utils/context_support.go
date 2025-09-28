@@ -29,7 +29,7 @@ func ExtractTraceContext(c echo.Context) *TraceContext {
 	// 提取请求 ID
 	if requestID := c.Request().Header.Get("X-Request-ID"); requestID != "" {
 		tc.RequestID = requestID
-	} else if requestID := c.Response().Header().Get("X-Request-ID"); requestID != "" {
+	} else if requestID = c.Response().Header().Get("X-Request-ID"); requestID != "" {
 		tc.RequestID = requestID
 	}
 

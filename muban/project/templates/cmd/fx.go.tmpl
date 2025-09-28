@@ -13,11 +13,12 @@ import (
 
 	"{{.ModulePath}}/internal/api/biz"
 	"{{.ModulePath}}/internal/api/data"
+	"{{.ModulePath}}/internal/api/data/db"
 	"{{.ModulePath}}/internal/api/service"
 	"{{.ModulePath}}/internal/configs"
 	"{{.ModulePath}}/internal/log"
 	"{{.ModulePath}}/internal/server"
-
+    "{{.ModulePath}}/internal/utils"
 	"go.uber.org/fx"
 )
 
@@ -30,8 +31,9 @@ func Run(cfg string) {
 		fx.Module("log", fx.Provide(func(cfg configs.Config) log.Logger {
 			return log.NewLogger(cfg)
 		})),
-		fx.Module("data", data.Model, data.CasbinModule),
+		fx.Module("data", db.Model, utils.CasbinModule),
 		fx.Module("biz", biz.Model),
+		fx.Module("repos", data.Model),
 		fx.Module("service", service.Model),
 		fx.Module("server", fx.Provide(server.NewEchoServer)),
 		fx.Invoke(func(lifecycle fx.Lifecycle, s *server.EchoServer, cfg configs.Config, logger log.Logger) {
