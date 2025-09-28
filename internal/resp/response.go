@@ -46,7 +46,7 @@ type ErrorResponse struct {
 }
 
 // APIError 返回API错误
-func APIError(err error, c echo.Context) error {
+func APIError(c echo.Context, err error) error {
 	if err == nil {
 		return errors.New("error can't be nil")
 	}
@@ -75,14 +75,14 @@ func APIError(err error, c echo.Context) error {
 	}
 
 	// 统一记录错误日志（所有错误都打印到日志）
-	logError(err, errorCode, codeError.String(), rjson.RequestID, c)
+	logError(c, err, errorCode, codeError.String(), rjson.RequestID)
 
 	// 返回对应的HTTP状态码
 	return c.JSON(httpStatus, rjson)
 }
 
 // logError 统一错误日志记录
-func logError(err error, errorCode int, message, requestID string, c echo.Context) {
+func logError(c echo.Context, err error, errorCode int, message, requestID string) {
 	// 构建基础日志字段
 	fields := []slog.Attr{
 		slog.Int("code", errorCode),
@@ -116,7 +116,7 @@ func OperateSuccess(c echo.Context) error {
 	return c.JSON(http.StatusOK, rjson)
 }
 
-func ListDataResponse(arr interface{}, total int64, c echo.Context) error {
+func ListDataResponse(c echo.Context, arr interface{}, total int64) error {
 	if arr == nil {
 		arr = make([]interface{}, 0)
 	} else if reflect.ValueOf(arr).IsNil() {
@@ -135,7 +135,7 @@ func ListDataResponse(arr interface{}, total int64, c echo.Context) error {
 	return c.JSONPretty(http.StatusOK, r, "  ")
 }
 
-func OneDataResponse(data interface{}, c echo.Context) error {
+func OneDataResponse(c echo.Context, data interface{}) error {
 	r := DataResponse{
 		Code: http.StatusOK,
 		Msg:  "success",

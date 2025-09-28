@@ -9,8 +9,8 @@
 package middlewares
 
 import (
-	"github.com/NSObjects/go-template/internal/api/data"
 	"github.com/NSObjects/go-template/internal/code"
+	"github.com/NSObjects/go-template/internal/utils"
 	"github.com/casbin/casbin/v2"
 	"github.com/golang-jwt/jwt/v5"
 	casbin_mw "github.com/labstack/echo-contrib/casbin"
@@ -71,7 +71,7 @@ func Casbin(enforce *casbin.Enforcer, config *CasbinConfig) echo.MiddlewareFunc 
 				return "", nil
 			}
 
-			user := token.Claims.(*data.JwtCustomClaims)
+			user := token.Claims.(*utils.JwtCustomClaims)
 			if user == nil {
 				return "", nil
 			}

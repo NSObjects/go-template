@@ -40,7 +40,6 @@ func (g *Generator) ensureContextSupport() error {
 		return fmt.Errorf("创建模板渲染器失败: %w", err)
 	}
 
-
 	content, err := renderer.RenderContextSupport()
 	if err != nil {
 		return fmt.Errorf("渲染 context 支持模板失败: %w", err)
@@ -48,7 +47,6 @@ func (g *Generator) ensureContextSupport() error {
 
 	modutils.MustWrite(supportTarget, content, true)
 	return ensureLegacyContextTraceStub(legacyTarget)
-
 
 }
 
@@ -58,9 +56,8 @@ const legacyContextTraceStub = `package utils
 // Deprecated: context_trace.go 已被迁移至 context_support.go。
 // 本文件仅用于兼容老版本引用，同时避免重复定义。
 `
+
 func ensureLegacyContextTraceStub(target string) error {
-
-
 	data, err := os.ReadFile(target)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -92,7 +89,6 @@ func ensureLegacyContextTraceStub(target string) error {
 		return nil
 	}
 
-
 	if strings.Contains(content, "func BuildContext") || strings.Contains(content, "ExtractTraceContext") {
 		if err := os.WriteFile(target, []byte(legacyContextTraceStub), 0o644); err != nil {
 			return fmt.Errorf("写入兼容性 context_trace.go 失败: %w", err)
@@ -101,7 +97,6 @@ func ensureLegacyContextTraceStub(target string) error {
 		fmt.Printf("重写兼容性文件: %s\n", target)
 		return nil
 	}
-
 
 	return nil
 }

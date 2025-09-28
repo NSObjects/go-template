@@ -3,7 +3,6 @@ package code
 //go:generate codegen -type=int
 //go:generate codegen -type=int -doc -output ./error_code_generated.md
 
-
 // User相关错误码
 const (
 	// ErrUserNotFound - 404: User not found.
@@ -18,7 +17,7 @@ const (
 	ErrUserInUse
 	// ErrUserCreateFailed - 500: User create failed.
 	ErrUserCreateFailed
-	// ErrUser - 500: User update failed.
+	// ErrUserUpdateFailed ErrUser - 500: User update failed.
 	ErrUserUpdateFailed
 	// ErrUserDeleteFailed - 500: User delete failed.
 	ErrUserDeleteFailed

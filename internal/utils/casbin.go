@@ -1,4 +1,4 @@
-package data
+package utils
 
 import (
 	"github.com/NSObjects/go-template/internal/configs"

@@ -85,7 +85,7 @@ func handleHTTPError(err *echo.HTTPError, c echo.Context) {
 	}
 
 	// 返回标准错误响应
-	_ = resp.APIError(bizErr, c)
+	_ = resp.APIError(c, bizErr)
 }
 
 // handleValidationError 处理验证错误
@@ -101,7 +101,7 @@ func handleValidationError(err *ValidationError, c echo.Context) {
 
 	// 创建业务错误
 	bizErr := code.NewValidationError(err.Field, err.Message)
-	_ = resp.APIError(bizErr, c)
+	_ = resp.APIError(c, bizErr)
 }
 
 // handleGenericError 处理通用错误
@@ -111,7 +111,7 @@ func handleGenericError(err error, c echo.Context) {
 			slog.Int("code", codeError.Code()),
 			slog.String("error", err.Error()),
 		)
-		_ = resp.APIError(err, c)
+		_ = resp.APIError(c, err)
 		return
 	}
 
@@ -123,7 +123,7 @@ func handleGenericError(err error, c echo.Context) {
 	)
 
 	wrapped := code.WrapInternalServerError(err, "internal server error")
-	_ = resp.APIError(wrapped, c)
+	_ = resp.APIError(c, wrapped)
 }
 
 // extractErrorMessage 将 Echo 错误消息转换为字符串
@@ -153,7 +153,7 @@ func ErrorRecovery() echo.MiddlewareFunc {
 
 					// 创建内部服务器错误
 					err := errors.WithCode(100500, "internal server error")
-					_ = resp.APIError(err, c)
+					_ = resp.APIError(c, err)
 				}
 			}()
 

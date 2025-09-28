@@ -13,10 +13,12 @@ import (
 
 	"github.com/NSObjects/go-template/internal/api/biz"
 	"github.com/NSObjects/go-template/internal/api/data"
+	"github.com/NSObjects/go-template/internal/api/data/db"
 	"github.com/NSObjects/go-template/internal/api/service"
 	"github.com/NSObjects/go-template/internal/configs"
 	"github.com/NSObjects/go-template/internal/log"
 	"github.com/NSObjects/go-template/internal/server"
+	"github.com/NSObjects/go-template/internal/utils"
 
 	"go.uber.org/fx"
 )
@@ -30,8 +32,9 @@ func Run(cfg string) {
 		fx.Module("log", fx.Provide(func(cfg configs.Config) log.Logger {
 			return log.NewLogger(cfg)
 		})),
-		fx.Module("data", data.Model, data.CasbinModule),
+		fx.Module("data", db.Model, utils.CasbinModule),
 		fx.Module("biz", biz.Model),
+		fx.Module("repos", data.Model),
 		fx.Module("service", service.Model),
 		fx.Module("server", fx.Provide(server.NewEchoServer)),
 		fx.Invoke(func(lifecycle fx.Lifecycle, s *server.EchoServer, cfg configs.Config, logger log.Logger) {

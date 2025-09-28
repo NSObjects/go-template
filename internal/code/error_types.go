@@ -123,11 +123,11 @@ func classifyErrorCategory(code int) ErrorCategory {
 		code == ErrInternalServer,
 		code >= 100301 && code <= 100399:
 		return CategorySystem
-	case in(code, ErrValidation, ErrBind, ErrBadRequest, ErrUserInvalidData, ErrUserAlreadyExists, ErrUserInUse):
+	case in(code, ErrValidation, ErrBind, ErrBadRequest):
 		return CategoryValidation
 	case in(code, ErrUnauthorized, ErrTokenInvalid, ErrExpired, ErrInvalidAuthHeader, ErrMissingHeader, ErrSignatureInvalid, ErrPasswordIncorrect):
 		return CategoryAuth
-	case in(code, ErrForbidden, ErrPermissionDenied, ErrAccountLocked, ErrAccountDisabled, ErrTooManyAttempts, ErrUserPermissionDenied):
+	case in(code, ErrForbidden, ErrPermissionDenied, ErrAccountLocked, ErrAccountDisabled, ErrTooManyAttempts):
 		return CategoryPermission
 	case code >= 200000 && code < 300000:
 		return CategoryBusiness

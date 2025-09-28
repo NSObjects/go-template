@@ -165,7 +165,7 @@ func (s *EchoServer) registerSystemRoutes(g *echo.Group) {
 
 	// 路由信息
 	g.GET("/routes", func(c echo.Context) error {
-		return resp.ListDataResponse(s.server.Routes(), int64(len(s.server.Routes())), c)
+		return resp.ListDataResponse(c, s.server.Routes(), int64(len(s.server.Routes())))
 	})
 
 	// 系统信息

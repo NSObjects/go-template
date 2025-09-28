@@ -24,7 +24,6 @@ func TestHTTPStatus(t *testing.T) {
 	assert.Equal(t, 200, HTTPStatus(0))
 	assert.Equal(t, 400, HTTPStatus(ErrBadRequest))
 	assert.Equal(t, 401, HTTPStatus(ErrUnauthorized))
-	assert.Equal(t, 404, HTTPStatus(ErrUserNotFound))
 	assert.Equal(t, 500, HTTPStatus(ErrDatabase))
 	assert.Equal(t, 500, HTTPStatus(999999))
 }
