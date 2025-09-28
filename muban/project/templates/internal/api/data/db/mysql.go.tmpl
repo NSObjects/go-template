@@ -1,3 +1,9 @@
+/*
+ * Created by lintao on 2023/7/26 下午3:02
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
+ *
+ */
+
 package db
 
 import (
@@ -15,11 +21,6 @@ import (
 )
 
 func NewMysql(cfg configs.MysqlConfig) *gorm.DB {
-	// 如果配置为空，返回nil（可选连接）
-	if cfg.Host == "" || cfg.Database == "" {
-		return nil
-	}
-
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&loc=Local",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
 
@@ -36,16 +37,13 @@ func NewMysql(cfg configs.MysqlConfig) *gorm.DB {
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: newLogger})
 	if err != nil {
-		// 记录错误但不panic，允许应用启动
-		fmt.Printf("Warning: Failed to connect to MySQL: %v\n", err)
-		return nil
+		panic(err)
 	}
 
 	err = db.Callback().Create().After("gorm:create").Register("role:menu_after_create", AfterCreate)
 	if err != nil {
-		fmt.Printf("Warning: Failed to register MySQL callback: %v\n", err)
+		panic(err)
 	}
-	
 	// set connection pool on the underlying *sql.DB
 	sqlDB, err := db.DB()
 	if err == nil {

@@ -1,39 +1,34 @@
 package query
 
 import (
-	"{{.ModulePath}}/internal/api/data/model"
-	"gorm.io/gen"
-	"gorm.io/gorm"
+        "context"
+
+        "gorm.io/gorm"
 )
 
-// Query 查询接口
+// Query provides a lightweight wrapper around *gorm.DB so callers can
+// swap in the generated query layer once domain models are defined.
 type Query struct {
-	*gen.Generator
+        db *gorm.DB
 }
 
-// Use 使用查询接口
+// Use binds the underlying *gorm.DB to the Query helper.
 func Use(db *gorm.DB) *Query {
-	return &Query{
-		Generator: gen.NewGenerator(gen.Config{
-			OutPath: "./internal/api/data/query",
-			Mode:    gen.WithoutContext | gen.WithDefaultQuery | gen.WithQueryInterface,
-		}),
-	}
+        return &Query{db: db}
 }
 
-// GenQuery 生成查询代码
-func GenQuery(db *gorm.DB) {
-	g := gen.NewGenerator(gen.Config{
-		OutPath: "./internal/api/data/query",
-		Mode:    gen.WithoutContext | gen.WithDefaultQuery | gen.WithQueryInterface,
-	})
+// DB exposes the raw *gorm.DB for projects that want direct access.
+func (q *Query) DB() *gorm.DB {
+        if q == nil {
+                return nil
+        }
+        return q.db
+}
 
-	// 设置数据库
-	g.UseDB(db)
-
-	// 生成所有表
-	g.ApplyBasic(model.User{})
-
-	// 执行生成
-	g.Execute()
+// WithContext returns a context-aware *gorm.DB handle to simplify call sites.
+func (q *Query) WithContext(ctx context.Context) *gorm.DB {
+        if q == nil || q.db == nil {
+                return nil
+        }
+        return q.db.WithContext(ctx)
 }

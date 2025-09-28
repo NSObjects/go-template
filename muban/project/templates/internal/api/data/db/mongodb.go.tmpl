@@ -1,8 +1,13 @@
+/*
+ * Created by lintao on 2023/7/18 下午3:56
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
+ *
+ */
+
 package db
 
 import (
 	"context"
-	"fmt"
 
 	"{{.ModulePath}}/internal/configs"
 
@@ -11,10 +16,6 @@ import (
 )
 
 func MongoClient(cfg configs.Mongodb) *mongo.Database {
-	// 如果配置为空，返回nil（可选连接）
-	if cfg.Host == "" {
-		return nil
-	}
 
 	uri := "mongodb://"
 	if cfg.Password != "" && cfg.User != "" {
@@ -24,14 +25,10 @@ func MongoClient(cfg configs.Mongodb) *mongo.Database {
 
 	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
 	if err != nil {
-		// 记录错误但不panic，允许应用启动
-		fmt.Printf("Warning: Failed to create MongoDB client: %v\n", err)
-		return nil
+		panic(err)
 	}
 	if err := client.Connect(context.Background()); err != nil {
-		// 记录错误但不panic，允许应用启动
-		fmt.Printf("Warning: Failed to connect to MongoDB: %v\n", err)
-		return nil
+		panic(err)
 	}
 	return client.Database(cfg.DataBase)
 }
