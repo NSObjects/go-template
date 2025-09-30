@@ -1,34 +1,53 @@
+# golangci-lint 配置文件版本
 version: 2
 
+# 运行配置
 run:
+  # 超时时间设置为5分钟
   timeout: 5m
+  # 是否检查测试文件
   tests: true
-  fix: true                     # 能自动修的尽量自动修（gofumpt/goimports 等）
+  # 能自动修复的问题尽量自动修复（如gofumpt/goimports等）
+  fix: true
+  # 模块下载模式
   modules-download-mode: mod
+  # 是否允许并行运行
   allow-parallel-runners: true
+  # 需要跳过的目录
   skip-dirs:
     - vendor
+  # 需要跳过的文件
   skip-files:
+    # 跳过生成的文件
     - ".*\\.gen\\.go$"
+    # 跳过mock文件
     - ".*_mock\\.go$"
+    # 跳过以zz_开头的文件
     - "^zz_.*\\.go$"
+    # 跳过protobuf生成的文件
     - ".*\\.pb\\.go$"
 
+# 问题配置
 issues:
+  # 是否排除默认问题
   exclude-use-default: false
+  # 每个linter允许的最大问题数（0表示无限制）
   max-issues-per-linter: 0
+  # 相同问题的最大数量（0表示无限制）
   max-same-issues: 0
-  new-from-rev: HEAD           # 只看相对当前分支新增问题时很有用（本地/CI 可酌情保留）
+  # 只报告相对于指定修订版本的新问题（HEAD表示只看当前分支新增问题）
+  new-from-rev: HEAD
+  # 排除规则
   exclude-rules:
-    # 测试里放宽圈复杂度/重复代码
+    # 在测试文件中放宽圈复杂度检查
     - path: _test\\.go
       linters:
         - gocyclo
-    # 允许在测试里出现未检查的错误（比如辅助断言场景），可按需删除
+    # 允许在测试文件中出现未检查的错误（如辅助断言场景）
     - path: _test\\.go
       linters:
         - errcheck
-    # 允许生成文件跳过大部分风格类检查（保险起见）
+    # 生成文件跳过大部分风格类检查
     - path: ".*(\\.gen\\.go|_mock\\.go|\\.pb\\.go)$"
       linters:
         - revive
@@ -36,47 +55,71 @@ issues:
         - dupl
         - goconst
 
+# 启用的linter配置
 linters:
+  # 禁用所有linter
   disable-all: true
+  # 启用指定的linter
   enable:
-    # 语义与静态分析
-    - govet
-    - staticcheck
-    - unused
-    - errcheck
-    - errorlint
-    - ineffassign
-    - unconvert
-    - prealloc
-    - goconst
-    - gocyclo
-    - dupl
-    - misspell
-    # 代码风格/格式（使用 formatter 配置）
-    - revive
-    - nolintlint            # 约束 //nolint 的使用，避免滥用
-    # 额外实用
-    - durationcheck         # 时间单位误用检查
-    - copyloopvar           # 循环变量捕获（Go1.22+ 仍有场景可报）
-    # 可选安全（如需安全扫描可开启）
+    # 语义与静态分析工具
+    - govet        # Go官方工具，检查可疑的构造
+    - staticcheck  # Go静态分析工具，检测各种问题
+    - unused       # 检测未使用的常量、变量、函数等
+    - errcheck     # 检查未处理的错误
+    - errorlint    # 检查Go错误处理的常见错误
+    - ineffassign  # 检测无效的赋值操作
+    - unconvert    # 删除不必要的类型转换
+    - prealloc     # 建议使用预分配的切片
+    - goconst      # 检测可以作为常量的字符串
+    - gocyclo      # 检测圈复杂度过高的函数
+    - dupl         # 检测重复代码
+    - misspell     # 检测拼写错误
+    
+    # 代码风格/格式化工具
+    - revive       # 更快更可配置的替代golint的工具
+    - nolintlint   # 约束 //nolint 的使用，避免滥用
+    
+    # 额外实用工具
+    - durationcheck # 检查时间单位误用
+    - copyloopvar   # 检查循环变量捕获问题
+    - funlen        # 函数长度检查（行数限制）
+    
+    # 可选安全检查工具（如需安全扫描可开启）
     # - gosec
 
+# 格式化工具配置
 formatters:
+  # 启用的格式化工具
   enable:
-    - gofumpt               # 用 gofumpt 取代 gofmt（更严格）
-    - goimports
+    - gofumpt    # 更严格的代码格式化工具，替代gofmt
+    - goimports  # 自动管理导入并格式化代码
 
+# 各个linter的详细设置
 linters-settings:
+  # 圈复杂度设置
   gocyclo:
-    min-complexity: 12        # 略放宽到 12，减少误报；核心热点再局部优化
+    # 最小复杂度阈值（略放宽到12，减少误报）
+    min-complexity: 12
+  
+  # 拼写检查设置
   misspell:
+    # 使用的地区拼写规则
     locale: US
+  
+  # 错误检查设置
   errcheck:
+    # 检查类型断言
     check-type-assertions: true
+    # 检查空白标识符
     check-blank: true
+  
+  # revive工具设置
   revive:
+    # 严重性级别
     severity: warning
+    # 置信度
     confidence: 0.8
+    # 启用的规则
     rules:
       - name: exported
       - name: if-return
@@ -93,38 +136,69 @@ linters-settings:
       - name: error-strings
       - name: errorf
       - name: unexported-return
+        # 禁用的规则
         disabled: true
+  
+  # 常量检测设置
   goconst:
+    # 最小字符串长度
     min-len: 2
+    # 最小出现次数
     min-occurrences: 3
+  
+  # 重复代码检测设置
   dupl:
-    threshold: 120            # 合理阈值，避免对测试/样板过度敏感
+    # 重复代码阈值（合理阈值，避免对测试/样板过度敏感）
+    threshold: 120
+  
+  # nolint注释检查设置
   nolintlint:
+    # 是否允许未使用的nolint注释
     allow-unused: false
+    # 是否允许前导空格
     allow-leading-space: false
-    require-explanation: true # 要求 //nolint 必须附解释
-    require-specific: true    # 要求指明具体 linter 名称
+    # 是否要求提供解释
+    require-explanation: true
+    # 是否要求指定具体的linter名称
+    require-specific: true
+  
+  # govet设置
   govet:
+    # 检查变量遮蔽
     check-shadowing: true
+    # 启用的检查项
     enable:
-      - atomicalign
-      - bools
-      - copylocks
-      - fieldalignment
-      - printf
-      - shadow
-      - sortslice
-      - unreachable
-      - unusedresult
-      - nilness
+      - atomicalign    # 检查结构体字段对齐
+      - bools          # 检查布尔表达式中的可疑结构
+      - copylocks      # 检查复制锁
+      - fieldalignment # 检查结构体字段对齐以提高内存效率
+      - printf         # 检查printf格式字符串
+      - shadow         # 检查可能的变量遮蔽
+      - sortslice      # 检查sort.Slice的使用
+      - unreachable    # 检查不可达代码
+      - unusedresult   # 检查未使用的函数返回值
+      - nilness        # 检查可能导致nil指针解引用的操作
+  
+  # 函数长度检查设置
+  funlen:
+    # 每个函数最大行数（语句数）
+    lines: 50
+    # 每个函数最大语句数
+    statements: 50
 
+# 格式化工具设置
 formatter-settings:
+  # gofumpt设置
   gofumpt:
+    # 启用额外规则
     extra-rules: true
+  
+  # goimports设置
   goimports:
+    # 本地包前缀
     local-prefixes: github.com/NSObjects/go-template
 
-# 可在不同 CI 场景下使用的构建标签
+# 构建标签（可在不同CI场景下使用）
 # build-tags:
 #   - integration
 #   - e2e
