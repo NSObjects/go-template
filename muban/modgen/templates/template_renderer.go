@@ -74,6 +74,7 @@ func loadRenderer() (*TemplateRenderer, error) {
 		"param_openapi",
 		"biz_openapi",
 		"service_openapi",
+		"data_openapi",
 		"service_test_enhanced",
 		"biz_test_enhanced",
 		"code_openapi",

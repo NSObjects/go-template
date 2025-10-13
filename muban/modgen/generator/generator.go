@@ -208,6 +208,7 @@ func (g *Generator) generateOpenAPIModule(doc *openapi.OpenAPI3, moduleName stri
 
 	pascal, camel, baseRoute := g.naming(moduleName)
 	bizFile, svcFile, paramFile, codeFile := g.moduleFilePaths(moduleName)
+	dataFile := filepath.Join(g.config.RepoRoot, "internal", "api", "data", fmt.Sprintf("%s.go", moduleName))
 
 	// 生成代码
 	bizContent, err := renderer.RenderOpenAPIBiz(module, pascal, g.config.PackagePath)
@@ -234,6 +235,13 @@ func (g *Generator) generateOpenAPIModule(doc *openapi.OpenAPI3, moduleName stri
 	}
 	utils.MustWrite(codeFile, codeContent, g.config.Force)
 
+	// data 层 Repository 实现骨架
+	dataContent, err := renderer.RenderOpenAPIData(module, pascal, g.config.PackagePath)
+	if err != nil {
+		return fmt.Errorf("渲染数据层模板失败: %w", err)
+	}
+	utils.MustWrite(dataFile, dataContent, g.config.Force)
+
 	// 生成测试用例（如果启用）
 	if g.config.GenerateTests {
 		bizTestFile, svcTestFile := g.moduleTestFilePaths(moduleName)
@@ -253,6 +261,7 @@ func (g *Generator) generateOpenAPIModule(doc *openapi.OpenAPI3, moduleName stri
 	// 注入到 fx.Options
 	_ = utils.TryInject(filepath.Join(g.config.RepoRoot, "internal", "api", "biz", "biz.go"), "New"+pascal+"Handler")
 	_ = utils.TryInject(filepath.Join(g.config.RepoRoot, "internal", "api", "service", "service.go"), "AsRoute(New"+pascal+"Controller)")
+	_ = utils.TryInject(filepath.Join(g.config.RepoRoot, "internal", "api", "data", "data.go"), "New"+pascal+"Repository")
 
 	if showSummary {
 		utils.PrintInfo("📊 从OpenAPI文档解析到 %d 个操作", len(module.Operations))

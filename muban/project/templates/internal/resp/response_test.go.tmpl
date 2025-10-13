@@ -66,7 +66,7 @@ func TestListDataResponse(t *testing.T) {
 
         for _, tt := range tests {
                 t.Run(tt.name, func(t *testing.T) {
-                        if err := ListDataResponse(tt.arr, tt.total, getContext()); (err != nil) != tt.wantErr {
+                        if err := ListDataResponse(getContext(), tt.arr, tt.total); (err != nil) != tt.wantErr {
                                 t.Errorf("ListDataResponse() error = %v, wantErr %v", err, tt.wantErr)
                         }
                 })
@@ -74,7 +74,7 @@ func TestListDataResponse(t *testing.T) {
 }
 
 func TestOneDataResponse(t *testing.T) {
-        if err := OneDataResponse(nil, getContext()); err != nil {
+        if err := OneDataResponse(getContext(), nil); err != nil {
                 t.Fatalf("OneDataResponse() error = %v", err)
         }
 }

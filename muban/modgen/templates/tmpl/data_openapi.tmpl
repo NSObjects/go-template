@@ -1,0 +1,45 @@
+/*
+ * Generated from OpenAPI3 document
+ * Module: {{.Pascal}}
+ */
+
+package data
+
+import (
+"context"
+
+"{{.PackagePath}}/internal/api/biz"
+"{{.PackagePath}}/internal/api/service/param"
+"{{.PackagePath}}/internal/api/data/db"
+)
+
+// {{.Pascal}}Repository 数据访问实现
+type {{.Camel}}Repository struct {
+    d *db.DataManager
+}
+
+// New{{.Pascal}}Repository 构造函数，供 fx 注入
+func New{{.Pascal}}Repository(d *db.DataManager) biz.{{.Pascal}}Repository {
+    return &{{.Camel}}Repository{d: d}
+}
+
+{{- range .Operations }}
+// {{.MethodName}} {{if .Summary}}{{.Summary}}{{else}}处理{{$.Pascal}}{{end}}
+func (r *{{$.Camel}}Repository) {{.MethodName}}(ctx context.Context{{- if .HasPathParams }}, id int64{{- end }}{{- if .HasRequestBodyOrQuery }}, req param.{{$.Pascal}}{{.MethodName}}Request{{- end }}) {{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}([]param.{{$.Pascal}}ListItem, int64, error){{- else if .ResponseData}}(param.{{$.Pascal}}{{.ResponseData.GoType}}, error){{- else}}error{{- end }} {
+    // TODO: 实现数据访问逻辑。以下为占位返回，便于通过编译。
+    {{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}
+    var list []param.{{$.Pascal}}ListItem
+    var total int64
+    return list, total, nil
+    {{- else if .ResponseData}}
+    var out param.{{$.Pascal}}{{.ResponseData.GoType}}
+    return out, nil
+    {{- else}}
+    return nil
+    {{- end }}
+    // 出错时请使用 code 包进行包装，例如：
+    // return nil, 0, code.WrapDatabaseError(err, "说明信息")
+}
+{{- end }}
+
+

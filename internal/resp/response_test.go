@@ -44,7 +44,7 @@ func TestApiError(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := APIError(tt.args.err, tt.args.c); (err != nil) != tt.wantErr {
+			if err := APIError(tt.args.c, tt.args.err); (err != nil) != tt.wantErr {
 				t.Errorf("APIError() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -96,7 +96,7 @@ func TestListDataResponse(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ListDataResponse(tt.args.arr, tt.args.total, tt.args.c); (err != nil) != tt.wantErr {
+			if err := ListDataResponse(tt.args.c, tt.args.arr, tt.args.total); (err != nil) != tt.wantErr {
 				t.Errorf("ListDataResponse() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -123,7 +123,7 @@ func TestOneDataResponse(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := OneDataResponse(tt.args.data, tt.args.c); (err != nil) != tt.wantErr {
+			if err := OneDataResponse(tt.args.c, tt.args.data); (err != nil) != tt.wantErr {
 				t.Errorf("OneDataResponse() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

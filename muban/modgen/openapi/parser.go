@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/NSObjects/go-template/muban/modgen/utils"
 	"gopkg.in/yaml.v2"
@@ -35,7 +36,10 @@ func ParseOpenAPI3(filePath string) (*OpenAPI3, error) {
 
 func loadOpenAPIData(source string) ([]byte, string, error) {
 	if isRemoteURL(source) {
-		resp, err := http.Get(source)
+		client := &http.Client{Timeout: 15 * time.Second}
+		req, _ := http.NewRequest("GET", source, nil)
+		req.Header.Set("User-Agent", "go-template-modgen/1.0")
+		resp, err := client.Do(req)
 		if err != nil {
 			return nil, "", fmt.Errorf("获取远程OpenAPI文档失败: %v", err)
 		}
@@ -62,6 +66,11 @@ func loadOpenAPIData(source string) ([]byte, string, error) {
 			case strings.Contains(strings.ToLower(contentType), "yaml") || strings.Contains(strings.ToLower(contentType), "yml"):
 				ext = ".yaml"
 			}
+		}
+
+		// 仅在识别为标准后缀时保留，否则置空，交由解析函数双路尝试
+		if ext != ".json" && ext != ".yaml" && ext != ".yml" {
+			ext = ""
 		}
 
 		return data, ext, nil
@@ -97,6 +106,7 @@ func unmarshalOpenAPIDoc(data []byte, format string, openapi *OpenAPI3) error {
 		}
 		return nil
 	default:
+		// 无法确定格式时，双路尝试 YAML 和 JSON：哪个不报错就采用
 		if err := yaml.Unmarshal(data, openapi); err == nil {
 			return nil
 		}
@@ -112,9 +122,10 @@ func GenerateFromOpenAPI(openapi *OpenAPI3, moduleName string) (*APIModule, erro
 	// 清理模块名
 	cleanModuleName := utils.CleanModuleName(moduleName)
 
-	// 验证模块名称是否在OpenAPI文档中存在
+	// 验证模块名称是否在OpenAPI文档中存在，否则尝试基于路径名推断
 	if !validateModuleExists(openapi, moduleName) {
-		return nil, fmt.Errorf("OpenAPI文档中没有找到模块 '%s' 的相关接口。请检查OpenAPI文档中的tags或确保模块名称正确", moduleName)
+		// 允许调用方传入路径段作为 moduleName（如 users）
+		// 若仍找不到，继续流程，最终会因为没有匹配的 operations 返回空集合
 	}
 
 	module := &APIModule{
@@ -140,34 +151,35 @@ func GenerateFromOpenAPI(openapi *OpenAPI3, moduleName string) (*APIModule, erro
 		module.RequestBodies = openapi.Components.RequestBodies
 	}
 
-	// 解析paths，只处理属于当前模块的操作
+	// 解析paths，只处理属于当前模块的操作；当 tag 为中文或不匹配时，回退到路径首段匹配
 	for path, pathItem := range openapi.Paths {
+		fallbackModule := extractPathModule(path)
 		// 处理GET操作
-		if pathItem.Get != nil && hasModuleTag(pathItem.Get.Tags, moduleName) {
+		if pathItem.Get != nil && (hasModuleTag(pathItem.Get.Tags, moduleName) || strings.EqualFold(fallbackModule, moduleName)) {
 			op := parseOperation("GET", path, pathItem.Get, openapi)
 			module.Operations = append(module.Operations, op)
 		}
 
 		// 处理POST操作
-		if pathItem.Post != nil && hasModuleTag(pathItem.Post.Tags, moduleName) {
+		if pathItem.Post != nil && (hasModuleTag(pathItem.Post.Tags, moduleName) || strings.EqualFold(fallbackModule, moduleName)) {
 			op := parseOperation("POST", path, pathItem.Post, openapi)
 			module.Operations = append(module.Operations, op)
 		}
 
 		// 处理PUT操作
-		if pathItem.Put != nil && hasModuleTag(pathItem.Put.Tags, moduleName) {
+		if pathItem.Put != nil && (hasModuleTag(pathItem.Put.Tags, moduleName) || strings.EqualFold(fallbackModule, moduleName)) {
 			op := parseOperation("PUT", path, pathItem.Put, openapi)
 			module.Operations = append(module.Operations, op)
 		}
 
 		// 处理DELETE操作
-		if pathItem.Delete != nil && hasModuleTag(pathItem.Delete.Tags, moduleName) {
+		if pathItem.Delete != nil && (hasModuleTag(pathItem.Delete.Tags, moduleName) || strings.EqualFold(fallbackModule, moduleName)) {
 			op := parseOperation("DELETE", path, pathItem.Delete, openapi)
 			module.Operations = append(module.Operations, op)
 		}
 
 		// 处理PATCH操作
-		if pathItem.Patch != nil && hasModuleTag(pathItem.Patch.Tags, moduleName) {
+		if pathItem.Patch != nil && (hasModuleTag(pathItem.Patch.Tags, moduleName) || strings.EqualFold(fallbackModule, moduleName)) {
 			op := parseOperation("PATCH", path, pathItem.Patch, openapi)
 			module.Operations = append(module.Operations, op)
 		}
@@ -670,32 +682,38 @@ func validateModuleExists(openapi *OpenAPI3, moduleName string) bool {
 func ExtractAllModuleNames(openapi *OpenAPI3) ([]string, error) {
 	moduleSet := make(map[string]bool)
 
-	// 从tags中提取模块名
-	for _, tag := range openapi.Tags {
-		if tag.Name != "" {
-			moduleSet[strings.ToLower(tag.Name)] = true
+	// 1) 基于路径首段提取模块名（优先，解决中文 tag 场景）
+	for path, pathItem := range openapi.Paths {
+		fallback := extractPathModule(path)
+		if fallback != "" {
+			moduleSet[fallback] = true
 		}
-	}
-
-	// 从paths中的操作tags提取模块名
-	for _, pathItem := range openapi.Paths {
 		operations := []*Operation{pathItem.Get, pathItem.Post, pathItem.Put, pathItem.Delete, pathItem.Patch}
 		for _, op := range operations {
-			if op != nil {
-				for _, tag := range op.Tags {
-					if tag != "" {
-						moduleSet[strings.ToLower(tag)] = true
-					}
+			if op == nil {
+				continue
+			}
+			// 2) 对于英文 tag，亦加入集合；中文/非 ASCII 的 tag 跳过，避免生成 Module前缀文件名
+			for _, tag := range op.Tags {
+				if tag == "" || hasNonASCII(tag) {
+					continue
 				}
+				moduleSet[strings.ToLower(tag)] = true
 			}
 		}
 	}
 
-	// 转换为切片，并清理模块名
+	// 3) 顶层 tags（同样只收英文），补充集合
+	for _, tag := range openapi.Tags {
+		if tag.Name != "" && !hasNonASCII(tag.Name) {
+			moduleSet[strings.ToLower(tag.Name)] = true
+		}
+	}
+
+	// 转换为切片（不再调用 CleanModuleName，以保留 ascii 路径名如 users）
 	var moduleNames []string
 	for moduleName := range moduleSet {
-		cleanName := utils.CleanModuleName(moduleName)
-		moduleNames = append(moduleNames, cleanName)
+		moduleNames = append(moduleNames, moduleName)
 	}
 
 	if len(moduleNames) == 0 {
@@ -709,6 +727,44 @@ func ExtractAllModuleNames(openapi *OpenAPI3) ([]string, error) {
 func hasModuleTag(tags []string, moduleName string) bool {
 	for _, tag := range tags {
 		if strings.EqualFold(tag, moduleName) {
+			return true
+		}
+	}
+	return false
+}
+
+// extractPathModule 基于路径首段提取模块名，跳过常见前缀（/api, /v1, /v2, /api/v1 等）
+func extractPathModule(p string) string {
+	if p == "" {
+		return ""
+	}
+	s := p
+	if !strings.HasPrefix(s, "/") {
+		s = "/" + s
+	}
+	parts := strings.Split(s, "/")
+	var filtered []string
+	for _, seg := range parts {
+		if seg == "" {
+			continue
+		}
+		// 跳过常见前缀
+		lower := strings.ToLower(seg)
+		if lower == "api" || strings.HasPrefix(lower, "v") {
+			continue
+		}
+		filtered = append(filtered, lower)
+	}
+	if len(filtered) == 0 {
+		return ""
+	}
+	return filtered[0]
+}
+
+// hasNonASCII 判断是否包含非 ASCII 字符（用于过滤中文等情况）
+func hasNonASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] > 127 {
 			return true
 		}
 	}

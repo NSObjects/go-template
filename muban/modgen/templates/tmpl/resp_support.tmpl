@@ -25,7 +25,7 @@ func OperateSuccess(c echo.Context) error {
     return c.JSON(http.StatusOK, payload)
 }
 
-func OneDataResponse(data interface{}, c echo.Context) error {
+func OneDataResponse(c echo.Context, data interface{}) error {
     payload := singleDataBody{
         Code: http.StatusOK,
         Msg:  "success",

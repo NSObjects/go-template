@@ -53,6 +53,19 @@ func (tr *TemplateRenderer) RenderOpenAPIParam(module *openapi.APIModule, pascal
 	return tr.Render("param_openapi", data)
 }
 
+// RenderOpenAPIData 从OpenAPI3生成数据层模板
+func (tr *TemplateRenderer) RenderOpenAPIData(module *openapi.APIModule, pascal, packagePath string) (string, error) {
+	data := TemplateData{
+		Pascal:                pascal,
+		PackagePath:           packagePath,
+		Operations:            module.Operations,
+		HasPathParams:         checkHasPathParams(module.Operations),
+		HasRequestBodyOrQuery: checkHasRequestBodyOrQuery(module.Operations),
+	}
+
+	return tr.Render("data_openapi", data)
+}
+
 // deduplicateResponseData 去重响应数据类型
 func deduplicateResponseData(operations []openapi.APIOperation) []openapi.ResponseData {
 	seen := make(map[string]bool)
@@ -314,8 +327,8 @@ func (c *%sController) %s(ctx echo.Context) error {
 		return err
 	}
 	
-	// 返回列表数据
-	return resp.ListDataResponse(list, total, ctx)
+    // 返回列表数据
+    return resp.ListDataResponse(ctx, list, total)
 }`, pascal, handlerName, requestType, strings.ToLower(pascal[:1])+pascal[1:], methodName)
 	case "create":
 		return fmt.Sprintf(`
@@ -369,8 +382,8 @@ func (c *%sController) %s(ctx echo.Context) error {
 		return err
 	}
 	
-	// 返回单个数据
-	return resp.OneDataResponse(result, ctx)
+    // 返回单个数据
+    return resp.OneDataResponse(ctx, result)
 }`, pascal, handlerName, strings.ToLower(pascal[:1])+pascal[1:], methodName)
 	case "delete":
 		return fmt.Sprintf(`
@@ -404,8 +417,8 @@ func (c *%sController) %s(ctx echo.Context) error {
 		return err
 	}
 	
-	// 返回数据
-	return resp.OneDataResponse(result, ctx)
+    // 返回数据
+    return resp.OneDataResponse(ctx, result)
 }`, pascal, handlerName, requestType, strings.ToLower(pascal[:1])+pascal[1:], methodName)
 	}
 }
