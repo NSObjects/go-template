@@ -7,9 +7,12 @@ package utils
 import (
 	"bufio"
 	"fmt"
+	"go/format"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/tools/imports"
 )
 
 // FindRepoRoot 查找仓库根目录
@@ -65,7 +68,16 @@ func MustWrite(path, content string, force bool) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		ExitWith(err.Error())
 	}
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	processed := []byte(content)
+	if strings.HasSuffix(strings.ToLower(path), ".go") && os.Getenv("DISABLE_GEN_FORMAT") != "1" {
+		if out, err := imports.Process(path, processed, &imports.Options{Comments: true, TabIndent: true, TabWidth: 8}); err == nil {
+			processed = out
+		}
+		if out, err := format.Source(processed); err == nil {
+			processed = out
+		}
+	}
+	if err := os.WriteFile(path, processed, 0o644); err != nil {
 		ExitWith(err.Error())
 	}
 	fmt.Printf("写入: %s\n", path)

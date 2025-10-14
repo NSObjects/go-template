@@ -3,6 +3,7 @@ package project
 import (
 	"embed"
 	"fmt"
+	"go/format"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"text/template"
 	"unicode"
+
+	"golang.org/x/tools/imports"
 )
 
 //go:embed templates/*
@@ -226,24 +229,36 @@ func (g *EmbedTemplateGenerator) generateFile(file fileSpec) error {
 			return fmt.Errorf("解析模板文件失败: %w", err)
 		}
 
-		outputFile, err := os.OpenFile(outputPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
-		if err != nil {
-			return fmt.Errorf("创建输出文件失败: %w", err)
-		}
-		if err := tmpl.Execute(outputFile, g.data); err != nil {
-			closeErr := outputFile.Close()
-			if closeErr != nil {
-				return fmt.Errorf("执行模板失败: %v (关闭输出文件失败: %w)", err, closeErr)
-			}
+		var buf strings.Builder
+		if err := tmpl.Execute(&buf, g.data); err != nil {
 			return fmt.Errorf("执行模板失败: %w", err)
 		}
 
-		if err := outputFile.Close(); err != nil {
-			return fmt.Errorf("关闭输出文件失败: %w", err)
+		processed := []byte(buf.String())
+		if strings.HasSuffix(strings.ToLower(outputPath), ".go") && os.Getenv("DISABLE_GEN_FORMAT") != "1" {
+			if out, err := imports.Process(outputPath, processed, &imports.Options{Comments: true, TabIndent: true, TabWidth: 8}); err == nil {
+				processed = out
+			}
+			if out, err := format.Source(processed); err == nil {
+				processed = out
+			}
+		}
+
+		if err := os.WriteFile(outputPath, processed, mode); err != nil {
+			return fmt.Errorf("写入文件失败: %w", err)
 		}
 
 	} else {
-		if err := os.WriteFile(outputPath, templateContent, mode); err != nil {
+		content := templateContent
+		if strings.HasSuffix(strings.ToLower(outputPath), ".go") && os.Getenv("DISABLE_GEN_FORMAT") != "1" {
+			if out, err := imports.Process(outputPath, content, &imports.Options{Comments: true, TabIndent: true, TabWidth: 8}); err == nil {
+				content = out
+			}
+			if out, err := format.Source(content); err == nil {
+				content = out
+			}
+		}
+		if err := os.WriteFile(outputPath, content, mode); err != nil {
 			return fmt.Errorf("写入文件失败: %w", err)
 		}
 	}

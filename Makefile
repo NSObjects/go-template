@@ -72,7 +72,8 @@ push:
 # 格式化代码
 fmt:
 	@echo "$(BLUE)[INFO]$(NC) Formatting code..."
-	@go fmt ./...
+	@gofmt -s -w .
+	@command -v goimports >/dev/null 2>&1 && goimports -w . || echo "goimports 未安装，跳过 (安装: go install golang.org/x/tools/cmd/goimports@latest)"
 	@echo "$(GREEN)[SUCCESS]$(NC) Code formatting completed"
 
 # 代码检查

@@ -14,18 +14,18 @@ import (
 )
 
 // {{.Pascal}}Repository 数据访问实现
-type {{.Camel}}Repository struct {
+type {{.Pascal}}Repository struct {
     d *db.DataManager
 }
 
 // New{{.Pascal}}Repository 构造函数，供 fx 注入
 func New{{.Pascal}}Repository(d *db.DataManager) biz.{{.Pascal}}Repository {
-    return &{{.Camel}}Repository{d: d}
+    return &{{.Pascal}}Repository{d: d}
 }
 
 {{- range .Operations }}
 // {{.MethodName}} {{if .Summary}}{{.Summary}}{{else}}处理{{$.Pascal}}{{end}}
-func (r *{{$.Camel}}Repository) {{.MethodName}}(ctx context.Context{{- if .HasPathParams }}, id int64{{- end }}{{- if .HasRequestBodyOrQuery }}, req param.{{$.Pascal}}{{.MethodName}}Request{{- end }}) {{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}([]param.{{$.Pascal}}ListItem, int64, error){{- else if .ResponseData}}(param.{{$.Pascal}}{{.ResponseData.GoType}}, error){{- else}}error{{- end }} {
+func (r *{{$.Pascal}}Repository) {{.MethodName}}(ctx context.Context{{- if .HasPathParams }}, id int64{{- end }}{{- if .HasRequestBodyOrQuery }}, req param.{{$.Pascal}}{{.MethodName}}Request{{- end }}) {{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}([]param.{{$.Pascal}}ListItem, int64, error){{- else if .ResponseData}}(param.{{$.Pascal}}{{.ResponseData.GoType}}, error){{- else}}error{{- end }} {
     // TODO: 实现数据访问逻辑。以下为占位返回，便于通过编译。
     {{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}
     var list []param.{{$.Pascal}}ListItem
