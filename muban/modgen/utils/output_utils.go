@@ -16,10 +16,7 @@ func PrintSuccess(format string, args ...interface{}) {
 	fmt.Printf(GREEN+"[SUCCESS]"+NC+" "+format+"\n", args...)
 }
 
-// PrintWarning 打印警告信息
-func PrintWarning(format string, args ...interface{}) {
-	fmt.Printf(YELLOW+"[WARNING]"+NC+" "+format+"\n", args...)
-}
+// ... existing code ...
 
 // PrintError 打印错误信息
 func PrintError(format string, args ...interface{}) {

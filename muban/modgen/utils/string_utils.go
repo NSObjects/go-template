@@ -71,17 +71,7 @@ func isVowel(b byte) bool {
 	}
 }
 
-// ToSnakeCase 转换为蛇形命名
-func ToSnakeCase(str string) string {
-	var result []rune
-	for i, r := range str {
-		if i > 0 && r >= 'A' && r <= 'Z' {
-			result = append(result, '_')
-		}
-		result = append(result, r)
-	}
-	return strings.ToLower(string(result))
-}
+// ... existing code ...
 
 // CleanModuleName 清理模块名，移除或替换特殊字符
 func CleanModuleName(name string) string {
