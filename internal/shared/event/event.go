@@ -1,0 +1,70 @@
+package event
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+// Event 领域事件接口
+type Event interface {
+	// EventID 事件唯一标识
+	EventID() string
+
+	// EventType 事件类型
+	EventType() string
+
+	// OccurredAt 事件发生时间
+	OccurredAt() time.Time
+
+	// AggregateID 聚合根ID
+	AggregateID() string
+
+	// Version 事件版本
+	Version() int
+}
+
+// BaseEvent 基础事件实现
+type BaseEvent struct {
+	eventID     string
+	eventType   string
+	occurredAt  time.Time
+	aggregateID string
+	version     int
+}
+
+// NewBaseEvent 创建基础事件
+func NewBaseEvent(eventType, aggregateID string) *BaseEvent {
+	return &BaseEvent{
+		eventID:     uuid.New().String(),
+		eventType:   eventType,
+		occurredAt:  time.Now(),
+		aggregateID: aggregateID,
+		version:     1,
+	}
+}
+
+// EventID 获取事件ID
+func (e *BaseEvent) EventID() string {
+	return e.eventID
+}
+
+// EventType 获取事件类型
+func (e *BaseEvent) EventType() string {
+	return e.eventType
+}
+
+// OccurredAt 获取事件发生时间
+func (e *BaseEvent) OccurredAt() time.Time {
+	return e.occurredAt
+}
+
+// AggregateID 获取聚合根ID
+func (e *BaseEvent) AggregateID() string {
+	return e.aggregateID
+}
+
+// Version 获取事件版本
+func (e *BaseEvent) Version() int {
+	return e.version
+}

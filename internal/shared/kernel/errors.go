@@ -1,0 +1,61 @@
+package kernel
+
+import "errors"
+
+// 领域错误定义
+var (
+	// 通用错误
+	ErrInvalidArgument = errors.New("invalid argument")
+	ErrNotFound        = errors.New("not found")
+	ErrAlreadyExists   = errors.New("already exists")
+	ErrConcurrency     = errors.New("concurrency conflict")
+
+	// 业务规则错误
+	ErrBusinessRuleViolation = errors.New("business rule violation")
+	ErrInvalidState          = errors.New("invalid state")
+	ErrOperationNotAllowed   = errors.New("operation not allowed")
+)
+
+// DomainError 领域错误接口
+type DomainError interface {
+	error
+	Code() string
+	Details() map[string]interface{}
+}
+
+// BusinessRuleError 业务规则错误
+type BusinessRuleError struct {
+	code    string
+	message string
+	details map[string]interface{}
+}
+
+// NewBusinessRuleError 创建业务规则错误
+func NewBusinessRuleError(code, message string) *BusinessRuleError {
+	return &BusinessRuleError{
+		code:    code,
+		message: message,
+		details: make(map[string]interface{}),
+	}
+}
+
+// Error 实现error接口
+func (e *BusinessRuleError) Error() string {
+	return e.message
+}
+
+// Code 获取错误码
+func (e *BusinessRuleError) Code() string {
+	return e.code
+}
+
+// Details 获取错误详情
+func (e *BusinessRuleError) Details() map[string]interface{} {
+	return e.details
+}
+
+// WithDetail 添加错误详情
+func (e *BusinessRuleError) WithDetail(key string, value interface{}) *BusinessRuleError {
+	e.details[key] = value
+	return e
+}
