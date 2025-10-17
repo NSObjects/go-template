@@ -4,97 +4,77 @@ import (
 	"context"
 	"time"
 
-	"github.com/NSObjects/go-template/internal/api/biz"
 	"github.com/NSObjects/go-template/internal/api/data/db"
-	"github.com/NSObjects/go-template/internal/api/data/model"
-	"github.com/NSObjects/go-template/internal/api/service/param"
+	appuser "github.com/NSObjects/go-template/internal/application/user"
 	"github.com/NSObjects/go-template/internal/code"
+	domain "github.com/NSObjects/go-template/internal/domain/user"
 )
 
 type userRepository struct {
 	d *db.DataManager
 }
 
-func NewUserRepository(d *db.DataManager) biz.UserRepository {
+func NewUserRepository(d *db.DataManager) domain.Repository {
 	return userRepository{d: d}
 }
 
-func (u userRepository) ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error) {
-
-	users, err := u.d.Query.User.WithContext(ctx).Offset(req.Offset()).Limit(req.Limit()).Find()
+func (u userRepository) List(ctx context.Context, query domain.ListUsersQuery) ([]domain.User, int64, error) {
+	users, err := u.d.Query.User.WithContext(ctx).Offset(query.Offset()).Limit(query.Limit()).Find()
 	if err != nil {
-		return nil, 0, code.WrapDatabaseError(err, "查询User列表失败")
+		return nil, 0, code.WrapDatabaseError(err, "查询用户列表失败")
 	}
-	var list []param.UserListItem
-	for _, user := range users {
-		list = append(list, param.UserListItem{
-			Id:        user.ID,
-			Username:  user.Username,
-			Email:     user.Email,
-			Age:       int(user.Age),
-			CreatedAt: user.CreatedAt,
-			UpdatedAt: user.UpdatedAt,
-		})
+
+	result := make([]domain.User, 0, len(users))
+	for _, item := range users {
+		aggregate, convErr := appuser.AssembleDomainUser(*item)
+		if convErr != nil {
+			return nil, 0, convErr
+		}
+		result = append(result, aggregate)
 	}
 
 	count, err := u.d.Query.User.Count()
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, code.WrapDatabaseError(err, "统计用户数量失败")
 	}
 
-	return list, count, nil
+	return result, count, nil
 }
 
-func (u userRepository) Create(ctx context.Context, req param.UserCreateRequest) error {
-	user := model.User{
-		Username:  req.Username,
-		Email:     req.Email,
-		Age:       int32(req.Age),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+func (u userRepository) Create(ctx context.Context, entity domain.User) error {
+	now := time.Now()
+	record := appuser.AssembleModelUserForCreate(entity, now)
+	if err := u.d.Query.User.WithContext(ctx).Create(&record); err != nil {
+		return code.WrapDatabaseError(err, "创建用户失败")
 	}
-	err := u.d.Query.User.WithContext(ctx).Create(&user)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
-func (u userRepository) GetByID(ctx context.Context, id int64) (param.UserData, error) {
-	user, err := u.d.Query.User.WithContext(ctx).GetByID(uint(id))
+func (u userRepository) GetByID(ctx context.Context, id domain.ID) (domain.User, error) {
+	userModel, err := u.d.Query.User.WithContext(ctx).GetByID(uint(id.Int64()))
 	if err != nil {
-		return param.UserData{}, err
+		return domain.User{}, code.WrapDatabaseError(err, "查询用户详情失败")
 	}
-
-	return param.UserData{
-		Username:  user.Username,
-		Email:     user.Email,
-		Age:       int(user.Age),
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Id:        user.ID,
-	}, nil
+	aggregate, convErr := appuser.AssembleDomainUser(*userModel)
+	if convErr != nil {
+		return domain.User{}, convErr
+	}
+	return aggregate, nil
 }
 
-func (u userRepository) Update(ctx context.Context, id int64, req param.UserUpdateRequest) error {
-	_, err := u.d.Query.User.WithContext(ctx).Where(u.d.Query.User.ID.Eq(id)).Updates(model.User{
-		Username: req.Username,
-		Email:    req.Email,
-		Age:      int32(req.Age),
-	})
+func (u userRepository) Update(ctx context.Context, entity domain.User) error {
+	now := time.Now()
+	record := appuser.AssembleModelUserForUpdate(entity, now)
+	_, err := u.d.Query.User.WithContext(ctx).Where(u.d.Query.User.ID.Eq(entity.ID.Int64())).Updates(record)
 	if err != nil {
-		return err
+		return code.WrapDatabaseError(err, "更新用户失败")
 	}
-
 	return nil
 }
 
-func (u userRepository) Delete(ctx context.Context, id int64) error {
-	err := u.d.Query.User.WithContext(ctx).DeleteByID(uint(id))
-	if err != nil {
-		return err
+func (u userRepository) Delete(ctx context.Context, id domain.ID) error {
+	if err := u.d.Query.User.WithContext(ctx).DeleteByID(uint(id.Int64())); err != nil {
+		return code.WrapDatabaseError(err, "删除用户失败")
 	}
-
 	return nil
 }

@@ -11,10 +11,10 @@ import (
 
 	"log/slog"
 
-	"github.com/NSObjects/go-template/internal/api/biz"
 	"github.com/NSObjects/go-template/internal/api/data"
 	"github.com/NSObjects/go-template/internal/api/data/db"
 	"github.com/NSObjects/go-template/internal/api/service"
+	"github.com/NSObjects/go-template/internal/application"
 	"github.com/NSObjects/go-template/internal/configs"
 	"github.com/NSObjects/go-template/internal/log"
 	"github.com/NSObjects/go-template/internal/server"
@@ -33,12 +33,11 @@ func Run(cfg string) {
 			return log.NewLogger(cfg)
 		})),
 		fx.Module("data", db.Model, utils.CasbinModule),
-		fx.Module("biz", biz.Model),
+		fx.Module("application", application.Module),
 		fx.Module("repos", data.Model),
 		fx.Module("service", service.Model),
 		fx.Module("server", fx.Provide(server.NewEchoServer)),
 		fx.Invoke(func(lifecycle fx.Lifecycle, s *server.EchoServer, cfg configs.Config, logger log.Logger) {
-			// 测试日志输出
 			logger.Info("Application starting", slog.String("port", cfg.System.Port))
 
 			lifecycle.Append(

@@ -8,19 +8,20 @@ package service
 import (
 	"strconv"
 
-	"github.com/NSObjects/go-template/internal/api/biz"
 	"github.com/NSObjects/go-template/internal/api/service/param"
+	appuser "github.com/NSObjects/go-template/internal/application/user"
+	"github.com/NSObjects/go-template/internal/code"
 	"github.com/NSObjects/go-template/internal/resp"
 	"github.com/NSObjects/go-template/internal/utils"
 	"github.com/labstack/echo/v4"
 )
 
 type UserController struct {
-	user biz.UserUseCase
+	user appuser.Service
 }
 
-func NewUserController(h biz.UserUseCase) RegisterRouter {
-	return &UserController{user: h}
+func NewUserController(svc appuser.Service) RegisterRouter {
+	return &UserController{user: svc}
 }
 
 func (c *UserController) RegisterRouter(g *echo.Group, m ...echo.MiddlewareFunc) {
@@ -32,88 +33,84 @@ func (c *UserController) RegisterRouter(g *echo.Group, m ...echo.MiddlewareFunc)
 }
 
 func (c *UserController) ListUsers(ctx echo.Context) error {
-	// 绑定和验证请求参数
 	var req param.UserListUsersRequest
 	if err := BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
 
-	// 调用业务逻辑 - 构造包含链路追踪信息的context
 	bizCtx := utils.BuildContext(ctx)
-	list, total, err := c.user.ListUsers(bizCtx, req)
+	query := appuser.AssembleListUsersQuery(req)
+	list, total, err := c.user.ListUsers(bizCtx, query)
 	if err != nil {
 		return err
 	}
 
-	// 返回列表数据 - 使用统一的响应格式
-	return resp.ListDataResponse(ctx, list, total)
+	response := appuser.AssembleUserListResponse(list)
+	return resp.ListDataResponse(ctx, response, total)
 }
 
 func (c *UserController) Create(ctx echo.Context) error {
-
-	// 绑定和验证请求参数
 	var req param.UserCreateRequest
 	if err := BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
 
-	// 调用业务逻辑 - 构造包含链路追踪信息的context
-	bizCtx := utils.BuildContext(ctx)
-	err := c.user.Create(bizCtx, req)
+	aggregate, err := appuser.AssembleCreateUser(req)
 	if err != nil {
+		return code.WrapValidationError(err, "用户数据不合法")
+	}
+
+	bizCtx := utils.BuildContext(ctx)
+	if err := c.user.Create(bizCtx, aggregate); err != nil {
 		return err
 	}
 
-	// 返回数据 - 使用统一的响应格式
 	return resp.OperateSuccess(ctx)
 }
 
 func (c *UserController) GetByID(ctx echo.Context) error {
-	// 获取路径参数
 	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
 
-	// 调用业务逻辑 - 构造包含链路追踪信息的context
 	bizCtx := utils.BuildContext(ctx)
-	result, err := c.user.GetByID(bizCtx, id)
+	domainID := appuser.AssembleUserID(id)
+	result, err := c.user.GetByID(bizCtx, domainID)
 	if err != nil {
 		return err
 	}
 
-	// 返回数据 - 使用统一的响应格式
-	return resp.OneDataResponse(ctx, result)
+	response := appuser.AssembleUserDataResponse(result)
+	return resp.OneDataResponse(ctx, response)
 }
 
 func (c *UserController) Update(ctx echo.Context) error {
-	// 获取路径参数
 	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
 
-	// 绑定和验证请求体参数
 	var req param.UserUpdateRequest
 	if err := BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
 
-	// 调用业务逻辑 - 构造包含链路追踪信息的context
-	bizCtx := utils.BuildContext(ctx)
-	err := c.user.Update(bizCtx, id, req)
+	aggregate, err := appuser.AssembleUpdateUser(id, req)
 	if err != nil {
+		return code.WrapValidationError(err, "用户数据不合法")
+	}
+
+	bizCtx := utils.BuildContext(ctx)
+	if err := c.user.Update(bizCtx, aggregate); err != nil {
 		return err
 	}
 
-	// 返回数据 - 使用统一的响应格式
 	return resp.OperateSuccess(ctx)
 }
 
 func (c *UserController) Delete(ctx echo.Context) error {
-	// 获取路径参数
 	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
 
-	// 调用业务逻辑 - 构造包含链路追踪信息的context
 	bizCtx := utils.BuildContext(ctx)
-	if err := c.user.Delete(bizCtx, id); err != nil {
+	domainID := appuser.AssembleUserID(id)
+	if err := c.user.Delete(bizCtx, domainID); err != nil {
 		return err
 	}
 
-	// 返回操作成功 - 使用统一的响应格式
 	return resp.OperateSuccess(ctx)
 }
