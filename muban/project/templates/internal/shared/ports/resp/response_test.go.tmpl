@@ -1,0 +1,80 @@
+package resp
+
+import (
+        "errors"
+        "net/http/httptest"
+        "testing"
+
+        "github.com/labstack/echo/v4"
+)
+
+func getContext() echo.Context {
+        e := echo.New()
+        req := httptest.NewRequest(http.MethodGet, "/", nil)
+        req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+        rec := httptest.NewRecorder()
+        return e.NewContext(req, rec)
+}
+
+func TestAPIError(t *testing.T) {
+        tests := []struct {
+                name    string
+                err     error
+                wantErr bool
+        }{
+                {
+                        name:    "with error",
+                        err:     errors.New("api error"),
+                        wantErr: false,
+                },
+                {
+                        name:    "nil error",
+                        err:     nil,
+                        wantErr: true,
+                },
+        }
+
+        for _, tt := range tests {
+                t.Run(tt.name, func(t *testing.T) {
+                        if err := APIError(tt.err, getContext()); (err != nil) != tt.wantErr {
+                                t.Errorf("APIError() error = %v, wantErr %v", err, tt.wantErr)
+                        }
+                })
+        }
+}
+
+func TestOperateSuccess(t *testing.T) {
+        if err := OperateSuccess(getContext()); err != nil {
+                t.Fatalf("OperateSuccess() error = %v", err)
+        }
+}
+
+func TestListDataResponse(t *testing.T) {
+        tests := []struct {
+                name    string
+                arr     interface{}
+                total   int64
+                wantErr bool
+        }{
+                {
+                        name:    "nil list",
+                        arr:     nil,
+                        total:   0,
+                        wantErr: false,
+                },
+        }
+
+        for _, tt := range tests {
+                t.Run(tt.name, func(t *testing.T) {
+                        if err := ListDataResponse(getContext(), tt.arr, tt.total); (err != nil) != tt.wantErr {
+                                t.Errorf("ListDataResponse() error = %v, wantErr %v", err, tt.wantErr)
+                        }
+                })
+        }
+}
+
+func TestOneDataResponse(t *testing.T) {
+        if err := OneDataResponse(getContext(), nil); err != nil {
+                t.Fatalf("OneDataResponse() error = %v", err)
+        }
+}

@@ -1,0 +1,37 @@
+package code
+
+import (
+	"testing"
+)
+
+func TestNewError(t *testing.T) {
+	code := 100001
+	message := "test error"
+	
+	err := NewError(code, message)
+	
+	if err.Code != code {
+		t.Errorf("NewError() code = %v, want %v", err.Code, code)
+	}
+	
+	if err.Message != message {
+		t.Errorf("NewError() message = %v, want %v", err.Message, message)
+	}
+}
+
+func TestNewErrorf(t *testing.T) {
+	code := 100001
+	format := "test error: %s"
+	arg := "test"
+	expected := "test error: test"
+	
+	err := NewErrorf(code, format, arg)
+	
+	if err.Code != code {
+		t.Errorf("NewErrorf() code = %v, want %v", err.Code, code)
+	}
+	
+	if err.Message != expected {
+		t.Errorf("NewErrorf() message = %v, want %v", err.Message, expected)
+	}
+}

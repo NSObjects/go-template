@@ -1,0 +1,97 @@
+package utils
+
+import (
+	"testing"
+)
+
+func TestIsValidEmail(t *testing.T) {
+	tests := []struct {
+		email    string
+		expected bool
+	}{
+		{"test@example.com", true},
+		{"user@domain.org", true},
+		{"invalid-email", false},
+		{"@example.com", false},
+		{"test@", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.email, func(t *testing.T) {
+			result := IsValidEmail(tt.email)
+			if result != tt.expected {
+				t.Errorf("IsValidEmail(%s) = %v, want %v", tt.email, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsValidPhone(t *testing.T) {
+	tests := []struct {
+		phone    string
+		expected bool
+	}{
+		{"13812345678", true},
+		{"15987654321", true},
+		{"12345678901", false}, // 不是1开头
+		{"1381234567", false},  // 长度不够
+		{"138123456789", false}, // 长度太长
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.phone, func(t *testing.T) {
+			result := IsValidPhone(tt.phone)
+			if result != tt.expected {
+				t.Errorf("IsValidPhone(%s) = %v, want %v", tt.phone, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsValidUsername(t *testing.T) {
+	tests := []struct {
+		username string
+		expected bool
+	}{
+		{"user123", true},
+		{"test_user", true},
+		{"user", true},
+		{"a", false},        // 太短
+		{"user@123", false}, // 包含特殊字符
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.username, func(t *testing.T) {
+			result := IsValidUsername(tt.username)
+			if result != tt.expected {
+				t.Errorf("IsValidUsername(%s) = %v, want %v", tt.username, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsValidPassword(t *testing.T) {
+	tests := []struct {
+		password string
+		expected bool
+	}{
+		{"password123", true},
+		{"Password123", true},
+		{"pass123", false},    // 太短
+		{"password", false},   // 没有数字
+		{"12345678", false},   // 没有字母
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.password, func(t *testing.T) {
+			result := IsValidPassword(tt.password)
+			if result != tt.expected {
+				t.Errorf("IsValidPassword(%s) = %v, want %v", tt.password, result, tt.expected)
+			}
+		})
+	}
+}

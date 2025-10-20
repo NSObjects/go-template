@@ -3,7 +3,7 @@
  * Module: {{.Pascal}}
  */
 
-package param
+package app
 
 {{if .HasTimeFields}}
 import (
@@ -11,6 +11,7 @@ import (
 )
 {{end}}
 
+// DTOs & Requests
 {{range .Operations}}
 {{if .HasRequestBodyOrQuery}}
 // {{$.Pascal}}{{.MethodName}}Request
@@ -29,7 +30,7 @@ type {{$.Pascal}}{{.MethodName}}Request struct {
 {{end}}
 {{if .RequestBody}}
 {{range .RequestBody.Fields}}
-	{{.FieldName}} {{.GoType}} `param:"{{.Name}}" query:"{{.Name}}" form:"{{.Name}}" json:"{{.Name}}" xml:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}`
+	{{.FieldName}} {{.GoType}} `json:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}`
 {{end}}
 {{end}}
 }

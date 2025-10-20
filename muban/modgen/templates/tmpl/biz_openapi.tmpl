@@ -3,62 +3,57 @@
  * Module: {{.Pascal}}
  */
 
-package biz
+package app
 
 import (
-"context"
-
-"{{.PackagePath}}/internal/api/service/param"
-"{{.PackagePath}}/internal/code"
+	"context"
+	"{{.PackagePath}}/internal/{{.Context}}/domain"
+	"{{.PackagePath}}/internal/pkg/code"
 )
 
-// {{.Pascal}}Repository 数据访问接口 - 符合依赖注入原则
-type {{.Pascal}}Repository interface {
+// {{.Pascal}}Service 应用服务接口（入站端口）
+type {{.Pascal}}Service interface {
 {{- range .Operations }}
-// {{.MethodName}} {{if .Summary}}{{.Summary}}{{else}}处理{{$.Pascal}}{{end}}
-{{.MethodName}}(ctx context.Context{{- if .HasPathParams }}, id int64{{- end }}{{- if .HasRequestBodyOrQuery }}, req param.{{$.Pascal}}{{.MethodName}}Request{{- end }}) {{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}([]param.{{$.Pascal}}ListItem, int64, error){{- else if .ResponseData}}(param.{{$.Pascal}}{{.ResponseData.GoType}}, error){{- else}}error{{- end }}
+	// {{.MethodName}} {{if .Summary}}{{.Summary}}{{else}}处理{{$.Pascal}}{{end}}
+	{{.MethodName}}(ctx context.Context{{- if .HasPathParams }}, id int64{{- end }}{{- if .HasRequestBodyOrQuery }}, req {{$.Pascal}}{{.MethodName}}Request{{- end }}) {{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}([]{{$.Pascal}}ListItem, int64, error){{- else if .ResponseData}}({{$.Pascal}}{{.ResponseData.GoType}}, error){{- else}}error{{- end }}
 {{- end }}
 }
 
-// {{.Pascal}}UseCase 业务逻辑接口
-type {{.Pascal}}UseCase interface {
-{{- range .Operations }}
-// {{.MethodName}} {{if .Summary}}{{.Summary}}{{else}}处理{{$.Pascal}}{{end}}
-{{.MethodName}}(ctx context.Context{{- if .HasPathParams }}, id int64{{- end }}{{- if .HasRequestBodyOrQuery }}, req param.{{$.Pascal}}{{.MethodName}}Request{{- end }}) {{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}([]param.{{$.Pascal}}ListItem, int64, error){{- else if .ResponseData}}(param.{{$.Pascal}}{{.ResponseData.GoType}}, error){{- else}}error{{- end }}
-{{- end }}
+// {{.Pascal}}ServiceImpl 应用服务实现
+type {{.Pascal}}ServiceImpl struct {
+	repo domain.{{.Pascal}}Repository
 }
 
-// {{.Pascal}}Handler 业务逻辑处理器 - 通过依赖注入获取Repository
-type {{.Pascal}}Handler struct {
-repo {{.Pascal}}Repository
-}
-
-// New{{.Pascal}}Handler 创建业务逻辑处理器 - 符合依赖注入原则
-func New{{.Pascal}}Handler(repo {{.Pascal}}Repository) {{.Pascal}}UseCase {
-return &{{.Pascal}}Handler{
-repo: repo,
-}
+// New{{.Pascal}}Service 创建应用服务
+func New{{.Pascal}}Service(repo domain.{{.Pascal}}Repository) {{.Pascal}}Service {
+	return &{{.Pascal}}ServiceImpl{repo: repo}
 }
 
 {{- range .Operations }}
-func (h *{{$.Pascal}}Handler) {{.MethodName}}(ctx context.Context{{- if .HasPathParams }}, id int64{{- end }}{{- if .HasRequestBodyOrQuery }}, req param.{{$.Pascal}}{{.MethodName}}Request{{- end }}) {{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}([]param.{{$.Pascal}}ListItem, int64, error){{- else if .ResponseData}}(param.{{$.Pascal}}{{.ResponseData.GoType}}, error){{- else}}error{{- end }} {
+func (s *{{$.Pascal}}ServiceImpl) {{.MethodName}}(ctx context.Context{{- if .HasPathParams }}, id int64{{- end }}{{- if .HasRequestBodyOrQuery }}, req {{$.Pascal}}{{.MethodName}}Request{{- end }}) {{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}([]{{$.Pascal}}ListItem, int64, error){{- else if .ResponseData}}({{$.Pascal}}{{.ResponseData.GoType}}, error){{- else}}error{{- end }} {
 {{- if and .ResponseData (eq .ResponseData.GoType "ListItem") }}
-list, total, err := h.repo.{{.MethodName}}(ctx{{- if and .HasPathParams .HasRequestBodyOrQuery}}, id, req{{- else if .HasPathParams }}, id{{- else if .HasRequestBodyOrQuery }}, req{{- end }})
-if err != nil {
-return nil, 0, code.WrapDatabaseError(err, "{{if .Summary}}{{.Summary}}{{else}}{{$.Pascal}}{{.MethodName}}{{end}}失败")
-}
-return list, total, nil
+	list, total, err := s.repo.List(ctx, req.Offset(), req.Limit())
+	if err != nil {
+		return nil, 0, code.WrapDatabaseError(err, "list {{$.Lower}} failed")
+	}
+	// 需要转换为 DTO 列表（示例直接返回）
+	return list, total, nil
 {{- else if .ResponseData }}
-result, err := h.repo.{{.MethodName}}(ctx{{- if and .HasPathParams .HasRequestBodyOrQuery}}, id, req{{- else if .HasPathParams }}, id{{- else if .HasRequestBodyOrQuery }}, req{{- end }})
-if err != nil {
-return result, code.WrapDatabaseError(err, "{{if .Summary}}{{.Summary}}{{else}}{{$.Pascal}}{{.MethodName}}{{end}}失败")
-}
-return result, nil
+	// 示例：按ID获取
+	entity, err := s.repo.FindByID(ctx, domain.{{$.Pascal}}ID{})
+	if err != nil {
+		return {{$.Pascal}}{{.ResponseData.GoType}}{}, code.WrapDatabaseError(err, "get {{$.Lower}} failed")
+	}
+	// 需要转换为 DTO（示例略）
+	var dto {{$.Pascal}}{{.ResponseData.GoType}}
+	_ = entity
+	return dto, nil
 {{- else }}
-if err := h.repo.{{.MethodName}}(ctx{{- if and .HasPathParams .HasRequestBodyOrQuery}}, id, req{{- else if .HasPathParams }}, id{{- else if .HasRequestBodyOrQuery }}, req{{- end }}); err != nil {
-return code.WrapDatabaseError(err, "{{if .Summary}}{{.Summary}}{{else}}{{$.Pascal}}{{.MethodName}}{{end}}失败")
-}
-return nil
+	// 示例：删除
+	if err := s.repo.Delete(ctx, domain.{{$.Pascal}}ID{}); err != nil {
+		return code.WrapDatabaseError(err, "delete {{$.Lower}} failed")
+	}
+	return nil
 {{- end }}
 }
 

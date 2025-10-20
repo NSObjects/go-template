@@ -1,24 +1,22 @@
 /*
-* Created by lintao on 2023/7/27 上午10:04
-* Copyright © 2020-2023 LINTAO. All rights reserved.
-*
-*/
+ * Created by lintao on 2023/7/27 上午10:04
+ * Copyright © 2020-2023 LINTAO. All rights reserved.
+ *
+ */
 
 package cmd
 
 import (
 	"context"
-
 	"log/slog"
 
-	"{{.ModulePath}}/internal/api/biz"
-	"{{.ModulePath}}/internal/api/data"
-	"{{.ModulePath}}/internal/api/data/db"
-	"{{.ModulePath}}/internal/api/service"
 	"{{.ModulePath}}/internal/configs"
-	"{{.ModulePath}}/internal/log"
-	"{{.ModulePath}}/internal/server"
-    "{{.ModulePath}}/internal/utils"
+	"{{.ModulePath}}/internal/infra"
+	"{{.ModulePath}}/internal/infra/persistence"
+	"{{.ModulePath}}/internal/pkg/utils"
+	"{{.ModulePath}}/internal/shared/infra/log"
+	"{{.ModulePath}}/internal/shared/infra/server"
+
 	"go.uber.org/fx"
 )
 
@@ -31,11 +29,17 @@ func Run(cfg string) {
 		fx.Module("log", fx.Provide(func(cfg configs.Config) log.Logger {
 			return log.NewLogger(cfg)
 		})),
-		fx.Module("data", db.Model, utils.CasbinModule),
-		fx.Module("biz", biz.Model),
-		fx.Module("repos", data.Model),
-		fx.Module("service", service.Model),
-		fx.Module("server", fx.Provide(server.NewEchoServer)),
+		fx.Module("data", persistence.Model, utils.CasbinModule),
+
+		// DDD架构模块
+		fx.Module("infra", infra.InfraModule),
+		// 在这里添加你的限界上下文模块
+		// fx.Module("user", user.UserModule),
+		
+		fx.Module("server",
+			fx.Provide(server.NewEchoServer),
+			fx.Provide(server.NewRateLimiter),
+		),
 		fx.Invoke(func(lifecycle fx.Lifecycle, s *server.EchoServer, cfg configs.Config, logger log.Logger) {
 			// 测试日志输出
 			logger.Info("Application starting", slog.String("port", cfg.System.Port))

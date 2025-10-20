@@ -1,0 +1,13 @@
+package log
+
+import (
+	"log/slog"
+	"os"
+)
+
+// NewSlogLogger 创建slog日志器
+func NewSlogLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+}

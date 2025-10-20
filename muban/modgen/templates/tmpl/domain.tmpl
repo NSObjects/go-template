@@ -1,0 +1,88 @@
+/*
+ * Domain Layer - {{.Pascal}} Aggregate
+ * Generated from OpenAPI3 document
+ */
+
+package domain
+
+import (
+	"errors"
+	"time"
+
+	"{{.PackagePath}}/internal/shared/kernel"
+	"{{.PackagePath}}/internal/shared/event"
+)
+
+// {{.Pascal}}ID {{.Pascal}} ID值对象
+type {{.Pascal}}ID struct {
+	value string
+}
+
+// New{{.Pascal}}ID 创建{{.Pascal}} ID
+func New{{.Pascal}}ID(value string) ({{.Pascal}}ID, error) {
+	if value == "" {
+		return {{.Pascal}}ID{}, errors.New("{{.Lower}} ID cannot be empty")
+	}
+	return {{.Pascal}}ID{value: value}, nil
+}
+
+// Value 获取ID值
+func (id {{.Pascal}}ID) Value() string {
+	return id.value
+}
+
+// Equals 比较ID是否相等
+func (id {{.Pascal}}ID) Equals(other kernel.EntityID) bool {
+	if otherID, ok := other.({{.Pascal}}ID); ok {
+		return id.value == otherID.value
+	}
+	return false
+}
+
+// {{.Pascal}} {{.Pascal}}聚合根
+type {{.Pascal}} struct {
+	kernel.BaseEntity
+	kernel.BaseAggregateRoot
+	
+	// 领域字段
+	{{range .Fields}}
+	{{.Name}} {{.Type}}
+	{{- end}}
+}
+
+// New{{.Pascal}} 创建{{.Pascal}}聚合根
+func New{{.Pascal}}(id {{.Pascal}}ID {{range .Fields}}, {{.NameLower}} {{.Type}}{{end}}) (*{{.Pascal}}, error) {
+	// 业务规则验证
+	{{range .Fields}}
+	{{- if .Required}}
+	if {{.NameLower}} == {{.ZeroValue}} {
+		return nil, errors.New("{{.NameLower}} cannot be empty")
+	}
+	{{- end}}
+	{{- end}}
+
+	{{.Lower}} := &{{.Pascal}}{
+		BaseEntity: kernel.NewBaseEntity(id),
+		{{range .Fields}}
+		{{.Name}}: {{.NameLower}},
+		{{- end}}
+	}
+
+	// 发布领域事件
+	{{.Lower}}.AddDomainEvent(&{{.Pascal}}Created{
+		BaseEvent: *event.NewBaseEvent("{{.Pascal}}Created", id.Value()),
+		{{.Pascal}}ID: id.Value(),
+	})
+
+	return {{.Lower}}, nil
+}
+
+// Getters
+{{range .Fields}}
+func (e *{{$.Pascal}}) {{.Name}}() {{.Type}} {
+	return e.{{.NameLower}}
+}
+{{end}}
+
+// Business methods would go here
+

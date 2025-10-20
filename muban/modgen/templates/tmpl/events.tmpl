@@ -1,0 +1,106 @@
+/*
+ * Domain Layer - {{.Pascal}} Events
+ * Generated from OpenAPI3 document
+ */
+
+package domain
+
+import (
+	"time"
+
+	"{{.PackagePath}}/internal/shared/event"
+)
+
+// {{.Pascal}}Created {{.Pascal}}创建事件
+type {{.Pascal}}Created struct {
+	event.BaseEvent
+	{{.Pascal}}ID string `json:"{{.Lower}}_id"`
+}
+
+// EventID 实现DomainEvent接口
+func (e *{{.Pascal}}Created) EventID() string {
+	return e.BaseEvent.EventID()
+}
+
+// EventType 实现DomainEvent接口
+func (e *{{.Pascal}}Created) EventType() string {
+	return e.BaseEvent.EventType()
+}
+
+// OccurredAt 实现DomainEvent接口
+func (e *{{.Pascal}}Created) OccurredAt() time.Time {
+	return e.BaseEvent.OccurredAt()
+}
+
+// AggregateID 实现DomainEvent接口
+func (e *{{.Pascal}}Created) AggregateID() string {
+	return e.BaseEvent.AggregateID()
+}
+
+// Version 实现DomainEvent接口
+func (e *{{.Pascal}}Created) Version() int {
+	return e.BaseEvent.Version()
+}
+
+// {{.Pascal}}Updated {{.Pascal}}更新事件
+type {{.Pascal}}Updated struct {
+	event.BaseEvent
+	{{.Pascal}}ID string `json:"{{.Lower}}_id"`
+}
+
+// EventID 实现DomainEvent接口
+func (e *{{.Pascal}}Updated) EventID() string {
+	return e.BaseEvent.EventID()
+}
+
+// EventType 实现DomainEvent接口
+func (e *{{.Pascal}}Updated) EventType() string {
+	return e.BaseEvent.EventType()
+}
+
+// OccurredAt 实现DomainEvent接口
+func (e *{{.Pascal}}Updated) OccurredAt() time.Time {
+	return e.BaseEvent.OccurredAt()
+}
+
+// AggregateID 实现DomainEvent接口
+func (e *{{.Pascal}}Updated) AggregateID() string {
+	return e.BaseEvent.AggregateID()
+}
+
+// Version 实现DomainEvent接口
+func (e *{{.Pascal}}Updated) Version() int {
+	return e.BaseEvent.Version()
+}
+
+// {{.Pascal}}Deleted {{.Pascal}}删除事件
+type {{.Pascal}}Deleted struct {
+	event.BaseEvent
+	{{.Pascal}}ID string `json:"{{.Lower}}_id"`
+}
+
+// EventID 实现DomainEvent接口
+func (e *{{.Pascal}}Deleted) EventID() string {
+	return e.BaseEvent.EventID()
+}
+
+// EventType 实现DomainEvent接口
+func (e *{{.Pascal}}Deleted) EventType() string {
+	return e.BaseEvent.EventType()
+}
+
+// OccurredAt 实现DomainEvent接口
+func (e *{{.Pascal}}Deleted) OccurredAt() time.Time {
+	return e.BaseEvent.OccurredAt()
+}
+
+// AggregateID 实现DomainEvent接口
+func (e *{{.Pascal}}Deleted) AggregateID() string {
+	return e.BaseEvent.AggregateID()
+}
+
+// Version 实现DomainEvent接口
+func (e *{{.Pascal}}Deleted) Version() int {
+	return e.BaseEvent.Version()
+}
+

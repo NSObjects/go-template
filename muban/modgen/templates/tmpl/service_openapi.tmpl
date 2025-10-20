@@ -3,74 +3,70 @@
  * Module: {{.Pascal}}
  */
 
-package service
+package adapters
 
 import (
 {{- if .HasPathParams }}
-"strconv"
+	"strconv"
 {{- end }}
-"{{.PackagePath}}/internal/api/biz"
-"{{.PackagePath}}/internal/api/service/param"
-"{{.PackagePath}}/internal/resp"
-"{{.PackagePath}}/internal/utils"
-"github.com/labstack/echo/v4"
+	"{{.PackagePath}}/internal/{{.Context}}/app"
+	"{{.PackagePath}}/internal/pkg/code"
+	"{{.PackagePath}}/internal/shared/ports/resp"
+	"{{.PackagePath}}/internal/pkg/utils"
+	"github.com/labstack/echo/v4"
 )
 
-type {{.Pascal}}Controller struct {
-{{.Camel}} biz.{{.Pascal}}UseCase
+type {{.Pascal}}Handler struct {
+	service app.{{.Pascal}}Service
 }
 
-func New{{.Pascal}}Controller(h biz.{{.Pascal}}UseCase) RegisterRouter {
-return &{{.Pascal}}Controller{
-{{.Camel}}: h,
-}
+func New{{.Pascal}}Handler(s app.{{.Pascal}}Service) RegisterRouter {
+	return &{{.Pascal}}Handler{service: s}
 }
 
-func (c *{{.Pascal}}Controller) RegisterRouter(g *echo.Group, m ...echo.MiddlewareFunc) {
+// RegisterRouter 注册路由
+func (h *{{.Pascal}}Handler) RegisterRouter(g *echo.Group, m ...echo.MiddlewareFunc) {
 {{- range .Operations }}
-g.{{- if eq .Method "get" -}}GET{{- else if eq .Method "post" -}}POST{{- else if eq .Method "put" -}}PUT{{- else if eq .Method "delete" -}}DELETE{{- else -}}{{.Method | upper}}{{- end}}("{{.Path}}", c.{{.MethodName}}).Name = "{{.Summary}}"
+	g.{{- if eq .Method "get" -}}GET{{- else if eq .Method "post" -}}POST{{- else if eq .Method "put" -}}PUT{{- else if eq .Method "delete" -}}DELETE{{- else -}}{{.Method | upper}}{{- end}}("{{.Path}}", h.{{.MethodName}}).Name = "{{.Summary}}"
 {{- end }}
 }
 
 {{- range .Operations }}
-func (c *{{$.Pascal}}Controller) {{.MethodName}}(ctx echo.Context) error {
+func (h *{{$.Pascal}}Handler) {{.MethodName}}(ctx echo.Context) error {
 {{- if .HasRequestBodyOrQuery }}
-// 绑定和验证请求参数
-var req param.{{$.Pascal}}{{.MethodName}}Request
-if err := BindAndValidate(ctx, &req); err != nil {
-return err
-}
+	// 绑定与验证
+	var req app.{{$.Pascal}}{{.MethodName}}Request
+	if err := ctx.Bind(&req); err != nil {
+		return code.WrapBindError(err, "bind request failed")
+	}
+	if err := ctx.Validate(&req); err != nil {
+		return code.WrapValidationError(err, "validation failed")
+	}
 {{- end }}
 {{- if .HasPathParams }}
-// 获取路径参数
-id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	// 路径参数
+	idStr := ctx.Param("id")
+	id, _ := strconv.ParseInt(idStr, 10, 64)
 {{- end }}
 
-// 调用业务逻辑 - 构造包含链路追踪信息的context
-bizCtx := utils.BuildContext(ctx)
+	bizCtx := utils.BuildContext(ctx)
 {{- if and .ResponseData (eq .ResponseData.GoType "ListItem") }}
-list, total, err := c.{{$.Camel}}.{{.MethodName}}(bizCtx{{- if and .HasPathParams .HasRequestBodyOrQuery}}, id, req{{- else if .HasPathParams }}, id{{- else if .HasRequestBodyOrQuery }}, req{{- end }})
-if err != nil {
-return err
-}
-
-// 返回列表数据 - 使用统一的响应格式
-return resp.ListDataResponse(ctx, list, total)
+	list, total, err := h.service.{{.MethodName}}(bizCtx{{- if and .HasPathParams .HasRequestBodyOrQuery}}, id, req{{- else if .HasPathParams }}, id{{- else if .HasRequestBodyOrQuery }}, req{{- end }})
+	if err != nil {
+		return err
+	}
+	return resp.ListDataResponse(ctx, list, total)
 {{- else if .ResponseData }}
-result, err := c.{{$.Camel}}.{{.MethodName}}(bizCtx{{- if and .HasPathParams .HasRequestBodyOrQuery}}, id, req{{- else if .HasPathParams }}, id{{- else if .HasRequestBodyOrQuery }}, req{{- end }})
-if err != nil {
-return err
-}
-
-// 返回数据 - 使用统一的响应格式
-return resp.OneDataResponse(ctx, result)
+	result, err := h.service.{{.MethodName}}(bizCtx{{- if and .HasPathParams .HasRequestBodyOrQuery}}, id, req{{- else if .HasPathParams }}, id{{- else if .HasRequestBodyOrQuery }}, req{{- end }})
+	if err != nil {
+		return err
+	}
+	return resp.OneDataResponse(ctx, result)
 {{- else }}
-if err := c.{{$.Camel}}.{{.MethodName}}(bizCtx{{- if and .HasPathParams .HasRequestBodyOrQuery}}, id, req{{- else if .HasPathParams }}, id{{- else if .HasRequestBodyOrQuery }}, req{{- end }}); err != nil {
-return err
-}
-
-// 返回操作成功 - 使用统一的响应格式
-return resp.OperateSuccess(ctx)
+	if err := h.service.{{.MethodName}}(bizCtx{{- if and .HasPathParams .HasRequestBodyOrQuery}}, id, req{{- else if .HasPathParams }}, id{{- else if .HasRequestBodyOrQuery }}, req{{- end }}); err != nil {
+		return err
+	}
+	return resp.OperateSuccess(ctx)
 {{- end }}
 }
 

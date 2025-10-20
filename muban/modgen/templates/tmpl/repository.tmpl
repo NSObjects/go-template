@@ -1,0 +1,29 @@
+/*
+ * Domain Layer - {{.Pascal}} Repository Interface
+ * Generated from OpenAPI3 document
+ */
+
+package domain
+
+import (
+	"context"
+)
+
+// {{.Pascal}}Repository {{.Pascal}}仓储接口（出站端口）
+type {{.Pascal}}Repository interface {
+	// Save 保存{{.Pascal}}
+	Save(ctx context.Context, {{.Lower}} *{{.Pascal}}) error
+
+	// FindByID 根据ID查找{{.Pascal}}
+	FindByID(ctx context.Context, id {{.Pascal}}ID) (*{{.Pascal}}, error)
+
+	// Exists 检查{{.Pascal}}是否存在
+	Exists(ctx context.Context, id {{.Pascal}}ID) (bool, error)
+
+	// List 获取{{.Pascal}}列表
+	List(ctx context.Context, offset, limit int) ([]*{{.Pascal}}, int64, error)
+
+	// Delete 删除{{.Pascal}}
+	Delete(ctx context.Context, id {{.Pascal}}ID) error
+}
+

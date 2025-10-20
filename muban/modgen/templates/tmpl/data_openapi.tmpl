@@ -3,42 +3,38 @@
  * Module: {{.Pascal}}
  */
 
-package data
+package adapters
 
 import (
-"context"
-
-"{{.PackagePath}}/internal/api/biz"
-"{{.PackagePath}}/internal/api/service/param"
-"{{.PackagePath}}/internal/api/data/db"
+	"context"
+	"{{.PackagePath}}/internal/{{.Context}}/domain"
+	"{{.PackagePath}}/internal/infra/persistence"
+	"{{.PackagePath}}/internal/pkg/code"
 )
 
-// {{.Pascal}}Repository 数据访问实现
-type {{.Pascal}}Repository struct {
-    d *db.DataManager
+// {{.Pascal}}RepositoryImpl 数据访问实现
+type {{.Pascal}}RepositoryImpl struct {
+	db *persistence.DataManager
 }
 
 // New{{.Pascal}}Repository 构造函数，供 fx 注入
-func New{{.Pascal}}Repository(d *db.DataManager) biz.{{.Pascal}}Repository {
-    return &{{.Pascal}}Repository{d: d}
+func New{{.Pascal}}Repository(db *persistence.DataManager) domain.{{.Pascal}}Repository {
+	return &{{.Pascal}}RepositoryImpl{db: db}
 }
 
 {{- range .Operations }}
 // {{.MethodName}} {{if .Summary}}{{.Summary}}{{else}}处理{{$.Pascal}}{{end}}
-func (r *{{$.Pascal}}Repository) {{.MethodName}}(ctx context.Context{{- if .HasPathParams }}, id int64{{- end }}{{- if .HasRequestBodyOrQuery }}, req param.{{$.Pascal}}{{.MethodName}}Request{{- end }}) {{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}([]param.{{$.Pascal}}ListItem, int64, error){{- else if .ResponseData}}(param.{{$.Pascal}}{{.ResponseData.GoType}}, error){{- else}}error{{- end }} {
-    // TODO: 实现数据访问逻辑。以下为占位返回，便于通过编译。
-    {{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}
-    var list []param.{{$.Pascal}}ListItem
-    var total int64
-    return list, total, nil
-    {{- else if .ResponseData}}
-    var out param.{{$.Pascal}}{{.ResponseData.GoType}}
-    return out, nil
-    {{- else}}
-    return nil
-    {{- end }}
-    // 出错时请使用 code 包进行包装，例如：
-    // return nil, 0, code.WrapDatabaseError(err, "说明信息")
+func (r *{{$.Pascal}}RepositoryImpl) {{.MethodName}}(ctx context.Context{{- if .HasPathParams }}, id domain.{{$.Pascal}}ID{{- end }}{{- if .HasRequestBodyOrQuery }}, req interface{}{{- end }}) {{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}([]*domain.{{$.Pascal}}, int64, error){{- else if .ResponseData}}(*domain.{{$.Pascal}}, error){{- else}}error{{- end }} {
+	// TODO: 实现数据访问逻辑。以下为占位返回，便于通过编译。
+	{{- if and .ResponseData (eq .ResponseData.GoType "ListItem")}}
+	var list []*domain.{{$.Pascal}}
+	var total int64
+	return list, total, nil
+	{{- else if .ResponseData}}
+	return nil, code.WrapDatabaseError(nil, "not implemented")
+	{{- else}}
+	return nil
+	{{- end }}
 }
 {{- end }}
 
