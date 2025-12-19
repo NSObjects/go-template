@@ -1,9 +1,9 @@
 package service
 
 import (
-        "{{.ModulePath}}/internal/resp"
-        "github.com/labstack/echo/v4"
-        "go.uber.org/fx"
+"github.com/NSObjects/go-kit/resp"
+"github.com/labstack/echo/v4"
+"go.uber.org/fx"
 )
 
 // ExampleRouter 示例路由
@@ -118,10 +118,5 @@ func (r *ExampleRouter) GetVersion(c echo.Context) error {
 
 // ExampleRouterModule 示例路由模块
 var ExampleRouterModule = fx.Options(
-        fx.Provide(NewExampleRouter),
-        fx.Provide(fx.Annotate(
-                NewExampleRouter,
-                fx.As(new(RegisterRouter)),
-                fx.ResultTags(`group:"routes"`),
-        )),
+fx.Provide(AsRoute(NewExampleRouter)),
 )
