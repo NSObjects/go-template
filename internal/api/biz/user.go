@@ -8,8 +8,8 @@ package biz
 import (
 	"context"
 
+	"github.com/NSObjects/go-kit/code"
 	"github.com/NSObjects/go-template/internal/api/service/param"
-	"github.com/NSObjects/go-template/internal/code"
 )
 
 // UserRepository 数据访问接口 - 符合依赖注入原则
