@@ -54,9 +54,10 @@ func (tr *TemplateRenderer) RenderOpenAPIParam(module *openapi.APIModule, pascal
 }
 
 // RenderOpenAPIData 从OpenAPI3生成数据层模板
-func (tr *TemplateRenderer) RenderOpenAPIData(module *openapi.APIModule, pascal, packagePath string) (string, error) {
+func (tr *TemplateRenderer) RenderOpenAPIData(module *openapi.APIModule, pascal, camel, packagePath string) (string, error) {
 	data := TemplateData{
 		Pascal:                pascal,
+		Camel:                 camel,
 		PackagePath:           packagePath,
 		Operations:            module.Operations,
 		HasPathParams:         checkHasPathParams(module.Operations),
@@ -189,11 +190,11 @@ func generateBizImplementation(methodName, pascal string) string {
 	// 使用带context的数据库查询 - context包含链路追踪信息
 	// db := h.dataManager.MySQLWithContext(ctx)
 	// query := h.dataManager.Query.WithContext(ctx)
-	// 
+	//
 	// 示例实现：
 	// var users []model.User
 	// var total int64
-	// 
+	//
 	// // 构建查询条件
 	// query := h.dataManager.Query.User.WithContext(ctx)
 	// if req.Name != "" {
@@ -202,14 +203,14 @@ func generateBizImplementation(methodName, pascal string) string {
 	// if req.Email != "" {
 	// 	query = query.Where(h.dataManager.Query.User.Account.Eq(req.Email))
 	// }
-	// 
+	//
 	// // 分页查询
 	// offset := (req.Page - 1) * req.Count
 	// err := query.Count(&total).Offset(offset).Limit(req.Count).Find(&users)
 	// if err != nil {
 	// 	return nil, 0, err
 	// }
-	// 
+	//
 	// // 转换为响应格式
 	// var responses []param.%sResponse
 	// for _, user := range users {
@@ -218,14 +219,14 @@ func generateBizImplementation(methodName, pascal string) string {
 	// 		Name: user.Name,
 	// 	})
 	// }
-	// 
+	//
 	// return responses, total, nil
 	return nil, 0, nil`, pascal, pascal)
 	case "create":
 		return `// TODO: 实现创建逻辑
 	// 使用带context的数据库操作 - context包含链路追踪信息
 	// db := h.dataManager.MySQLWithContext(ctx)
-	// 
+	//
 	// 示例实现：
 	// user := model.User{
 	// 	Name:    req.Name,
@@ -233,25 +234,25 @@ func generateBizImplementation(methodName, pascal string) string {
 	// 	Phone:   req.Phone,
 	// 	Status:  req.Status,
 	// }
-	// 
+	//
 	// err := h.dataManager.Query.User.WithContext(ctx).Create(&user)
 	// if err != nil {
 	// 	return err
 	// }
-	// 
+	//
 	// return nil
 	return nil`
 	case "getbyid":
 		return fmt.Sprintf(`// TODO: 实现根据ID查询逻辑
 	// 使用带context的数据库查询 - context包含链路追踪信息
-	// 
+	//
 	// 示例实现：
 	// var user model.User
 	// err := h.dataManager.Query.User.WithContext(ctx).Where(h.dataManager.Query.User.ID.Eq(id)).First(&user)
 	// if err != nil {
 	// 	return nil, err
 	// }
-	// 
+	//
 	// return &param.%sResponse{
 	// 	ID:   user.ID,
 	// 	Name: user.Name,
@@ -260,31 +261,31 @@ func generateBizImplementation(methodName, pascal string) string {
 	case "update":
 		return `// TODO: 实现更新逻辑
 	// 使用带context的数据库操作 - context包含链路追踪信息
-	// 
+	//
 	// 示例实现：
 	// updates := map[string]interface{}{
 	// 	"name":   req.Name,
 	// 	"phone":  req.Phone,
 	// 	"status": req.Status,
 	// }
-	// 
+	//
 	// err := h.dataManager.Query.User.WithContext(ctx).Where(h.dataManager.Query.User.ID.Eq(req.Id)).Updates(updates)
 	// if err != nil {
 	// 	return err
 	// }
-	// 
+	//
 	// return nil
 	return nil`
 	case "delete":
 		return `// TODO: 实现删除逻辑
 	// 使用带context的数据库操作 - context包含链路追踪信息
-	// 
+	//
 	// 示例实现：
 	// err := h.dataManager.Query.User.WithContext(ctx).Where(h.dataManager.Query.User.ID.Eq(id)).Delete(&model.User{})
 	// if err != nil {
 	// 	return err
 	// }
-	// 
+	//
 	// return nil
 	return nil`
 	default:
@@ -319,14 +320,14 @@ func (c *%sController) %s(ctx echo.Context) error {
 	if err := BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
-	
+
 	// 调用业务逻辑 - 构造包含链路追踪信息的context
 	bizCtx := utils.BuildContext(ctx)
 	list, total, err := c.%s.%s(bizCtx, req)
 	if err != nil {
 		return err
 	}
-	
+
     // 返回列表数据
     return resp.ListDataResponse(ctx, list, total)
 }`, pascal, handlerName, requestType, strings.ToLower(pascal[:1])+pascal[1:], methodName)
@@ -338,13 +339,13 @@ func (c *%sController) %s(ctx echo.Context) error {
 	if err := BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
-	
+
 	// 调用业务逻辑 - 构造包含链路追踪信息的context
 	bizCtx := utils.BuildContext(ctx)
 	if err := c.%s.%s(bizCtx, req); err != nil {
 		return err
 	}
-	
+
 	// 返回操作成功
 	return resp.OperateSuccess(ctx)
 }`, pascal, handlerName, requestType, strings.ToLower(pascal[:1])+pascal[1:], methodName)
@@ -353,19 +354,19 @@ func (c *%sController) %s(ctx echo.Context) error {
 func (c *%sController) %s(ctx echo.Context) error {
 	// 获取路径参数
 	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
-	
+
 	// 绑定和验证请求体参数
 	var req param.%s
 	if err := BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
-	
+
 	// 调用业务逻辑 - 构造包含链路追踪信息的context
 	bizCtx := utils.BuildContext(ctx)
 	if err := c.%s.%s(bizCtx, id, req); err != nil {
 		return err
 	}
-	
+
 	// 返回操作成功
 	return resp.OperateSuccess(ctx)
 }`, pascal, handlerName, requestType, strings.ToLower(pascal[:1])+pascal[1:], methodName)
@@ -374,14 +375,14 @@ func (c *%sController) %s(ctx echo.Context) error {
 func (c *%sController) %s(ctx echo.Context) error {
 	// 获取路径参数
 	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
-	
+
 	// 调用业务逻辑 - 构造包含链路追踪信息的context
 	bizCtx := utils.BuildContext(ctx)
 	result, err := c.%s.%s(bizCtx, id)
 	if err != nil {
 		return err
 	}
-	
+
     // 返回单个数据
     return resp.OneDataResponse(ctx, result)
 }`, pascal, handlerName, strings.ToLower(pascal[:1])+pascal[1:], methodName)
@@ -390,14 +391,14 @@ func (c *%sController) %s(ctx echo.Context) error {
 func (c *%sController) %s(ctx echo.Context) error {
 	// 获取路径参数
 	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
-	
+
 	// 调用业务逻辑 - 构造包含链路追踪信息的context
 	bizCtx := utils.BuildContext(ctx)
 	err := c.%s.%s(bizCtx, id)
 	if err != nil {
 		return err
 	}
-	
+
 	// 返回操作成功
 	return resp.OperateSuccess(ctx)
 }`, pascal, handlerName, strings.ToLower(pascal[:1])+pascal[1:], methodName)
@@ -409,14 +410,14 @@ func (c *%sController) %s(ctx echo.Context) error {
 	if err := BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
-	
+
 	// 调用业务逻辑 - 构造包含链路追踪信息的context
 	bizCtx := utils.BuildContext(ctx)
 	result, err := c.%s.%s(bizCtx, req)
 	if err != nil {
 		return err
 	}
-	
+
     // 返回数据
     return resp.OneDataResponse(ctx, result)
 }`, pascal, handlerName, requestType, strings.ToLower(pascal[:1])+pascal[1:], methodName)
@@ -808,10 +809,18 @@ func (tr *TemplateRenderer) RenderOpenAPICode(module *openapi.APIModule, pascal,
 		allErrorCodes = append(allErrorCodes, op.XErrorCodes...)
 	}
 
+	// 计算错误码起始值（基于模块名）
+	baseCode := 100000
+	table := strings.ToLower(pascal)
+	if len(table) > 0 {
+		baseCode += int(table[0])*1000 + int(table[len(table)-1])*10
+	}
+
 	data := TemplateData{
 		Pascal:      pascal,
 		PackagePath: packagePath,
 		ErrorCodes:  allErrorCodes,
+		BaseCode:    baseCode,
 	}
 
 	return tr.Render("code_openapi", data)

@@ -4,7 +4,7 @@ go 1.24.11
 
 require (
 	github.com/IBM/sarama v1.46.0
-	github.com/NSObjects/go-kit v0.0.0-00010101000000-000000000000
+	github.com/NSObjects/go-kit v0.0.2
 	github.com/casbin/casbin/v2 v2.135.0
 	github.com/casbin/gorm-adapter/v3 v3.37.0
 	github.com/go-playground/validator/v10 v10.27.0
@@ -27,8 +27,6 @@ require (
 	gorm.io/gorm v1.31.0
 	gorm.io/plugin/dbresolver v1.6.2
 )
-
-replace github.com/NSObjects/go-kit => ../go-kit
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect

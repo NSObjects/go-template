@@ -10,25 +10,17 @@ import (
 	"context"
 	"fmt"
 
+	kitdb "github.com/NSObjects/go-kit/db"
 	configs "github.com/NSObjects/go-kit/config"
-
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// MongoClient 创建MongoDB连接，使用 go-kit/db 的基础功能
 func MongoClient(cfg configs.MongoConfig) *mongo.Database {
-	uri := "mongodb://"
-	if cfg.Password != "" && cfg.User != "" {
-		uri += cfg.User + ":" + cfg.Password + "@"
-	}
-	uri += fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
-
-	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
+	// 使用 go-kit/db 创建MongoDB连接
+	db, err := kitdb.NewMongoDB(context.Background(), cfg)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("mongodb init: %w", err))
 	}
-	if err := client.Connect(context.Background()); err != nil {
-		panic(err)
-	}
-	return client.Database(cfg.Database)
+	return db
 }

@@ -10,19 +10,21 @@ import (
 	"context"
 	"fmt"
 
+	kitdb "github.com/NSObjects/go-kit/db"
 	configs "github.com/NSObjects/go-kit/config"
 	redis "github.com/redis/go-redis/v9"
 )
 
+// NewRedis 创建Redis连接，使用 go-kit/db 的基础功能
 func NewRedis(cfg configs.RedisConfig) *redis.Client {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-		Password: cfg.Password, // no password set
-		DB:       cfg.DB,       // use default DB
-	})
+	// 使用 go-kit/db 创建Redis连接
+	rdb := kitdb.NewRedis(cfg)
+
+	// 验证连接
 	err := rdb.Ping(context.Background()).Err()
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("redis ping: %w", err))
 	}
+
 	return rdb
 }

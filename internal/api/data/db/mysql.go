@@ -7,57 +7,28 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
-	"log"
 	"os"
-	"time"
 
+	kitdb "github.com/NSObjects/go-kit/db"
 	configs "github.com/NSObjects/go-kit/config"
-	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
+// NewMysql 创建MySQL连接，使用 go-kit/db 的基础功能
+// 并添加业务特定的回调
 func NewMysql(cfg configs.MysqlConfig) *gorm.DB {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local",
-		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
-
-	newLogger := logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
-		logger.Config{
-			SlowThreshold:             time.Second,   // Slow SQL threshold
-			LogLevel:                  logger.Silent, // Log level
-			IgnoreRecordNotFoundError: true,          // Ignore ErrRecordNotFound error for logger
-			ParameterizedQueries:      true,          // Don't include params in the SQL log
-			Colorful:                  false,         // Disable color
-		},
-	)
-
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: newLogger})
+	// 使用 go-kit/db 创建MySQL连接
+	db, err := kitdb.NewMySQL(cfg, os.Stdout)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("mysql init: %w", err))
 	}
 
+	// 注册业务特定的回调
 	err = db.Callback().Create().After("gorm:create").Register("role:menu_after_create", AfterCreate)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("register callback: %w", err))
 	}
-	// set connection pool on the underlying *sql.DB
-	sqlDB, err := db.DB()
-	if err == nil {
-		configureSQLPool(sqlDB, cfg)
-	}
-	return db
-}
 
-func configureSQLPool(sqlDB *sql.DB, cfg configs.MysqlConfig) {
-	if cfg.MaxOpenConns > 0 {
-		sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
-	}
-	if cfg.MaxIdleConns > 0 {
-		sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
-	}
-	// 5 minutes default if not set elsewhere; safe choice
-	sqlDB.SetConnMaxLifetime(5 * time.Minute)
+	return db
 }

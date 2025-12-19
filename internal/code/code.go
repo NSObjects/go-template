@@ -37,8 +37,12 @@ func register(c int, httpStatus int, message string) {
 }
 
 // WrapDatabaseError wraps an error with database error code context.
+// message is used directly as the error message (not formatted into "database %s failed").
 func WrapDatabaseError(err error, message string) error {
-	return code.WrapDatabaseError(err, message)
+	if err == nil {
+		return nil
+	}
+	return errors.WrapCode(err, code.ErrDatabase, "%s", message)
 }
 
 // WrapValidationError wraps an error with validation error code context.
@@ -72,13 +76,21 @@ func WrapBindError(err error, message string) error {
 }
 
 // WrapRedisError wraps an error with redis error code context.
+// message is used directly as the error message (not formatted into "redis %s failed").
 func WrapRedisError(err error, message string) error {
-	return code.WrapRedisError(err, message)
+	if err == nil {
+		return nil
+	}
+	return errors.WrapCode(err, code.ErrRedis, "%s", message)
 }
 
 // WrapKafkaError wraps an error with kafka error code context.
+// message is used directly as the error message (not formatted into "kafka %s failed").
 func WrapKafkaError(err error, message string) error {
-	return code.WrapKafkaError(err, message)
+	if err == nil {
+		return nil
+	}
+	return errors.WrapCode(err, code.ErrKafka, "%s", message)
 }
 
 // NewValidationError creates a new validation error.

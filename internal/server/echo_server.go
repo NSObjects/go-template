@@ -17,15 +17,19 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/NSObjects/go-kit/code"
 	configs "github.com/NSObjects/go-kit/config"
 	"github.com/NSObjects/go-kit/errors"
+	kitmiddleware "github.com/NSObjects/go-kit/middleware"
 	"github.com/NSObjects/go-kit/resp"
+	"github.com/NSObjects/go-kit/validator"
 	"github.com/NSObjects/go-template/internal/api/service"
 	appcfg "github.com/NSObjects/go-template/internal/configs"
-	"github.com/NSObjects/go-template/internal/server/middlewares"
+	"github.com/NSObjects/go-template/internal/types"
 	"github.com/casbin/casbin/v2"
-	"github.com/go-playground/validator/v10"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
+	echomiddleware "github.com/labstack/echo/v4/middleware"
 	"go.uber.org/fx"
 )
 
@@ -73,11 +77,11 @@ func NewEchoServer(p Params) *EchoServer {
 
 // setupServer 配置服务器基础设置
 func (s *EchoServer) setupServer() {
-	// 设置验证器
-	s.server.Validator = &middlewares.Validator{Validator: validator.New()}
+	// 设置验证器 - 使用 go-kit/validator
+	s.server.Validator = validator.New()
 
-	// 设置错误处理器
-	s.server.HTTPErrorHandler = middlewares.ErrorHandler
+	// 设置错误处理器 - 使用 go-kit/middleware
+	s.server.HTTPErrorHandler = kitmiddleware.ErrorHandler
 
 	// 应用服务器配置
 	s.server.HideBanner = s.config.HideBanner
@@ -90,55 +94,96 @@ func (s *EchoServer) setupServer() {
 }
 
 // loadMiddleware 加载中间件
-func (s *EchoServer) loadMiddleware(enforce *casbin.Enforcer) {
-	// 创建中间件配置
-	config := s.createMiddlewareConfig()
-
-	// 应用基础中间件
-	middlewares.ApplyMiddlewares(s.server, config)
-
-	// 应用Casbin中间件
-	if enforce != nil {
-		middlewares.ApplyCasbinMiddleware(s.server, enforce, config.Casbin)
-	}
-}
-
-// createMiddlewareConfig 创建中间件配置
-func (s *EchoServer) createMiddlewareConfig() *middlewares.MiddlewareConfig {
+func (s *EchoServer) loadMiddleware(enforcer *casbin.Enforcer) {
 	cur := s.store.Current()
 
-	// 创建JWT配置 - 禁用JWT用于演示
-	jwtConfig := middlewares.CreateJWTConfig(
-		cur.JWT.Secret,
-		cur.JWT.SkipPaths,
-		false, // 禁用JWT
-	)
+	// 应用基础中间件 - 使用 go-kit/middleware
+	s.server.Use(kitmiddleware.Recovery())
+	s.server.Use(kitmiddleware.RequestLogger())
 
-	// 调试日志
-	fmt.Printf("DEBUG: JWT Config - Enabled: %v, SkipPaths: %v\n", jwtConfig.Enabled, jwtConfig.SkipPaths)
+	// Gzip 压缩
+	s.server.Use(echomiddleware.Gzip())
 
-	// 创建Casbin配置
-	casbinConfig := middlewares.CreateCasbinConfig(
-		false, // 默认禁用Casbin
-		[]string{
-			"/api/health",
-			"/api/info",
-			"/api/login",
-			"/api/users",
+	// CORS
+	s.server.Use(echomiddleware.CORSWithConfig(echomiddleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowHeaders: []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAccept,
+			echo.HeaderAuthorization,
 		},
-		[]string{"root", "admin"},
-	)
+		AllowMethods: []string{
+			echo.GET,
+			echo.HEAD,
+			echo.PUT,
+			echo.PATCH,
+			echo.POST,
+			echo.DELETE,
+			echo.OPTIONS,
+		},
+	}))
 
-	return &middlewares.MiddlewareConfig{
-		EnableRecovery: true,
-		EnableLogger:   true,
-		EnableGzip:     true,
-		EnableCORS:     true,
-		EnableJWT:      jwtConfig.Enabled,
-		EnableCasbin:   casbinConfig.Enabled,
-		LoggerFormat:   "method=${method}, uri=${uri}, status=${status}, latency=${latency_human}\n",
-		JWT:            jwtConfig,
-		Casbin:         casbinConfig,
+	// JWT 中间件 - 使用 go-kit/middleware
+	if cur.JWT.Enabled {
+		jwtConfig := &kitmiddleware.JWTConfig{
+			SigningKey: []byte(cur.JWT.Secret),
+			SkipPaths:  cur.JWT.SkipPaths,
+			Enabled:    true,
+			ClaimsFunc: func(c echo.Context) jwt.Claims {
+				return new(types.JwtCustomClaims)
+			},
+		}
+		s.server.Use(kitmiddleware.JWT(jwtConfig))
+	}
+
+	// Casbin 中间件 - 使用 go-kit/middleware
+	if enforcer != nil && cur.Casbin.Enabled {
+		adminUsers := cur.Casbin.AdminUsers
+		if len(adminUsers) == 0 {
+			adminUsers = []string{"root", "admin"}
+		}
+
+		casbinConfig := &kitmiddleware.CasbinConfig{
+			Enabled:    true,
+			SkipPaths:  cur.Casbin.SkipPaths,
+			AdminUsers: adminUsers,
+			UserGetter: func(c echo.Context) (string, error) {
+				token, ok := c.Get("user").(*jwt.Token)
+				if !ok || token == nil {
+					return "", errors.WrapCode(errors.New("token is nil"), code.ErrSignatureInvalid, "JWT签名无效")
+				}
+
+				user, ok := token.Claims.(*types.JwtCustomClaims)
+				if !ok || user == nil {
+					return "", errors.WrapCode(errors.New("invalid token claims type"), code.ErrSignatureInvalid, "JWT签名无效")
+				}
+
+				if user.Admin {
+					return "root", nil
+				}
+
+				return fmt.Sprintf("%d", user.ID), nil
+			},
+			EnforceHandler: func(c echo.Context, user string) (bool, error) {
+				// 检查是否为管理员用户
+				for _, admin := range adminUsers {
+					if user == admin {
+						return true, nil
+					}
+				}
+
+				// 使用Casbin进行权限检查
+				path := c.Path()
+				method := c.Request().Method
+				allowed, err := enforcer.Enforce(user, path, method)
+				if err != nil {
+					return false, errors.WrapCode(err, code.ErrPermissionDenied, "权限检查失败")
+				}
+				return allowed, nil
+			},
+		}
+		s.server.Use(kitmiddleware.Casbin(enforcer, casbinConfig))
 	}
 }
 

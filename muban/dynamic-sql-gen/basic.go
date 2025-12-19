@@ -1,7 +1,10 @@
 package dynamicsql
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"unicode"
@@ -61,9 +64,14 @@ type Options struct {
 }
 
 func NewCommand() *cobra.Command {
+	// 自动检测模块路径和设置默认值
+	modelPkg := detectModelPkg()
+
 	opts := Options{
 		OutPath:           "./internal/api/data/query",
+		ModelPkg:          modelPkg,
 		JSONTag:           "snake",
+		WithContext:       true, // 新架构默认使用 context
 		FieldWithIndexTag: true,
 		FieldWithTypeTag:  true,
 	}
@@ -93,6 +101,15 @@ func NewCommand() *cobra.Command {
 }
 
 func Run(opts Options) error {
+	// 验证 ModelPkg 是否已设置
+	if opts.ModelPkg == "" {
+		// 尝试再次检测
+		opts.ModelPkg = detectModelPkg()
+		if opts.ModelPkg == "" {
+			return fmt.Errorf("无法自动检测模型包路径，请使用 --model-pkg 参数指定，例如: --model-pkg=github.com/your-module/internal/api/data/model")
+		}
+	}
+
 	cfg := configs.NewCfg[configs.Config](opts.Config)
 
 	db, cleanup, err := openDatabase(cfg)
@@ -284,6 +301,68 @@ func lowerFirstRune(s string) string {
 	runes := []rune(s)
 	runes[0] = unicode.ToLower(runes[0])
 	return string(runes)
+}
+
+// detectModelPkg 自动检测模型包路径
+func detectModelPkg() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	repoRoot := findRepoRoot(cwd)
+	if repoRoot == "" {
+		return ""
+	}
+
+	packagePath, err := getPackagePath(repoRoot)
+	if err != nil {
+		return ""
+	}
+
+	// 返回完整的模型包路径
+	return fmt.Sprintf("%s/internal/api/data/model", packagePath)
+}
+
+// findRepoRoot 查找仓库根目录（包含 go.mod 的目录）
+func findRepoRoot(start string) string {
+	dir := start
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+// getPackagePath 从 go.mod 文件获取项目包路径
+func getPackagePath(repoRoot string) (string, error) {
+	goModPath := filepath.Join(repoRoot, "go.mod")
+	file, err := os.Open(goModPath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	if scanner.Scan() {
+		line := scanner.Text()
+		// 解析 module github.com/NSObjects/go-template
+		parts := strings.Fields(line)
+		if len(parts) >= 2 && parts[0] == "module" {
+			return parts[1], nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	return "", fmt.Errorf("无法从go.mod解析模块路径")
 }
 
 func openDatabase(cfg configs.Config) (*gorm.DB, func() error, error) {

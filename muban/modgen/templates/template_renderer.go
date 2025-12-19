@@ -69,6 +69,7 @@ func loadRenderer() (*TemplateRenderer, error) {
 		"biz",
 		"service",
 		"param",
+		"data",
 		"model",
 		"code",
 		"param_openapi",
@@ -227,6 +228,16 @@ func (tr *TemplateRenderer) RenderModel(pascal, table, packagePath string) (stri
 		PackagePath: packagePath,
 	}
 	return tr.Render("model", data)
+}
+
+// RenderData 生成数据层模板
+func (tr *TemplateRenderer) RenderData(pascal, camel, packagePath string) (string, error) {
+	data := TemplateData{
+		Pascal:      pascal,
+		Camel:       camel,
+		PackagePath: packagePath,
+	}
+	return tr.Render("data", data)
 }
 
 // RenderCode 生成错误码模板

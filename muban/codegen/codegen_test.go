@@ -61,33 +61,52 @@ func TestExtractValue_Int64(t *testing.T) {
 
 func TestCommentExtraction(t *testing.T) {
 	tests := []struct {
-		name     string
-		comment  string
-		expected string
+		name           string
+		comment        string
+		expectedHTTP   string
+		expectedDesc   string
 	}{
 		{
-			name:     "standard format",
-			comment:  "// ErrUserNotFound - 404: User not found.",
-			expected: "User not found",
+			name:         "standard format with period",
+			comment:      "// ErrUserNotFound - 404: User not found.",
+			expectedHTTP:  "404",
+			expectedDesc:  "User not found",
 		},
 		{
-			name:     "no trailing period",
-			comment:  "// ErrDatabase - 500: Database error",
-			expected: "Database error",
+			name:         "no trailing period",
+			comment:      "// ErrDatabase - 500: Database error",
+			expectedHTTP:  "500",
+			expectedDesc:  "Database error",
 		},
 		{
-			name:     "empty after dash",
-			comment:  "// ErrUnknown -",
-			expected: "",
+			name:         "new architecture format",
+			comment:      "// ErrUserNotFound - 404: User not found.",
+			expectedHTTP:  "404",
+			expectedDesc:  "User not found",
+		},
+		{
+			name:         "new architecture format without period",
+			comment:      "// ErrUserAlreadyExists - 400: User already exists",
+			expectedHTTP:  "400",
+			expectedDesc:  "User already exists",
+		},
+		{
+			name:         "invalid format",
+			comment:      "// ErrUnknown -",
+			expectedHTTP:  "500",
+			expectedDesc:  "Internal server error",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// This tests the parseComment logic
-			// Implementation would need to extract the parseComment function
-			// or make it a method for testing
-			t.Logf("Comment: %s -> Expected: %s", tt.comment, tt.expected)
+			v := &Value{
+				originalName: "ErrTest",
+				comment:      tt.comment,
+			}
+			httpCode, desc := v.ParseComment()
+			assert.Equal(t, tt.expectedHTTP, httpCode, "HTTP code mismatch")
+			assert.Equal(t, tt.expectedDesc, desc, "Description mismatch")
 		})
 	}
 }

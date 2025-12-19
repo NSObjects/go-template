@@ -82,6 +82,7 @@ func (g *Generator) generateFromDefaultTemplate() error {
 
 	// 生成目标文件路径
 	bizFile, svcFile, paramFile, codeFile := g.moduleFilePaths(g.config.Name)
+	dataFile := filepath.Join(g.config.RepoRoot, "internal", "api", "data", fmt.Sprintf("%s.go", g.config.Name))
 
 	// 生成模板内容
 	bizContent, err := renderer.RenderBiz(pascal, g.config.PackagePath)
@@ -99,6 +100,11 @@ func (g *Generator) generateFromDefaultTemplate() error {
 		return fmt.Errorf("渲染参数模板失败: %v", err)
 	}
 
+	dataContent, err := renderer.RenderData(pascal, camel, g.config.PackagePath)
+	if err != nil {
+		return fmt.Errorf("渲染数据层模板失败: %v", err)
+	}
+
 	codeContent, err := renderer.RenderCode(pascal, g.config.Name, g.config.PackagePath)
 	if err != nil {
 		return fmt.Errorf("渲染错误码模板失败: %v", err)
@@ -108,6 +114,7 @@ func (g *Generator) generateFromDefaultTemplate() error {
 	utils.MustWrite(bizFile, bizContent, g.config.Force)
 	utils.MustWrite(svcFile, svcContent, g.config.Force)
 	utils.MustWrite(paramFile, paramContent, g.config.Force)
+	utils.MustWrite(dataFile, dataContent, g.config.Force)
 	utils.MustWrite(codeFile, codeContent, g.config.Force)
 
 	// 生成测试用例（如果启用）
@@ -143,6 +150,7 @@ func (g *Generator) generateFromDefaultTemplate() error {
 	// 注入到 fx.Options
 	_ = utils.TryInject(filepath.Join(g.config.RepoRoot, "internal", "api", "biz", "biz.go"), "New"+pascal+"Handler")
 	_ = utils.TryInject(filepath.Join(g.config.RepoRoot, "internal", "api", "service", "service.go"), "AsRoute(New"+pascal+"Controller)")
+	_ = utils.TryInject(filepath.Join(g.config.RepoRoot, "internal", "api", "data", "data.go"), "New"+pascal+"Repository")
 
 	utils.PrintSuccess("✅ %s 模块生成完成！", g.config.Name)
 	g.printGeneratedFiles(g.config.Name)
@@ -236,7 +244,7 @@ func (g *Generator) generateOpenAPIModule(doc *openapi.OpenAPI3, moduleName stri
 	utils.MustWrite(codeFile, codeContent, g.config.Force)
 
 	// data 层 Repository 实现骨架
-	dataContent, err := renderer.RenderOpenAPIData(module, pascal, g.config.PackagePath)
+	dataContent, err := renderer.RenderOpenAPIData(module, pascal, camel, g.config.PackagePath)
 	if err != nil {
 		return fmt.Errorf("渲染数据层模板失败: %w", err)
 	}
@@ -322,11 +330,13 @@ func (g *Generator) moduleTestFilePaths(moduleName string) (bizTest, svcTest str
 // printGeneratedFiles 打印生成的文件列表
 func (g *Generator) printGeneratedFiles(moduleName string) {
 	bizFile, svcFile, paramFile, codeFile := g.moduleFilePaths(moduleName)
+	dataFile := filepath.Join(g.config.RepoRoot, "internal", "api", "data", fmt.Sprintf("%s.go", moduleName))
 
 	fmt.Printf("\n📁 生成的文件:\n")
 	fmt.Printf("  📄 业务逻辑: %s\n", bizFile)
 	fmt.Printf("  📄 控制器: %s\n", svcFile)
 	fmt.Printf("  📄 参数结构: %s\n", paramFile)
+	fmt.Printf("  📄 数据层: %s\n", dataFile)
 	fmt.Printf("  📄 错误码: %s\n", codeFile)
 }
 

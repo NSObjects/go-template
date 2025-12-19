@@ -265,8 +265,10 @@ func (g *Generator) generate(typeName string) {
 	g.Printf("\t// init register error codes defines in this source code to `github.com/NSObjects/go-kit/errors`\n")
 	g.Printf("func init() {\n")
 	for _, v := range values {
-		code, description := v.ParseComment()
-		g.Printf("\tregister(%s, %s, \"%s\")\n", v.originalName, code, description)
+		httpCode, description := v.ParseComment()
+		// 使用常量名，Go 编译器会在同一包中自动解析为常量值
+		// 为了更清晰，也可以直接使用常量值，但使用常量名更灵活（支持 iota）
+		g.Printf("\tregister(%s, %s, %q)\n", v.originalName, httpCode, description)
 	}
 	g.Printf("}\n")
 }
@@ -295,9 +297,9 @@ func (g *Generator) generateDocs(typeName string) {
 	// Generate code that will fail if the constants change value.
 	g.Printf("%s", buf.String())
 	for _, v := range values {
-		code, description := v.ParseComment()
-		// g.Printf("\tregister(%s, %s, \"%s\")\n", v.originalName, code, description)
-		g.Printf("| %s | %d | %s | %s |\n", v.originalName, v.value, code, description)
+		httpCode, description := v.ParseComment()
+		// g.Printf("\tregister(%s, %s, \"%s\")\n", v.originalName, httpCode, description)
+		g.Printf("| %s | %d | %s | %s |\n", v.originalName, v.value, httpCode, description)
 	}
 	g.Printf("\n")
 }
@@ -337,20 +339,50 @@ func (v *Value) String() string {
 }
 
 // ParseComment parse comment to http code and error code description.
+// Expected format: "// ErrXXX - 404: Error message."
+// or: "// ErrXXX - 404: Error message" (without trailing period)
 func (v *Value) ParseComment() (string, string) {
-	reg := regexp.MustCompile(`\w\s*-\s*(\d{3})\s*:\s*(\s*.*)\s*\.\n*`)
-	if !reg.MatchString(v.comment) {
-		log.Printf("constant '%s' have wrong comment format, register with 500 as default", v.originalName)
+	// 清理注释文本
+	comment := strings.TrimSpace(v.comment)
 
+	// 移除注释前缀（// 或 /* */）
+	comment = strings.TrimPrefix(comment, "//")
+	comment = strings.TrimPrefix(comment, "/*")
+	comment = strings.TrimSuffix(comment, "*/")
+	comment = strings.TrimSpace(comment)
+
+	// 处理多行注释：只取第一行
+	if idx := strings.Index(comment, "\n"); idx > 0 {
+		comment = comment[:idx]
+	}
+	comment = strings.TrimSpace(comment)
+
+	// 更灵活的正则表达式，支持多种注释格式
+	// 匹配格式: "ErrXXX - 404: message" 或 "ErrXXX - 404: message."
+	// 支持: "ErrXXX - 404: message" (无尾随点)
+	reg := regexp.MustCompile(`\w+\s*-\s*(\d{3})\s*:\s*(.*?)\s*\.?\s*$`)
+
+	if !reg.MatchString(comment) {
+		log.Printf("constant '%s' have wrong comment format '%s', register with 500 as default", v.originalName, comment)
 		return "500", "Internal server error"
 	}
 
-	groups := reg.FindStringSubmatch(v.comment)
+	groups := reg.FindStringSubmatch(comment)
 	if len(groups) != 3 { //nolint:gomnd
+		log.Printf("constant '%s' comment parse failed, register with 500 as default", v.originalName)
 		return "500", "Internal server error"
 	}
 
-	return groups[1], groups[2]
+	httpCode := groups[1]
+	description := strings.TrimSpace(groups[2])
+	// 移除可能的尾随点
+	description = strings.TrimSuffix(description, ".")
+	description = strings.TrimSpace(description)
+	if description == "" {
+		description = "Internal server error"
+	}
+
+	return httpCode, description
 }
 
 // genDecl processes one declaration clause.

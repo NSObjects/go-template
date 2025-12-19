@@ -24,9 +24,15 @@ import (
 {{end}}
 {{end}}
 type {{$.Pascal}}{{.MethodName}}Request struct {
-{{range .QueryParameters}}
+{{- if and .ResponseData (eq .ResponseData.GoType "ListItem") }}
+	// 嵌入 APIQuery 提供分页功能（Page 和 Count）
+	APIQuery
+{{- end }}
+{{- range .QueryParameters }}
+{{- if and (ne .Name "page") (ne .Name "count") }}
 	{{.FieldName}} {{.GoType}} `param:"{{.Name}}" query:"{{.Name}}" form:"{{.Name}}" json:"{{.Name}}" xml:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}`
-{{end}}
+{{- end }}
+{{- end }}
 {{if .RequestBody}}
 {{range .RequestBody.Fields}}
 	{{.FieldName}} {{.GoType}} `param:"{{.Name}}" query:"{{.Name}}" form:"{{.Name}}" json:"{{.Name}}" xml:"{{.Name}}"{{if or .Required .ValidationRules}} validate:"{{if .Required}}required{{if .ValidationRules}},{{.ValidationRules}}{{end}}{{else}}{{.ValidationRules}}{{end}}"{{end}}`
