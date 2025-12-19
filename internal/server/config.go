@@ -11,7 +11,7 @@ package server
 import (
 	"time"
 
-	"github.com/NSObjects/go-template/internal/configs"
+	configs "github.com/NSObjects/go-kit/config"
 )
 
 // ServerConfig 服务器配置
@@ -54,6 +54,6 @@ func FromAppConfig(cfg configs.Config) *ServerConfig {
 		IdleTimeout:     120 * time.Second,
 		ShutdownTimeout: 10 * time.Second,
 		HideBanner:      true,
-		Debug:           cfg.System.Level == 1, // 1 = debug, 2 = online
+		Debug:           cfg.System.Level == "debug", // "debug" = debug mode
 	}
 }

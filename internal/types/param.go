@@ -1,4 +1,4 @@
-package param
+package types
 
 type APIQuery struct {
 	Page  int `json:"page" form:"page" query:"page"`
@@ -14,9 +14,9 @@ func (q *APIQuery) Limit() int {
 }
 
 func (q *APIQuery) Offset() int {
-	page := q.Page
-	if page > 0 {
-		page--
+	if q.Page > 0 {
+		q.Page -= 1
 	}
-	return page * q.Limit()
+
+	return q.Page * q.Count
 }

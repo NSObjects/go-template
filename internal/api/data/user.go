@@ -8,7 +8,7 @@ import (
 	"github.com/NSObjects/go-template/internal/api/data/db"
 	"github.com/NSObjects/go-template/internal/api/data/model"
 	"github.com/NSObjects/go-template/internal/api/service/param"
-	"github.com/NSObjects/go-template/internal/code"
+	"github.com/NSObjects/go-kit/code"
 )
 
 type userRepository struct {

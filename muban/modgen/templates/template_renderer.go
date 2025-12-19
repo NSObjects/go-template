@@ -78,8 +78,6 @@ func loadRenderer() (*TemplateRenderer, error) {
 		"service_test_enhanced",
 		"biz_test_enhanced",
 		"code_openapi",
-		"context_support",
-		"resp_support",
 	}
 
 	if templateDir, err := locateTemplateDir(); err == nil {
@@ -199,16 +197,6 @@ func (tr *TemplateRenderer) RenderBiz(pascal, packagePath string) (string, error
 		PackagePath: packagePath,
 	}
 	return tr.Render("biz", data)
-}
-
-// RenderContextSupport 生成 utils 上下文支持文件
-func (tr *TemplateRenderer) RenderContextSupport() (string, error) {
-	return tr.Render("context_support", TemplateData{})
-}
-
-// RenderRespSupport 生成 resp 辅助函数文件
-func (tr *TemplateRenderer) RenderRespSupport() (string, error) {
-	return tr.Render("resp_support", TemplateData{})
 }
 
 // RenderService 生成服务层模板

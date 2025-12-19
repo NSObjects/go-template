@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"{{.ModulePath}}/internal/code"
-	"{{.ModulePath}}/internal/log"
-	"{{.ModulePath}}/internal/resp"
+	"github.com/NSObjects/go-kit/code"
+	"github.com/NSObjects/go-kit/errors"
+	"github.com/NSObjects/go-kit/log"
+	"github.com/NSObjects/go-kit/resp"
 	"github.com/labstack/echo/v4"
-	"github.com/marmotedu/errors"
 )
 
 // ErrorHandler 增强的错误处理器
@@ -84,8 +84,8 @@ func handleHTTPError(err *echo.HTTPError, c echo.Context) {
 		bizErr = errors.WithCode(code.ErrInternalServer, "%s", message)
 	}
 
-    // 返回标准错误响应
-    _ = resp.APIError(c, bizErr)
+	// 返回标准错误响应
+	_ = resp.APIError(c, bizErr)
 }
 
 // handleValidationError 处理验证错误
@@ -100,8 +100,8 @@ func handleValidationError(err *ValidationError, c echo.Context) {
 	)
 
 	// 创建业务错误
-    bizErr := code.NewValidationError(err.Field, err.Message)
-    _ = resp.APIError(c, bizErr)
+	bizErr := code.NewValidationError(err.Field, err.Message)
+	_ = resp.APIError(c, bizErr)
 }
 
 // handleGenericError 处理通用错误
@@ -111,7 +111,7 @@ func handleGenericError(err error, c echo.Context) {
 			slog.Int("code", codeError.Code()),
 			slog.String("error", err.Error()),
 		)
-        _ = resp.APIError(c, err)
+		_ = resp.APIError(c, err)
 		return
 	}
 
@@ -122,8 +122,8 @@ func handleGenericError(err error, c echo.Context) {
 		slog.String("uri", c.Request().RequestURI),
 	)
 
-    wrapped := code.WrapInternalServerError(err, "internal server error")
-    _ = resp.APIError(c, wrapped)
+	wrapped := code.WrapInternalServerError(err, "internal server error")
+	_ = resp.APIError(c, wrapped)
 }
 
 // extractErrorMessage 将 Echo 错误消息转换为字符串
@@ -152,8 +152,8 @@ func ErrorRecovery() echo.MiddlewareFunc {
 					)
 
 					// 创建内部服务器错误
-                    err := errors.WithCode(100500, "internal server error")
-                    _ = resp.APIError(c, err)
+					err := errors.WithCode(code.ErrInternalServer, "internal server error")
+					_ = resp.APIError(c, err)
 				}
 			}()
 

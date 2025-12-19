@@ -9,13 +9,13 @@
 package middlewares
 
 import (
-	"github.com/NSObjects/go-template/internal/code"
-	"github.com/NSObjects/go-template/internal/utils"
+	"github.com/NSObjects/go-kit/code"
+	"github.com/NSObjects/go-kit/errors"
+	"github.com/NSObjects/go-template/internal/types"
 	"github.com/casbin/casbin/v2"
 	"github.com/golang-jwt/jwt/v5"
 	casbin_mw "github.com/labstack/echo-contrib/casbin"
 	"github.com/labstack/echo/v4"
-	"github.com/marmotedu/errors"
 	"github.com/samber/lo"
 	"github.com/spf13/cast"
 )
@@ -60,20 +60,20 @@ func Casbin(enforce *casbin.Enforcer, config *CasbinConfig) echo.MiddlewareFunc 
 			return lo.Contains(config.SkipPaths, path)
 		},
 		ErrorHandler: func(c echo.Context, internal error, proposedStatus int) error {
-			return errors.WrapC(internal, code.ErrPermissionDenied, "权限不足")
+			return errors.WrapCode(internal, code.ErrPermissionDenied, "权限不足")
 		},
 		UserGetter: func(c echo.Context) (string, error) {
 			token, ok := c.Get("user").(*jwt.Token)
 			if !ok {
-				return "", errors.WrapC(errors.New("token is nil"), code.ErrSignatureInvalid, "JWT签名无效")
+				return "", errors.WrapCode(errors.New("token is nil"), code.ErrSignatureInvalid, "JWT签名无效")
 			}
 			if token == nil {
 				return "", nil
 			}
 
-			user, ok := token.Claims.(*utils.JwtCustomClaims)
+			user, ok := token.Claims.(*types.JwtCustomClaims)
 			if !ok {
-				return "", errors.WrapC(errors.New("invalid token claims type"), code.ErrSignatureInvalid, "JWT签名无效")
+				return "", errors.WrapCode(errors.New("invalid token claims type"), code.ErrSignatureInvalid, "JWT签名无效")
 			}
 			if user == nil {
 				return "", nil
@@ -97,7 +97,7 @@ func Casbin(enforce *casbin.Enforcer, config *CasbinConfig) echo.MiddlewareFunc 
 			// 使用Casbin进行权限检查
 			allowed, err := enforce.Enforce(user, path, method)
 			if err != nil {
-				return false, errors.WrapC(err, code.ErrPermissionDenied, "权限检查失败")
+				return false, errors.WrapCode(err, code.ErrPermissionDenied, "权限检查失败")
 			}
 
 			return allowed, nil

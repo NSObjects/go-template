@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"unicode"
 
-	"github.com/NSObjects/go-template/internal/configs"
+	configs "github.com/NSObjects/go-kit/config"
 	"github.com/spf13/cobra"
 	"gorm.io/driver/mysql"
 	"gorm.io/gen"
@@ -93,7 +93,7 @@ func NewCommand() *cobra.Command {
 }
 
 func Run(opts Options) error {
-	cfg := configs.NewCfg(opts.Config)
+	cfg := configs.NewCfg[configs.Config](opts.Config)
 
 	db, cleanup, err := openDatabase(cfg)
 	if err != nil {
@@ -300,7 +300,7 @@ func openDatabase(cfg configs.Config) (*gorm.DB, func() error, error) {
 		return nil, nil, fmt.Errorf("mysql host is not configured")
 	}
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		mysqlCfg.User,
 		mysqlCfg.Password,
 		host,

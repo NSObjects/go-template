@@ -18,13 +18,13 @@ func (c *UserController) CreateUser(ctx echo.Context) error {
     if err := BindAndValidate(ctx, &req); err != nil {
         return err  // Return directly, handled by ErrorHandler middleware
     }
-    
+
     bizCtx := utils.BuildContext(ctx)
     err := c.user.Create(bizCtx, req)
     if err != nil {
         return err  // Return directly, handled by ErrorHandler middleware
     }
-    
+
     return resp.OperateSuccess(ctx)  // Use unified response format
 }
 
@@ -33,13 +33,13 @@ func (c *UserController) ListUsers(ctx echo.Context) error {
     if err := BindAndValidate(ctx, &req); err != nil {
         return err
     }
-    
+
     bizCtx := utils.BuildContext(ctx)
     list, total, err := c.user.ListUsers(bizCtx, req)
     if err != nil {
         return err
     }
-    
+
     return resp.ListDataResponse(ctx, list, total)  // Use list response format
 }
 ```
@@ -61,12 +61,12 @@ func (c *UserController) CreateUser(ctx echo.Context) error {
     if err := BindAndValidate(ctx, &req); err != nil {
         return err
     }
-    
+
     // ❌ Wrong: Business logic should be in biz layer
     if req.Age < 18 {
         return errors.New("age must be greater than 18")
     }
-    
+
     return c.user.Create(ctx, req)
 }
 ```
@@ -92,13 +92,13 @@ func (h *UserHandler) CreateUser(ctx context.Context, req param.UserCreateReques
     if err := h.validateUserData(req); err != nil {
         return code.WrapValidationError(err, "user data validation failed")
     }
-    
+
     // Call Repository layer
     err := h.repo.Create(ctx, req)
     if err != nil {
         return code.WrapDatabaseError(err, "create user failed")
     }
-    
+
     return nil
 }
 
@@ -152,12 +152,12 @@ func (u userRepository) Create(ctx context.Context, req param.UserCreateRequest)
         CreatedAt: time.Now(),
         UpdatedAt: time.Now(),
     }
-    
+
     err := u.d.Query.User.WithContext(ctx).Create(&user)
     if err != nil {
         return code.WrapDatabaseError(err, "create user failed")
     }
-    
+
     return nil
 }
 
@@ -166,7 +166,7 @@ func (u userRepository) ListUsers(ctx context.Context, req param.UserListUsersRe
     if err != nil {
         return nil, 0, code.WrapDatabaseError(err, "query user list failed")
     }
-    
+
     var list []param.UserListItem
     for _, user := range users {
         list = append(list, param.UserListItem{
@@ -178,12 +178,12 @@ func (u userRepository) ListUsers(ctx context.Context, req param.UserListUsersRe
             UpdatedAt: user.UpdatedAt,
         })
     }
-    
+
     count, err := u.d.Query.User.Count()
     if err != nil {
         return nil, 0, code.WrapDatabaseError(err, "query user count failed")
     }
-    
+
     return list, count, nil
 }
 ```
@@ -196,7 +196,7 @@ func (u userRepository) Create(ctx context.Context, req param.UserCreateRequest)
     if req.Age < 18 {
         return errors.New("age must be greater than 18")
     }
-    
+
     // Database operations...
 }
 
@@ -265,7 +265,7 @@ Use the unified response methods provided by `resp` package:
 // List data response
 return resp.ListDataResponse(ctx, list, total)
 
-// Single data response  
+// Single data response
 return resp.OneDataResponse(ctx, data)
 
 // Operation success response
@@ -350,3 +350,124 @@ When reviewing generated code, ensure:
 - [ ] Context is properly passed in all async operations
 - [ ] Business rule validation is in Biz layer
 - [ ] Data conversion is in Data layer
+
+## Module Dependency Graph
+
+```mermaid
+graph TD
+    subgraph cmd
+        fx[cmd/fx.go]
+    end
+
+    subgraph server
+        echo_server[server/echo_server.go]
+        middlewares[server/middlewares/]
+    end
+
+    subgraph api
+        service[api/service/]
+        biz[api/biz/]
+        data[api/data/]
+        db[api/data/db/]
+    end
+
+    subgraph infra
+        code[code/]
+        resp[resp/]
+        configs[configs/]
+        log[log/]
+    end
+
+    fx --> echo_server
+    fx --> service
+    fx --> biz
+    fx --> data
+    fx --> db
+    fx --> configs
+    fx --> log
+
+    echo_server --> service
+    echo_server --> middlewares
+    echo_server --> resp
+
+    service --> biz
+    service --> resp
+    service --> code
+
+    biz --> data
+    biz --> code
+
+    data --> db
+    data --> code
+```
+
+### Fx Module Registration (cmd/fx.go)
+
+| Module Name | Package | Responsibility |
+|-------------|---------|----------------|
+| `config` | `configs` | Configuration loading and hot-reload |
+| `log` | `log` | Structured logging |
+| `db` | `api/data/db` | DataManager (MySQL/Redis/Kafka/Mongo) |
+| `casbin` | `utils` | Casbin enforcer for authorization |
+| `biz` | `api/biz` | Business logic handlers |
+| `data` | `api/data` | Repository implementations |
+| `service` | `api/service` | HTTP controllers |
+| `server` | `server` | Echo HTTP server |
+
+## Command Reference
+
+### Development
+
+| Command | Description |
+|---------|-------------|
+| `make run` | Start development server |
+| `make build` | Build binary |
+| `make test` | Run all tests |
+| `make test-coverage` | Run tests with coverage report |
+| `make lint` | Run golangci-lint |
+| `make fmt` | Format code with gofmt |
+
+### Code Generation
+
+| Command | Description |
+|---------|-------------|
+| `make gen` | Run all code generators |
+| `make gen-query` | Generate GORM Gen query code |
+| `make gen-api` | Generate API code from OpenAPI spec |
+| `go generate ./internal/code/...` | Regenerate error code files |
+
+### Database
+
+| Command | Description |
+|---------|-------------|
+| `make migrate-up` | Apply database migrations |
+| `make migrate-down` | Rollback last migration |
+| `make migrate-create NAME=xxx` | Create new migration |
+
+### Docker
+
+| Command | Description |
+|---------|-------------|
+| `make docker-build` | Build Docker image |
+| `make docker-up` | Start services with docker-compose |
+| `make docker-down` | Stop services |
+
+## Auto-Generated Files
+
+> ⚠️ **WARNING**: Do NOT manually edit these files. They will be overwritten.
+
+| Path Pattern | Generator | Description |
+|--------------|-----------|-------------|
+| `internal/api/data/query/*.go` | GORM Gen | Database query builders |
+| `internal/code/*_generated.go` | `codegen` | Error code registration |
+| `internal/code/error_code_generated.md` | `codegen` | Error code documentation |
+| `internal/api/data/model/*.go` | GORM Gen | Database model structs |
+
+### Safe to Extend
+
+| Path | Description |
+|------|-------------|
+| `internal/api/biz/*.go` | Add custom business logic |
+| `internal/api/data/*.go` | Add custom repository methods |
+| `internal/api/service/*.go` | Add custom handlers |
+| `internal/code/user.go` | Add domain-specific error codes |

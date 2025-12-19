@@ -1,99 +1,92 @@
 /*
- * Created by lintao on 2023/8/1 下午4:05
- * Copyright © 2020-2023 LINTAO. All rights reserved.
+ * Application Error Codes
+ * 应用业务错误码定义
  *
+ * This package wraps go-kit/code to provide application-specific error codes.
+ * Generated code from muban/codegen will register additional errors here.
  */
 
 package code
 
 import (
-	"net/http"
-	"sync"
-
-	"github.com/marmotedu/errors"
-	"github.com/novalagung/gubrak"
+	"github.com/NSObjects/go-kit/code"
+	"github.com/NSObjects/go-kit/errors"
 )
 
-var _ errors.Coder = (*ErrCode)(nil)
-
-// ErrCode implements `github.com/marmotedu/errors`.Coder interface.
-type ErrCode struct {
-	// C refers to the code of the ErrCode.
-	C int
-
-	// HTTP status that should be used for the associated error code.
-	HTTP int
-
-	// External (user) facing error text.
-	Ext string
-
-	// Ref specify the reference document.
-	Ref string
-}
-
-// Code returns the integer code of ErrCode.
-func (coder *ErrCode) Code() int {
-	return coder.C
-}
-
-// String implements stringer. String returns the external error message,
-// if any.
-func (coder *ErrCode) String() string {
-	return coder.Ext
-}
-
-//func (coder *ErrCode) Error() string {
-//	return coder.Ext
-//}
-
-// Reference returns the reference document.
-func (coder *ErrCode) Reference() string {
-	return coder.Ref
-}
-
-// HTTPStatus returns the associated HTTP status code, if any. Otherwise,
-// returns 200.
-func (coder *ErrCode) HTTPStatus() int {
-	if coder.HTTP == 0 {
-		return http.StatusInternalServerError
-	}
-	return coder.HTTP
-}
-
-var (
-	codeRegistry   = map[int]*ErrCode{}
-	codeRegistryMu sync.RWMutex
+// Re-export common error codes from go-kit/code
+const (
+	ErrSuccess        = code.ErrSuccess
+	ErrUnknown        = code.ErrUnknown
+	ErrBind           = code.ErrBind
+	ErrValidation     = code.ErrValidation
+	ErrTokenInvalid   = code.ErrTokenInvalid
+	ErrDatabase       = code.ErrDatabase
+	ErrRedis          = code.ErrRedis
+	ErrKafka          = code.ErrKafka
+	ErrBadRequest     = code.ErrBadRequest
+	ErrUnauthorized   = code.ErrUnauthorized
+	ErrForbidden      = code.ErrForbidden
+	ErrNotFound       = code.ErrNotFound
+	ErrInternalServer = code.ErrInternalServer
 )
 
-func register(code int, httpStatus int, message string, refs ...string) {
-	found, _ := gubrak.Includes([]int{200, 201, 400, 401, 403, 404, 500}, httpStatus)
-	if !found {
-		panic("http code not in `200, 400, 401, 403, 404, 500`")
-	}
-
-	var reference string
-	if len(refs) > 0 {
-		reference = refs[0]
-	}
-
-	coder := &ErrCode{
-		C:    code,
-		HTTP: httpStatus,
-		Ext:  message,
-		Ref:  reference,
-	}
-
-	codeRegistryMu.Lock()
-	codeRegistry[code] = coder
-	codeRegistryMu.Unlock()
-
-	errors.MustRegister(coder)
+// register wraps errors.Register for use in generated code.
+// This function is called by codegen-generated init() functions.
+func register(c int, httpStatus int, message string) {
+	errors.Register(c, httpStatus, message)
 }
 
-// Lookup 返回注册的错误码描述
-func Lookup(code int) (*ErrCode, bool) {
-	codeRegistryMu.RLock()
-	defer codeRegistryMu.RUnlock()
-	coder, ok := codeRegistry[code]
-	return coder, ok
+// WrapDatabaseError wraps an error with database error code context.
+func WrapDatabaseError(err error, message string) error {
+	return code.WrapDatabaseError(err, message)
+}
+
+// WrapValidationError wraps an error with validation error code context.
+func WrapValidationError(err error, message string) error {
+	return code.WrapValidationError(err, message)
+}
+
+// WrapNotFoundError wraps an error with not found error code context.
+func WrapNotFoundError(err error, message string) error {
+	return code.WrapNotFoundError(err, message)
+}
+
+// WrapUnauthorizedError wraps an error with unauthorized error code context.
+func WrapUnauthorizedError(err error, message string) error {
+	return code.WrapUnauthorizedError(err, message)
+}
+
+// WrapForbiddenError wraps an error with forbidden error code context.
+func WrapForbiddenError(err error, message string) error {
+	return code.WrapForbiddenError(err, message)
+}
+
+// WrapInternalServerError wraps an error with internal server error code context.
+func WrapInternalServerError(err error, message string) error {
+	return code.WrapInternalServerError(err, message)
+}
+
+// WrapBindError wraps an error with bind error code context.
+func WrapBindError(err error, message string) error {
+	return code.WrapBindError(err, message)
+}
+
+// WrapRedisError wraps an error with redis error code context.
+func WrapRedisError(err error, message string) error {
+	return code.WrapRedisError(err, message)
+}
+
+// WrapKafkaError wraps an error with kafka error code context.
+func WrapKafkaError(err error, message string) error {
+	return code.WrapKafkaError(err, message)
+}
+
+// NewValidationError creates a new validation error.
+func NewValidationError(field, message string) error {
+	return code.NewValidationError(field, message)
+}
+
+// NewNotFoundError creates a new not found error.
+func NewNotFoundError(resource string) error {
+	return code.NewNotFoundError(resource)
 }

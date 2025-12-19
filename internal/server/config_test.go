@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NSObjects/go-template/internal/configs"
+	configs "github.com/NSObjects/go-kit/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,7 +37,7 @@ func TestFromAppConfig(t *testing.T) {
 			config: configs.Config{
 				System: configs.SystemConfig{
 					Port:  ":9090",
-					Level: 1, // debug
+					Level: "debug", // debug
 				},
 			},
 			expected: &ServerConfig{
@@ -55,7 +55,7 @@ func TestFromAppConfig(t *testing.T) {
 			config: configs.Config{
 				System: configs.SystemConfig{
 					Port:  ":8080",
-					Level: 2, // online
+					Level: "info", // online
 				},
 			},
 			expected: &ServerConfig{

@@ -8,10 +8,10 @@ package service
 import (
 	"strconv"
 
+	"github.com/NSObjects/go-kit/resp"
+	"github.com/NSObjects/go-kit/utils"
 	"github.com/NSObjects/go-template/internal/api/biz"
 	"github.com/NSObjects/go-template/internal/api/service/param"
-	"github.com/NSObjects/go-template/internal/resp"
-	"github.com/NSObjects/go-template/internal/utils"
 	"github.com/labstack/echo/v4"
 )
 
@@ -50,7 +50,6 @@ func (c *UserController) ListUsers(ctx echo.Context) error {
 }
 
 func (c *UserController) Create(ctx echo.Context) error {
-
 	// 绑定和验证请求参数
 	var req param.UserCreateRequest
 	if err := BindAndValidate(ctx, &req); err != nil {

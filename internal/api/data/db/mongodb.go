@@ -8,20 +8,20 @@ package db
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/NSObjects/go-template/internal/configs"
+	configs "github.com/NSObjects/go-kit/config"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func MongoClient(cfg configs.Mongodb) *mongo.Database {
-
+func MongoClient(cfg configs.MongoConfig) *mongo.Database {
 	uri := "mongodb://"
 	if cfg.Password != "" && cfg.User != "" {
 		uri += cfg.User + ":" + cfg.Password + "@"
 	}
-	uri += cfg.Host + ":" + cfg.Port
+	uri += fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 
 	client, err := mongo.NewClient(options.Client().ApplyURI(uri))
 	if err != nil {
@@ -30,5 +30,5 @@ func MongoClient(cfg configs.Mongodb) *mongo.Database {
 	if err := client.Connect(context.Background()); err != nil {
 		panic(err)
 	}
-	return client.Database(cfg.DataBase)
+	return client.Database(cfg.Database)
 }

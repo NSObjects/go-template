@@ -3,9 +3,9 @@ package service
 import (
 	"net/http/httptest"
 
-	"github.com/NSObjects/go-template/internal/code"
+	"github.com/NSObjects/go-kit/code"
+	"github.com/NSObjects/go-kit/errors"
 	"github.com/labstack/echo/v4"
-	"github.com/marmotedu/errors"
 	"go.uber.org/fx"
 )
 
@@ -21,11 +21,11 @@ func AsRoute(f any) any {
 
 func BindAndValidate(ctx echo.Context, obj any) error {
 	if err := ctx.Bind(obj); err != nil {
-		return errors.WrapC(err, code.ErrBind, "bind request failed")
+		return errors.WrapCode(err, code.ErrBind, "bind request failed")
 	}
 
 	if err := ctx.Validate(obj); err != nil {
-		return errors.WrapC(err, code.ErrValidation, "validation failed")
+		return errors.WrapCode(err, code.ErrValidation, "validation failed")
 	}
 
 	return nil
@@ -36,8 +36,8 @@ type RegisterRouter interface {
 }
 
 func Request(method, path string) (int, string) {
-	//req := httptest.NewRequest(method, path, nil)
+	// req := httptest.NewRequest(method, path, nil)
 	rec := httptest.NewRecorder()
-	//testServer().ServeHTTP(rec, req)
+	// testServer().ServeHTTP(rec, req)
 	return rec.Code, rec.Body.String()
 }

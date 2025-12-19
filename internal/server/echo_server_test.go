@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
+	configs "github.com/NSObjects/go-kit/config"
 	"github.com/NSObjects/go-template/internal/api/service"
-	"github.com/NSObjects/go-template/internal/configs"
+	appcfg "github.com/NSObjects/go-template/internal/configs"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -31,7 +32,7 @@ func TestEchoServer_Server(t *testing.T) {
 		Routes:   []service.RegisterRouter{},
 		Enforcer: nil,
 		Cfg:      configs.Config{},
-		Store:    &configs.Store{},
+		Store:    &configs.Store[appcfg.AppConfig]{},
 	}
 
 	server := NewEchoServer(params)
@@ -60,7 +61,7 @@ func TestEchoServer_setupServer(t *testing.T) {
 }
 
 func TestEchoServer_createMiddlewareConfig(t *testing.T) {
-	store := &configs.Store{}
+	store := &configs.Store[appcfg.AppConfig]{}
 
 	server := &EchoServer{
 		server: echo.New(),
@@ -163,7 +164,7 @@ func TestEchoServer_NewEchoServer(t *testing.T) {
 	cfg := configs.Config{
 		System: configs.SystemConfig{
 			Port:  ":8080",
-			Level: 1,
+			Level: "debug",
 		},
 		JWT: configs.JWTConfig{
 			Secret:    "test-secret",
@@ -171,7 +172,7 @@ func TestEchoServer_NewEchoServer(t *testing.T) {
 		},
 	}
 
-	store := &configs.Store{}
+	store := &configs.Store[appcfg.AppConfig]{}
 	// 注意：这里需要根据实际的Store实现来设置配置
 	// store.Set(cfg)
 

@@ -1,12 +1,9 @@
-/*
-Copyright © 2023 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"fmt"
 
-	"github.com/NSObjects/go-template/internal/configs"
+	configs "github.com/NSObjects/go-kit/config"
 
 	"github.com/spf13/cobra"
 	"gorm.io/driver/mysql"
@@ -26,11 +23,8 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		err := configs.InitConfig(cfgFile)
-		if err != nil {
-			panic(err)
-		}
-		GenMysql(configs.Mysql)
+		cfg := configs.NewCfg[configs.Config](cfgFile)
+		GenMysql(cfg.Mysql)
 		fmt.Println("gen called")
 	},
 }
@@ -51,8 +45,7 @@ type Querier interface {
 }
 
 func GenMysql(cfg configs.MysqlConfig) {
-
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&loc=Local",
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
 		NamingStrategy: schema.NamingStrategy{
@@ -64,10 +57,6 @@ func GenMysql(cfg configs.MysqlConfig) {
 	}
 	// 数据库迁移需要根据实际业务模型来实现
 	// err = db.AutoMigrate(&model.YourModel{})
-
-	if err != nil {
-		panic(err)
-	}
 	g := gen.NewGenerator(gen.Config{
 		OutPath:      "./internal/api/data/query", // output path
 		ModelPkgPath: "./internal/api/data/model", // model package path

@@ -11,8 +11,8 @@ import (
 	"fmt"
 
 	"github.com/IBM/sarama"
+	configs "github.com/NSObjects/go-kit/config"
 	"github.com/NSObjects/go-template/internal/api/data/query"
-	"github.com/NSObjects/go-template/internal/configs"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.uber.org/fx"
@@ -111,24 +111,35 @@ func (dm *DataManager) start(ctx context.Context) error {
 
 // Stop 停止所有组件
 func (dm *DataManager) Stop(ctx context.Context) error {
+	var errs []error
+
 	// 关闭MySQL连接
 	if dm.Mysql != nil {
-		if sqlDB, err := dm.Mysql.DB(); err == nil {
-			_ = sqlDB.Close()
+		if sqlDB, err := dm.Mysql.DB(); err != nil {
+			errs = append(errs, fmt.Errorf("mysql get db: %w", err))
+		} else if err := sqlDB.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("mysql close: %w", err))
 		}
 	}
 
 	// 关闭Redis连接
 	if dm.Redis != nil {
-		_ = dm.Redis.Close()
+		if err := dm.Redis.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("redis close: %w", err))
+		}
 	}
 
 	// 关闭Kafka连接
 	if dm.Kafka != nil {
-		_ = dm.Kafka.Close()
+		if err := dm.Kafka.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("kafka close: %w", err))
+		}
 	}
 
 	// MongoDB连接由客户端管理
+	if len(errs) > 0 {
+		return fmt.Errorf("stop errors: %w", errs[0]) // 返回第一个错误，其余记录日志
+	}
 	return nil
 }
 

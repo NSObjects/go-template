@@ -12,12 +12,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/NSObjects/go-template/internal/code"
-	"github.com/NSObjects/go-template/internal/utils"
+	"github.com/NSObjects/go-kit/code"
+	"github.com/NSObjects/go-kit/errors"
+	"github.com/NSObjects/go-template/internal/types"
 	"github.com/golang-jwt/jwt/v5"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
-	"github.com/marmotedu/errors"
 )
 
 // JWTConfig JWT中间件配置
@@ -54,7 +54,7 @@ func JWT(config *JWTConfig) echo.MiddlewareFunc {
 
 	return echojwt.WithConfig(echojwt.Config{
 		NewClaimsFunc: func(c echo.Context) jwt.Claims {
-			return new(utils.JwtCustomClaims)
+			return new(types.JwtCustomClaims)
 		},
 		SigningKey: config.SigningKey,
 		Skipper: func(c echo.Context) bool {
@@ -76,7 +76,7 @@ func JWT(config *JWTConfig) echo.MiddlewareFunc {
 			return false
 		},
 		ErrorHandler: func(c echo.Context, err error) error {
-			return errors.WrapC(err, code.ErrSignatureInvalid, "JWT签名无效")
+			return errors.WrapCode(err, code.ErrSignatureInvalid, "JWT签名无效")
 		},
 	})
 }

@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/NSObjects/go-template/internal/code"
-	"github.com/NSObjects/go-template/internal/log"
-	"github.com/NSObjects/go-template/internal/resp"
+	"github.com/NSObjects/go-kit/errors"
+	"github.com/NSObjects/go-kit/code"
+	"github.com/NSObjects/go-kit/log"
+	"github.com/NSObjects/go-kit/resp"
 	"github.com/labstack/echo/v4"
-	"github.com/marmotedu/errors"
 )
 
 // ErrorHandler 增强的错误处理器
@@ -152,7 +152,7 @@ func ErrorRecovery() echo.MiddlewareFunc {
 					)
 
 					// 创建内部服务器错误
-					err := errors.WithCode(100500, "internal server error")
+					err := errors.WithCode(code.ErrInternalServer, "internal server error")
 					_ = resp.APIError(c, err)
 				}
 			}()

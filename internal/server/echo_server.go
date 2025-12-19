@@ -17,14 +17,15 @@ import (
 	"syscall"
 	"time"
 
+	configs "github.com/NSObjects/go-kit/config"
+	"github.com/NSObjects/go-kit/errors"
+	"github.com/NSObjects/go-kit/resp"
 	"github.com/NSObjects/go-template/internal/api/service"
-	"github.com/NSObjects/go-template/internal/configs"
-	"github.com/NSObjects/go-template/internal/resp"
+	appcfg "github.com/NSObjects/go-template/internal/configs"
 	"github.com/NSObjects/go-template/internal/server/middlewares"
 	"github.com/casbin/casbin/v2"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
-	"github.com/marmotedu/errors"
 	"go.uber.org/fx"
 )
 
@@ -34,7 +35,7 @@ type EchoServer struct {
 	config  *ServerConfig
 	routers []service.RegisterRouter
 	cfg     configs.Config
-	store   *configs.Store
+	store   *configs.Store[appcfg.AppConfig]
 }
 
 // Server 获取Echo实例
@@ -47,9 +48,9 @@ type Params struct {
 	fx.In
 
 	Routes   []service.RegisterRouter `group:"routes"`
-	Enforcer *casbin.Enforcer
+	Enforcer *casbin.Enforcer         `fx:"optional"`
 	Cfg      configs.Config
-	Store    *configs.Store
+	Store    *configs.Store[appcfg.AppConfig]
 }
 
 // NewEchoServer 创建Echo服务器实例
@@ -97,7 +98,9 @@ func (s *EchoServer) loadMiddleware(enforce *casbin.Enforcer) {
 	middlewares.ApplyMiddlewares(s.server, config)
 
 	// 应用Casbin中间件
-	middlewares.ApplyCasbinMiddleware(s.server, enforce, config.Casbin)
+	if enforce != nil {
+		middlewares.ApplyCasbinMiddleware(s.server, enforce, config.Casbin)
+	}
 }
 
 // createMiddlewareConfig 创建中间件配置

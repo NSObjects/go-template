@@ -3,18 +3,17 @@
  * Module: User
  */
 
-package biz
+package service
 
 import (
 	"context"
 
-	"github.com/NSObjects/go-template/internal/api/service/param"
 	"github.com/NSObjects/go-kit/code"
+	param "github.com/NSObjects/go-template/internal/types"
 )
 
 // UserRepository 数据访问接口 - 符合依赖注入原则
 type UserRepository interface {
-
 	// ListUsers 查询User列表
 	ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error)
 
@@ -49,64 +48,55 @@ type UserUseCase interface {
 	Delete(ctx context.Context, id int64) error
 }
 
-// UserHandler 业务逻辑处理器 - 通过依赖注入获取Repository
-type UserHandler struct {
+// UserService 业务逻辑处理器 - 通过依赖注入获取Repository
+type UserService struct {
 	repo UserRepository
 }
 
-// NewUserHandler 创建业务逻辑处理器 - 符合依赖注入原则
-func NewUserHandler(repo UserRepository) UserUseCase {
-	return &UserHandler{
+// NewUserService 创建业务逻辑处理器 - 符合依赖注入原则
+func NewUserService(repo UserRepository) UserUseCase {
+	return &UserService{
 		repo: repo,
 	}
 }
 
-func (h *UserHandler) ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error) {
+func (h *UserService) ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error) {
 	list, total, err := h.repo.ListUsers(ctx, req)
 	if err != nil {
 		// 使用internal/code包包装错误 - 符合错误处理规范
 		return nil, 0, code.WrapDatabaseError(err, "查询User列表失败")
 	}
 	return list, total, nil
-
 }
 
-func (h *UserHandler) Create(ctx context.Context, req param.UserCreateRequest) error {
-
+func (h *UserService) Create(ctx context.Context, req param.UserCreateRequest) error {
 	err := h.repo.Create(ctx, req)
 	if err != nil {
 		return code.WrapDatabaseError(err, "查询User详情失败")
 	}
 	return nil
-
 }
 
-func (h *UserHandler) GetByID(ctx context.Context, id int64) (param.UserData, error) {
-
+func (h *UserService) GetByID(ctx context.Context, id int64) (param.UserData, error) {
 	result, err := h.repo.GetByID(ctx, id)
 	if err != nil {
-
 		return result, code.WrapDatabaseError(err, "查询User详情失败")
 	}
 	return result, nil
-
 }
 
-func (h *UserHandler) Update(ctx context.Context, id int64, req param.UserUpdateRequest) error {
-
+func (h *UserService) Update(ctx context.Context, id int64, req param.UserUpdateRequest) error {
 	err := h.repo.Update(ctx, id, req)
 	if err != nil {
 		return code.WrapDatabaseError(err, "查询User详情失败")
 	}
 	return nil
-
 }
 
-func (h *UserHandler) Delete(ctx context.Context, id int64) error {
+func (h *UserService) Delete(ctx context.Context, id int64) error {
 	err := h.repo.Delete(ctx, id)
 	if err != nil {
 		return code.WrapDatabaseError(err, "删除User失败")
 	}
 	return nil
-
 }

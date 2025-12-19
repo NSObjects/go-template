@@ -8,16 +8,17 @@ package db
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/NSObjects/go-template/internal/configs"
+	configs "github.com/NSObjects/go-kit/config"
 	redis "github.com/redis/go-redis/v9"
 )
 
 func NewRedis(cfg configs.RedisConfig) *redis.Client {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     cfg.Host + ":" + cfg.Port,
+		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		Password: cfg.Password, // no password set
-		DB:       cfg.Database, // use default DB
+		DB:       cfg.DB,       // use default DB
 	})
 	err := rdb.Ping(context.Background()).Err()
 	if err != nil {
