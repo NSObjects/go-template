@@ -54,9 +54,8 @@ func TestRenderBiz(t *testing.T) {
 		"func (h *UserHandler) Update",
 		"func (h *UserHandler) Delete",
 		"func (h *UserHandler) Detail",
-		"github.com/test/project/internal/api/data",
-		"github.com/test/project/internal/api/data/model",
 		"github.com/test/project/internal/api/service/param",
+		"github.com/NSObjects/go-kit/code",
 	}
 
 	for _, expected := range expectedContents {
@@ -80,14 +79,14 @@ func TestRenderService(t *testing.T) {
 	// 验证关键内容
 	expectedContents := []string{
 		"package service",
-		"type userController struct",
+		"type UserController struct",
 		"func NewUserController",
-		"func (c *userController) RegisterRouter",
-		"g.GET(\"/users\", c.list)",
-		"g.POST(\"/users\", c.create)",
-		"g.GET(\"/users/:id\", c.detail)",
-		"g.PUT(\"/users/:id\", c.update)",
-		"g.DELETE(\"/users/:id\", c.remove)",
+		"func (c *UserController) RegisterRouter",
+		"g.GET(\"/users\", c.List)",
+		"g.POST(\"/users\", c.Create)",
+		"g.GET(\"/users/:id\", c.Detail)",
+		"g.PUT(\"/users/:id\", c.Update)",
+		"g.DELETE(\"/users/:id\", c.Remove)",
 		"github.com/test/project/internal/api/biz",
 		"github.com/test/project/internal/api/service/param",
 		"github.com/NSObjects/go-kit/resp",
