@@ -9,9 +9,9 @@
 package server
 
 import (
-	"time"
+        "time"
 
-	"{{.ModulePath}}/internal/configs"
+        configs "github.com/NSObjects/go-kit/config"
 )
 
 // ServerConfig 服务器配置
@@ -47,13 +47,13 @@ func DefaultServerConfig() *ServerConfig {
 
 // FromAppConfig 从应用配置创建服务器配置
 func FromAppConfig(cfg configs.Config) *ServerConfig {
-	return &ServerConfig{
-		Port:            cfg.System.Port,
-		ReadTimeout:     30 * time.Second,
-		WriteTimeout:    30 * time.Second,
-		IdleTimeout:     120 * time.Second,
-		ShutdownTimeout: 10 * time.Second,
-		HideBanner:      true,
-		Debug:           cfg.System.Level == 1, // 1 = debug, 2 = online
-	}
+        return &ServerConfig{
+                Port:            cfg.System.Port,
+                ReadTimeout:     30 * time.Second,
+                WriteTimeout:    30 * time.Second,
+                IdleTimeout:     120 * time.Second,
+                ShutdownTimeout: 10 * time.Second,
+                HideBanner:      true,
+                Debug:           cfg.System.Level == "debug", // "debug" = debug mode
+        }
 }
