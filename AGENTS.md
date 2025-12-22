@@ -1,19 +1,82 @@
 # Repository Development Notes
 
-This project scaffolds API layers (service, biz, data) from OpenAPI descriptions. When working under the repository, follow the
-principles below so regenerated code and manual extensions continue to compose cleanly.
+This project is a Go web application scaffold based on the Echo framework. It follows clean architecture principles with clear separation between Service, Biz, and Data layers. The project leverages `github.com/NSObjects/go-kit` for common infrastructure including error handling, middleware, logging, config management and response formatting.
+
+## Project Structure
+
+```
+.
+├── cmd/                          # Application entry points
+│   ├── fx.go                     # Fx application bootstrap
+│   ├── gen.go                    # Code generation commands
+│   └── root.go                   # Cobra root command
+├── configs/                      # Configuration files
+│   └── config.yaml               # Application configuration
+├── internal/                     # Private application code
+│   ├── api/                      # API layers
+│   │   ├── biz/                  # Business logic layer
+│   │   │   ├── biz.go            # Fx module registration
+│   │   │   └── user.go           # User business logic
+│   │   ├── data/                 # Data access layer
+│   │   │   ├── data.go           # Fx module registration
+│   │   │   ├── user.go           # User repository implementation
+│   │   │   ├── db/               # Database infrastructure
+│   │   │   │   ├── db.go         # DataManager and Fx module
+│   │   │   │   ├── mysql.go      # MySQL connection
+│   │   │   │   ├── redis.go      # Redis connection
+│   │   │   │   ├── mongodb.go    # MongoDB connection
+│   │   │   │   └── kafka.go      # Kafka connection
+│   │   │   ├── model/            # GORM models (auto-generated)
+│   │   │   └── query/            # GORM Gen query builders (auto-generated)
+│   │   └── service/              # HTTP handlers layer
+│   │       ├── service.go        # Fx module registration
+│   │       ├── user.go           # User controller
+│   │       └── param/            # Request/Response DTOs
+│   ├── code/                     # Application error codes
+│   │   └── code.go               # Error code wrapping (uses go-kit/code)
+│   ├── configs/                  # Configuration types
+│   │   └── config.go             # AppConfig struct
+│   ├── model/                    # Shared data models
+│   ├── pkg/                      # Internal packages
+│   │   └── casbin/               # Casbin authorization setup
+│   ├── server/                   # HTTP server
+│   │   ├── echo_server.go        # Echo server setup with middlewares
+│   │   ├── config.go             # Server configuration
+│   │   └── middlewares/          # Echo middlewares
+│   └── types/                    # Shared types
+│       ├── jwt.go                # JWT claims types
+│       ├── param.go              # Common request parameters
+│       └── user.go               # User-related types
+├── muban/                        # Code generation tools
+│   ├── codegen/                  # Error code generator
+│   ├── modgen/                   # Module generator
+│   ├── project/                  # Project template generator
+│   └── newcmd/                   # Command generator
+├── main.go                       # Application entry
+└── Makefile                      # Build and dev commands
+```
+
+## Core Dependencies
+
+| Package | Usage |
+|---------|-------|
+| `github.com/NSObjects/go-kit` | Core library: config, errors, code, middleware, resp, log, validator |
+| `go.uber.org/fx` | Dependency injection framework |
+| `github.com/labstack/echo/v4` | HTTP web framework |
+| `gorm.io/gorm` + `gorm.io/gen` | ORM and query builder |
+| `github.com/casbin/casbin/v2` | Authorization library |
 
 ## Layer Responsibilities
 
 ### Service Layer (`internal/api/service`)
 **Responsibility**: Transport layer handlers and request/response translation
-- Perform syntactic validation, bind request parameters, and convert business responses into the unified `resp` envelope format
-- **Prohibited**: Embed business rules or persistence logic. Service functions should remain thin, primarily orchestrating calls to biz interfaces and forwarding typed errors
-- Use `resp.SuccessJSON`, `resp.ListDataResponse`, `resp.OneDataResponse`, `resp.OperateSuccess` to ensure all success responses conform to `{ "msg": "string", "code": 0, "data": { ... } }` format
+- Perform syntactic validation via `BindAndValidate`, bind request parameters
+- Convert business responses into unified `resp` envelope format
+- **Prohibited**: Embed business rules or persistence logic
 
 **Correct Example**:
 ```go
-func (c *UserController) CreateUser(ctx echo.Context) error {
+func (c *UserController) Create(ctx echo.Context) error {
     var req param.UserCreateRequest
     if err := BindAndValidate(ctx, &req); err != nil {
         return err  // Return directly, handled by ErrorHandler middleware
@@ -47,7 +110,7 @@ func (c *UserController) ListUsers(ctx echo.Context) error {
 **Incorrect Example**:
 ```go
 // ❌ Wrong: Direct database operations in Service layer
-func (c *UserController) CreateUser(ctx echo.Context) error {
+func (c *UserController) Create(ctx echo.Context) error {
     var user model.User
     if err := c.db.Create(&user).Error; err != nil {
         return err
@@ -56,7 +119,7 @@ func (c *UserController) CreateUser(ctx echo.Context) error {
 }
 
 // ❌ Wrong: Business logic processing in Service layer
-func (c *UserController) CreateUser(ctx echo.Context) error {
+func (c *UserController) Create(ctx echo.Context) error {
     var req param.UserCreateRequest
     if err := BindAndValidate(ctx, &req); err != nil {
         return err
@@ -73,39 +136,39 @@ func (c *UserController) CreateUser(ctx echo.Context) error {
 
 ### Biz Layer (`internal/api/biz`)
 **Responsibility**: Encapsulate domain workflows and business invariants while staying storage-agnostic
-- Coordinate repository interfaces, handle branching logic (e.g., rate limits, token rotation), and return rich error values from the `code` package
-- Keep side-effects limited to calling repositories or emitting domain events; prefer pure functions for validation helpers
+- Coordinate repository interfaces, handle branching logic (e.g., rate limits, token rotation)
+- Return rich error values using `go-kit/code` package
 - Inject dependencies through constructors, avoid direct dependency on `DataManager`
 
 **Correct Example**:
 ```go
+// Define Repository interface near the caller
+type UserRepository interface {
+    ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error)
+    Create(ctx context.Context, req param.UserCreateRequest) error
+    GetByID(ctx context.Context, id int64) (param.UserData, error)
+    Update(ctx context.Context, id int64, req param.UserUpdateRequest) error
+    Delete(ctx context.Context, id int64) error
+}
+
+// UserHandler injects Repository through constructor
 type UserHandler struct {
-    repo UserRepository  // Inject through interface, not direct DataManager dependency
+    repo UserRepository
 }
 
 func NewUserHandler(repo UserRepository) UserUseCase {
     return &UserHandler{repo: repo}
 }
 
-func (h *UserHandler) CreateUser(ctx context.Context, req param.UserCreateRequest) error {
+func (h *UserHandler) Create(ctx context.Context, req param.UserCreateRequest) error {
     // Business rule validation
     if err := h.validateUserData(req); err != nil {
         return code.WrapValidationError(err, "user data validation failed")
     }
 
-    // Call Repository layer
     err := h.repo.Create(ctx, req)
     if err != nil {
         return code.WrapDatabaseError(err, "create user failed")
-    }
-
-    return nil
-}
-
-// Pure function validation helper
-func (h *UserHandler) validateUserData(req param.UserCreateRequest) error {
-    if req.Age < 18 {
-        return errors.New("age must be greater than 18")
     }
     return nil
 }
@@ -115,10 +178,10 @@ func (h *UserHandler) validateUserData(req param.UserCreateRequest) error {
 ```go
 // ❌ Wrong: Direct dependency on DataManager
 type UserHandler struct {
-    dm *data.DataManager  // ❌ Wrong: Should inject through Repository interface
+    dm *db.DataManager  // ❌ Wrong: Should inject through Repository interface
 }
 
-func (h *UserHandler) CreateUser(ctx context.Context, req param.UserCreateRequest) error {
+func (h *UserHandler) Create(ctx context.Context, req param.UserCreateRequest) error {
     // ❌ Wrong: Direct database operations in Biz layer
     var user model.User
     if err := h.dm.MySQLWithContext(ctx).Create(&user).Error; err != nil {
@@ -130,9 +193,9 @@ func (h *UserHandler) CreateUser(ctx context.Context, req param.UserCreateReques
 
 ### Data Layer (`internal/api/data`)
 **Responsibility**: Implement concrete persistence adapters and external integrations
-- Expose clear interfaces that can be mocked; avoid leaking transport concepts (HTTP status, envelopes) into this layer
-- Implement Repository interfaces, focus on data access logic
-- Use `code` package to wrap database errors, provide meaningful error messages
+- Expose clear interfaces that can be mocked
+- Implement Repository interfaces defined in biz layer
+- Use `code` package to wrap database errors
 
 **Correct Example**:
 ```go
@@ -160,32 +223,6 @@ func (u userRepository) Create(ctx context.Context, req param.UserCreateRequest)
 
     return nil
 }
-
-func (u userRepository) ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error) {
-    users, err := u.d.Query.User.WithContext(ctx).Offset(req.Offset()).Limit(req.Limit()).Find()
-    if err != nil {
-        return nil, 0, code.WrapDatabaseError(err, "query user list failed")
-    }
-
-    var list []param.UserListItem
-    for _, user := range users {
-        list = append(list, param.UserListItem{
-            Id:        user.ID,
-            Username:  user.Username,
-            Email:     user.Email,
-            Age:       int(user.Age),
-            CreatedAt: user.CreatedAt,
-            UpdatedAt: user.UpdatedAt,
-        })
-    }
-
-    count, err := u.d.Query.User.Count()
-    if err != nil {
-        return nil, 0, code.WrapDatabaseError(err, "query user count failed")
-    }
-
-    return list, count, nil
-}
 ```
 
 **Incorrect Example**:
@@ -196,72 +233,34 @@ func (u userRepository) Create(ctx context.Context, req param.UserCreateRequest)
     if req.Age < 18 {
         return errors.New("age must be greater than 18")
     }
-
     // Database operations...
 }
-
-// ❌ Wrong: Not wrapping database errors
-func (u userRepository) Create(ctx context.Context, req param.UserCreateRequest) error {
-    err := u.d.Query.User.WithContext(ctx).Create(&user)
-    if err != nil {
-        return err  // ❌ Wrong: Should use code package to wrap
-    }
-    return nil
-}
 ```
 
-## Coding Conventions
+## go-kit Integration
 
-### Dependency Injection Principles
-- Favor composition over shared state. Inject dependencies via constructors to keep components testable
-- Prefer Go interfaces that describe behaviors needed by the caller rather than concrete types
+This project heavily relies on `github.com/NSObjects/go-kit` for infrastructure:
 
-**Correct Example**:
+### Error Handling (`go-kit/code` + `go-kit/errors`)
 ```go
-// Define Repository interface
-type UserRepository interface {
-    Create(ctx context.Context, req param.UserCreateRequest) error
-    GetByID(ctx context.Context, id int64) (param.UserData, error)
-    ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error)
-    Update(ctx context.Context, id int64, req param.UserUpdateRequest) error
-    Delete(ctx context.Context, id int64) error
-}
-
-// Inject through interface in Biz layer
-type UserHandler struct {
-    repo UserRepository
-}
-```
-
-### Error Handling Standards
-- Wrap domain failures with helpers defined in `internal/code` package. These errors will be translated by the global `ErrorHandler` middleware
-- Success responses must go through `resp` package methods to ensure `{ "msg": "string", "code": 0, "data": { ... } }` contract
-
-**Error Code Usage Example**:
-```go
-// Define error codes in code package
-const (
-    ErrUserNotFound = 10001
-    ErrUserAlreadyExists = 10002
+import (
+    "github.com/NSObjects/go-kit/code"
+    "github.com/NSObjects/go-kit/errors"
 )
 
-// Use in Data layer
-func (u userRepository) GetByID(ctx context.Context, id int64) (param.UserData, error) {
-    user, err := u.d.Query.User.WithContext(ctx).GetByID(uint(id))
-    if err != nil {
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-            return param.UserData{}, code.WrapNotFoundError(err, "user not found")
-        }
-        return param.UserData{}, code.WrapDatabaseError(err, "query user failed")
-    }
-    return convertToUserData(user), nil
-}
+// Wrap errors with error codes
+return code.WrapDatabaseError(err, "query user failed")
+return code.WrapValidationError(err, "validation failed")
+return code.WrapNotFoundError(err, "user not found")
+
+// Use WrapCode for custom error codes
+return errors.WrapCode(err, code.ErrPermissionDenied, "权限检查失败")
 ```
 
-### Response Format Standards
-Use the unified response methods provided by `resp` package:
-
+### Response Formatting (`go-kit/resp`)
 ```go
+import "github.com/NSObjects/go-kit/resp"
+
 // List data response
 return resp.ListDataResponse(ctx, list, total)
 
@@ -272,84 +271,104 @@ return resp.OneDataResponse(ctx, data)
 return resp.OperateSuccess(ctx)
 
 // Custom success response
-return resp.SuccessJSON(ctx, map[string]interface{}{
-    "message": "operation successful",
-    "data": result,
-})
+return resp.SuccessJSON(ctx, result)
 ```
 
-### File Organization
-- Organize files by concern: new business logic belongs beside the generated scaffolding, while shared helpers should live in dedicated packages (`internal/resp`, `internal/code`, etc.)
-- Use context-aware functions (`ctx context.Context`) for operations that may need cancellation or tracing
-- Handle secrets and credentials via configuration structs—avoid hard-coding values in source files
-
-## Code Generation Guidelines
-
-### Template Generation Principles
-1. **Service layer templates** must:
-   - Use `resp` package methods for all success responses
-   - Return errors directly, let ErrorHandler middleware handle them
-   - Not contain any business logic or database operations
-   - Use `BindAndValidate` for parameter binding and validation
-
-2. **Biz layer templates** must:
-   - Define Repository interfaces
-   - Inject Repository dependencies through constructors
-   - Use `code` package to wrap all errors
-   - Not directly depend on `DataManager`
-   - Include business rule validation
-
-3. **Data layer templates** must:
-   - Implement Repository interfaces
-   - Focus on data access logic
-   - Use `code` package to wrap database errors
-   - Not contain business rules
-
-### Response Format Requirements
-All API responses must use the following format:
+All responses conform to:
 ```json
 {
-  "msg": "operation successful",
+  "msg": "string",
   "code": 0,
-  "data": {
-    // actual data
-  }
+  "data": { ... }
 }
 ```
 
-### Error Handling Requirements
-- Use `internal/code` package to define error codes
-- Use `code.WrapXXXError` in Data layer to wrap errors
-- Use `code.WrapXXXError` in Biz layer to wrap Repository errors
-- Service layer returns errors directly, no additional processing
+### Middleware (`go-kit/middleware`)
+```go
+import kitmiddleware "github.com/NSObjects/go-kit/middleware"
 
-## Testing Expectations
+// Error handler - converts errors to JSON response
+s.server.HTTPErrorHandler = kitmiddleware.ErrorHandler
 
-- Write table-driven tests for new logic and prefer standard library assertions (`if`, `t.Helper`, etc.)
-- Service layer tests should exercise request binding and response envelopes
-- Biz layer tests should mock repositories to cover edge cases (lockouts, rotations, etc.)
-- Data layer tests should use test databases for integration testing
-- Run `go test ./...` (or a targeted subset) before submitting changes; include any non-standard flags used in the test output
+// Recovery middleware
+s.server.Use(kitmiddleware.Recovery())
 
-## Working With Generated Code
+// Request logger
+s.server.Use(kitmiddleware.RequestLogger())
 
-- The OpenAPI specification is the source of truth for generated artifacts. Avoid editing generated files directly—extend behavior in protected regions or create new files to survive regeneration
-- When updating templates or tooling that emits these layers, regenerate from the spec and ensure the repository still builds and passes tests prior to merging
+// JWT middleware
+s.server.Use(kitmiddleware.JWT(jwtConfig))
 
-## Code Review Checklist
+// Casbin middleware
+s.server.Use(kitmiddleware.Casbin(enforcer, casbinConfig))
+```
 
-When reviewing generated code, ensure:
+### Configuration (`go-kit/config`)
+```go
+import kitconfig "github.com/NSObjects/go-kit/config"
 
-- [ ] Service layer only contains request binding, parameter validation, and response formatting
-- [ ] Biz layer accesses data through Repository interfaces, not directly depending on DataManager
-- [ ] Data layer implements Repository interfaces, focusing on data access
-- [ ] All errors are wrapped using `code` package
-- [ ] All success responses use `resp` package methods
-- [ ] Dependencies are injected through constructors, not global variables
-- [ ] Interface definitions are near callers, implementations away from callers
-- [ ] Context is properly passed in all async operations
-- [ ] Business rule validation is in Biz layer
-- [ ] Data conversion is in Data layer
+// Bootstrap configuration with hot-reload support
+merged, store := kitconfig.Bootstrap[configs.AppConfig](cfg)
+
+// Access current config
+current := store.Current()
+```
+
+### Logging (`go-kit/log`)
+```go
+import "github.com/NSObjects/go-kit/log"
+
+// Create logger
+sink := log.NewConsoleSink(log.ConsoleSinkConfig{
+    Format: "color",
+    Output: "stdout",
+})
+logger := log.NewDefaultLogger(sink, slog.LevelInfo)
+log.SetGlobalLogger(logger)
+
+// Use logger
+logger.Info("message", slog.String("key", "value"))
+```
+
+### Validation (`go-kit/validator`)
+```go
+import "github.com/NSObjects/go-kit/validator"
+
+// Set Echo validator
+s.server.Validator = validator.New()
+```
+
+## Coding Conventions
+
+### Dependency Injection with Fx
+- Favor composition over shared state
+- Inject dependencies via constructors
+- Use Go interfaces that describe behaviors needed by the caller
+
+```go
+// Fx module registration pattern
+var Model = fx.Options(fx.Provide(NewUserController))
+
+// AsRoute helper for route registration
+func AsRoute(f any) any {
+    return fx.Annotate(
+        f,
+        fx.As(new(RegisterRouter)),
+        fx.ResultTags(`group:"routes"`),
+    )
+}
+```
+
+### Error Handling Standards
+- Wrap domain failures with helpers from `go-kit/code` package
+- Service layer returns errors directly (ErrorHandler middleware handles conversion)
+- Success responses must use `resp` package methods
+
+### File Organization
+- Organize files by concern: new business logic beside generated scaffolding
+- Shared helpers in dedicated packages
+- Use context-aware functions for operations needing cancellation/tracing
+- Handle secrets via configuration structs
 
 ## Module Dependency Graph
 
@@ -371,11 +390,19 @@ graph TD
         db[api/data/db/]
     end
 
+    subgraph "go-kit (external)"
+        kit_code[go-kit/code]
+        kit_resp[go-kit/resp]
+        kit_middleware[go-kit/middleware]
+        kit_config[go-kit/config]
+        kit_log[go-kit/log]
+        kit_errors[go-kit/errors]
+        kit_validator[go-kit/validator]
+    end
+
     subgraph infra
-        code[code/]
-        resp[resp/]
         configs[configs/]
-        log[log/]
+        casbin[pkg/casbin/]
     end
 
     fx --> echo_server
@@ -384,35 +411,38 @@ graph TD
     fx --> data
     fx --> db
     fx --> configs
-    fx --> log
+    fx --> kit_config
+    fx --> kit_log
 
     echo_server --> service
     echo_server --> middlewares
-    echo_server --> resp
+    echo_server --> kit_middleware
+    echo_server --> kit_resp
+    echo_server --> kit_validator
 
     service --> biz
-    service --> resp
-    service --> code
+    service --> kit_resp
+    service --> kit_code
 
     biz --> data
-    biz --> code
+    biz --> kit_code
 
     data --> db
-    data --> code
+    data --> kit_code
 ```
 
-### Fx Module Registration (cmd/fx.go)
+## Fx Module Registration
 
 | Module Name | Package | Responsibility |
 |-------------|---------|----------------|
-| `config` | `configs` | Configuration loading and hot-reload |
-| `log` | `log` | Structured logging |
-| `db` | `api/data/db` | DataManager (MySQL/Redis/Kafka/Mongo) |
-| `casbin` | `utils` | Casbin enforcer for authorization |
-| `biz` | `api/biz` | Business logic handlers |
-| `data` | `api/data` | Repository implementations |
-| `service` | `api/service` | HTTP controllers |
-| `server` | `server` | Echo HTTP server |
+| `config` | `go-kit/config` + `internal/configs` | Configuration loading with hot-reload |
+| `log` | `go-kit/log` | Structured logging with slog |
+| `db` | `internal/api/data/db` | DataManager (MySQL/Redis/Kafka/Mongo via GORM Gen) |
+| `casbin` | `internal/pkg/casbin` | Casbin enforcer for authorization |
+| `biz` | `internal/api/biz` | Business logic handlers |
+| `data` | `internal/api/data` | Repository implementations |
+| `service` | `internal/api/service` | HTTP controllers |
+| `server` | `internal/server` | Echo HTTP server with middleware |
 
 ## Command Reference
 
@@ -459,9 +489,9 @@ graph TD
 | Path Pattern | Generator | Description |
 |--------------|-----------|-------------|
 | `internal/api/data/query/*.go` | GORM Gen | Database query builders |
-| `internal/code/*_generated.go` | `codegen` | Error code registration |
-| `internal/code/error_code_generated.md` | `codegen` | Error code documentation |
 | `internal/api/data/model/*.go` | GORM Gen | Database model structs |
+| `internal/code/*_generated.go` | `muban/codegen` | Error code registration |
+| `internal/code/error_code_generated.md` | `muban/codegen` | Error code documentation |
 
 ### Safe to Extend
 
@@ -470,4 +500,27 @@ graph TD
 | `internal/api/biz/*.go` | Add custom business logic |
 | `internal/api/data/*.go` | Add custom repository methods |
 | `internal/api/service/*.go` | Add custom handlers |
-| `internal/code/user.go` | Add domain-specific error codes |
+| `internal/code/*.go` | Add domain-specific error codes |
+
+## Testing Expectations
+
+- Write table-driven tests for new logic
+- Service layer tests: exercise request binding and response envelopes
+- Biz layer tests: mock repositories to cover edge cases
+- Data layer tests: use test databases for integration testing
+- Run `go test ./...` before submitting changes
+
+## Code Review Checklist
+
+When reviewing code, ensure:
+
+- [ ] Service layer only contains request binding, validation, and response formatting
+- [ ] Biz layer accesses data through Repository interfaces
+- [ ] Data layer implements Repository interfaces from biz layer
+- [ ] All errors wrapped using `go-kit/code` or `go-kit/errors` package
+- [ ] All success responses use `go-kit/resp` package methods
+- [ ] Dependencies injected through constructors, not global variables
+- [ ] Interface definitions near callers (biz layer), implementations in data layer
+- [ ] Context properly passed in all operations
+- [ ] Business rule validation in Biz layer
+- [ ] Data conversion in Data layer, not leaking transport concepts
