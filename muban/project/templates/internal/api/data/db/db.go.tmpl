@@ -7,16 +7,16 @@
 package db
 
 import (
-	"context"
-	"fmt"
+        "context"
+        "fmt"
 
-	"github.com/IBM/sarama"
-	"{{.ModulePath}}/internal/api/data/query"
-	"{{.ModulePath}}/internal/configs"
-	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.uber.org/fx"
-	"gorm.io/gorm"
+        "github.com/IBM/sarama"
+        configs "github.com/NSObjects/go-kit/config"
+        "{{.ModulePath}}/internal/api/data/query"
+        "github.com/redis/go-redis/v9"
+        "go.mongodb.org/mongo-driver/mongo"
+        "go.uber.org/fx"
+        "gorm.io/gorm"
 )
 
 // DataManager 统一的数据管理器，直接管理所有数据库组件
