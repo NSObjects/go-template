@@ -280,6 +280,10 @@ func (g *EmbedTemplateGenerator) printf(format string, args ...interface{}) {
 func (g *EmbedTemplateGenerator) shouldSkip(outputPath string) bool {
 	normalized := filepath.ToSlash(outputPath)
 
+	if strings.HasPrefix(normalized, "muban/") {
+		return true
+	}
+
 	if normalized == "go.sum" {
 		return true
 	}

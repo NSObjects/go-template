@@ -53,6 +53,10 @@ func TestGenerateProjectCreatesExecutableScripts(t *testing.T) {
 		t.Fatalf("expected go.sum to be skipped, got err=%v", err)
 	}
 
+	if _, err := os.Stat(filepath.Join(tempDir, "muban")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected muban assets to be skipped, got err=%v", err)
+	}
+
 	docsDir := filepath.Join(tempDir, "docs")
 	if entries, err := os.ReadDir(docsDir); err == nil {
 		for _, entry := range entries {
