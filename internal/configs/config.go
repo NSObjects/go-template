@@ -1,6 +1,8 @@
 package configs
 
-import configs "github.com/NSObjects/go-kit/config"
+import (
+	configs "github.com/NSObjects/go-kit/config"
+)
 
 // AppConfig 应用全局配置
 type AppConfig struct {

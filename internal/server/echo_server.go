@@ -30,6 +30,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 	echomiddleware "github.com/labstack/echo/v4/middleware"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.uber.org/fx"
 )
 
@@ -104,6 +105,9 @@ func (s *EchoServer) loadMiddleware(enforcer *casbin.Enforcer) {
 	// Gzip 压缩
 	s.server.Use(echomiddleware.Gzip())
 
+	s.server.Use(echomiddleware.RequestID())
+
+	s.server.Use(otelecho.Middleware("go-template"))
 	// CORS
 	s.server.Use(echomiddleware.CORSWithConfig(echomiddleware.CORSConfig{
 		AllowOrigins: []string{"*"},

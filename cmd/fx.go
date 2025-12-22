@@ -10,6 +10,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/NSObjects/go-kit/config"
 	kitconfig "github.com/NSObjects/go-kit/config"
 	"github.com/NSObjects/go-kit/log"
 	"github.com/NSObjects/go-template/internal/api/biz"
@@ -18,6 +19,7 @@ import (
 	"github.com/NSObjects/go-template/internal/api/service"
 	configs "github.com/NSObjects/go-template/internal/configs"
 	"github.com/NSObjects/go-template/internal/pkg/casbin"
+	"github.com/NSObjects/go-template/internal/pkg/otel"
 	"github.com/NSObjects/go-template/internal/server"
 
 	"go.uber.org/fx"
@@ -45,6 +47,10 @@ func Run(cfg string) {
 			log.SetGlobalLogger(logger)
 			return logger
 		})),
+		// OpenTelemetry 模块 - 在其他模块之前初始化
+		fx.Module("otel", fx.Provide(func(cfg configs.AppConfig) config.OtelConfig {
+			return cfg.Otel
+		}), otel.Module),
 		fx.Module("db", db.Model),
 		fx.Module("casbin", casbin.CasbinModule),
 		fx.Module("biz", biz.Model),

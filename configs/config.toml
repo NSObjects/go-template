@@ -76,3 +76,17 @@ brokers = []
 client_id = "echo-admin"
 topic = "demo"
 
+[otel]
+# OpenTelemetry 配置
+enabled = false
+# 服务名称
+service_name = "go-template"
+# 环境标识: dev, test, prod
+environment = "dev"
+# OTLP gRPC 端点地址 (当 exporter_type = "otlp" 时使用)
+otlp_endpoint = "localhost:4317"
+# 导出器类型: otlp (发送到 OTLP 收集器), stdout (输出到控制台)
+exporter_type = "stdout"
+# 采样率: 0.0 - 1.0 (1.0 = 100% 采样)
+sampling_ratio = 1.0
+
