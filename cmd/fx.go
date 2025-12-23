@@ -51,7 +51,7 @@ func Run(cfg string) {
 		fx.Module("otel", fx.Provide(func(cfg configs.AppConfig) config.OtelConfig {
 			return cfg.Otel
 		}), otel.Module),
-		fx.Module("db", db.Model),
+		fx.Module("db", db.Module),
 		fx.Module("casbin", casbin.CasbinModule),
 		fx.Module("biz", biz.Model),
 		fx.Module("data", data.Model),

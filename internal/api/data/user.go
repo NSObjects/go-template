@@ -6,22 +6,21 @@ import (
 
 	"github.com/NSObjects/go-kit/code"
 	"github.com/NSObjects/go-template/internal/api/biz"
-	"github.com/NSObjects/go-template/internal/api/data/db"
 	"github.com/NSObjects/go-template/internal/api/data/model"
+	"github.com/NSObjects/go-template/internal/api/data/query"
 	"github.com/NSObjects/go-template/internal/api/service/param"
 )
 
 type userRepository struct {
-	d *db.DataManager
+	q *query.Query
 }
 
-func NewUserRepository(d *db.DataManager) biz.UserRepository {
-	return userRepository{d: d}
+func NewUserRepository(q *query.Query) biz.UserRepository {
+	return userRepository{q: q}
 }
 
 func (u userRepository) ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error) {
-
-	users, err := u.d.Query.User.WithContext(ctx).Offset(req.Offset()).Limit(req.Limit()).Find()
+	users, err := u.q.User.WithContext(ctx).Offset(req.Offset()).Limit(req.Limit()).Find()
 	if err != nil {
 		return nil, 0, code.WrapDatabaseError(err, "查询User列表失败")
 	}
@@ -37,7 +36,7 @@ func (u userRepository) ListUsers(ctx context.Context, req param.UserListUsersRe
 		})
 	}
 
-	count, err := u.d.Query.User.Count()
+	count, err := u.q.User.Count()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -53,7 +52,7 @@ func (u userRepository) Create(ctx context.Context, req param.UserCreateRequest)
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	err := u.d.Query.User.WithContext(ctx).Create(&user)
+	err := u.q.User.WithContext(ctx).Create(&user)
 	if err != nil {
 		return err
 	}
@@ -62,7 +61,7 @@ func (u userRepository) Create(ctx context.Context, req param.UserCreateRequest)
 }
 
 func (u userRepository) GetByID(ctx context.Context, id int64) (param.UserData, error) {
-	user, err := u.d.Query.User.WithContext(ctx).GetByID(uint(id))
+	user, err := u.q.User.WithContext(ctx).GetByID(uint(id))
 	if err != nil {
 		return param.UserData{}, err
 	}
@@ -78,7 +77,7 @@ func (u userRepository) GetByID(ctx context.Context, id int64) (param.UserData, 
 }
 
 func (u userRepository) Update(ctx context.Context, id int64, req param.UserUpdateRequest) error {
-	_, err := u.d.Query.User.WithContext(ctx).Where(u.d.Query.User.ID.Eq(id)).Updates(model.User{
+	_, err := u.q.User.WithContext(ctx).Where(u.q.User.ID.Eq(id)).Updates(model.User{
 		Username: req.Username,
 		Email:    req.Email,
 		Age:      int32(req.Age),
@@ -91,7 +90,7 @@ func (u userRepository) Update(ctx context.Context, id int64, req param.UserUpda
 }
 
 func (u userRepository) Delete(ctx context.Context, id int64) error {
-	err := u.d.Query.User.WithContext(ctx).DeleteByID(uint(id))
+	err := u.q.User.WithContext(ctx).DeleteByID(uint(id))
 	if err != nil {
 		return err
 	}

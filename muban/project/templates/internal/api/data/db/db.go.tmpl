@@ -1,240 +1,138 @@
 /*
- * Created by lintao on 2023/7/18 下午3:56
- * Copyright © 2020-2024 LINTAO. All rights reserved.
+ * db 模块：统一数据访问层
  *
+ * 使用 go-kit/db.Manager 作为核心，提供可选组件的按需初始化。
+ * 所有组件通过配置启用，无需修改代码。
+ *
+ * 支持组件：
+ *   - Database: MySQL/PostgreSQL/SQLite (通过 database.driver 配置)
+ *   - Redis: 通过 redis.host 配置启用
+ *   - MongoDB: 通过 mongodb.host 配置启用
+ *   - Kafka: 通过 kafka.brokers 配置启用
+ *
+ * Created by lintao on 2023/7/18
+ * Copyright © 2020-2024 LINTAO. All rights reserved.
  */
 
 package db
 
 import (
-        "context"
-        "fmt"
+	"context"
+	"fmt"
 
-        "github.com/IBM/sarama"
-        configs "github.com/NSObjects/go-kit/config"
-        "{{.ModulePath}}/internal/api/data/query"
-        "github.com/redis/go-redis/v9"
-        "go.mongodb.org/mongo-driver/mongo"
-        "go.uber.org/fx"
-        "gorm.io/gorm"
+	"github.com/IBM/sarama"
+	configs "github.com/NSObjects/go-kit/config"
+	kitdb "github.com/NSObjects/go-kit/db"
+	"{{.ModulePath}}/internal/api/data/query"
+	"go.uber.org/fx"
+	"gorm.io/gorm"
 )
 
-// DataManager 统一的数据管理器，直接管理所有数据库组件
-type DataManager struct {
-	// 数据库组件 (通用，支持 mysql/postgres/sqlite)
-	DB      *gorm.DB
-	Mongodb *mongo.Database
-	Redis   *redis.Client
-	Kafka   sarama.SyncProducer
+// Module 提供数据层的 Fx 依赖注入
+var Module = fx.Options(
+	fx.Provide(NewManager),
+	fx.Provide(NewDB),
+	fx.Provide(NewQuery),
+	fx.Provide(NewKafkaProducer),
+)
 
-	// 查询接口
-	Query *query.Query
-
-	// 配置
-	Config *configs.Config
+// Manager 扩展 go-kit/db.Manager，添加业务特定组件
+type Manager struct {
+	*kitdb.Manager
+	Kafka sarama.SyncProducer
 }
 
-// NewDataManager 创建统一的数据管理器，直接初始化所有组件
-func NewDataManager(lc fx.Lifecycle, cfg configs.Config) *DataManager {
-	dm := &DataManager{
-		Config: &cfg,
+// NewManager 创建数据管理器
+// 使用 go-kit/db.Manager 处理 Database/Redis/MongoDB
+// Kafka 单独处理（go-kit 暂不支持）
+func NewManager(lc fx.Lifecycle, cfg configs.Config) (*Manager, error) {
+	ctx := context.Background()
+
+	// 使用 go-kit 创建核心管理器
+	kitMgr, err := kitdb.NewManager(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("create db manager: %w", err)
 	}
 
-	// 初始化数据库 (支持 mysql/postgres/sqlite)
-	if cfg.Database.Driver != "" {
-		dm.DB = NewDatabase(cfg.Database)
+	mgr := &Manager{Manager: kitMgr}
+
+	// 注册 GORM 业务回调（可选）
+	if kitMgr.DB != nil {
+		registerCallbacks(kitMgr.DB)
 	}
 
-	// 初始化MongoDB
-	if cfg.Mongodb.Host != "" {
-		dm.Mongodb = MongoClient(cfg.Mongodb)
-	}
-
-	// 初始化Redis
-	if cfg.Redis.Host != "" {
-		dm.Redis = NewRedis(cfg.Redis)
-	}
-
-	// 初始化Kafka
+	// 初始化 Kafka（可选）
 	if len(cfg.Kafka.Brokers) > 0 {
-		producer, err := NewKafkaProducer(cfg.Kafka)
+		producer, err := newKafkaSyncProducer(cfg.Kafka)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("create kafka producer: %w", err)
 		}
-		dm.Kafka = producer
+		mgr.Kafka = producer
 	}
 
-	// 初始化Query
-	if dm.DB != nil {
-		dm.Query = query.Use(dm.DB)
-	}
-
-	// 注册生命周期钩子
+	// 注册生命周期
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			return dm.start(ctx)
+			return kitMgr.Start(ctx)
 		},
 		OnStop: func(ctx context.Context) error {
-			return dm.Stop(ctx)
+			var errs []error
+			if mgr.Kafka != nil {
+				if err := mgr.Kafka.Close(); err != nil {
+					errs = append(errs, fmt.Errorf("kafka close: %w", err))
+				}
+			}
+			if err := kitMgr.Stop(ctx); err != nil {
+				errs = append(errs, err)
+			}
+			if len(errs) > 0 {
+				return errs[0]
+			}
+			return nil
 		},
 	})
 
-	return dm
+	return mgr, nil
 }
 
-// start 启动所有组件
-func (dm *DataManager) start(ctx context.Context) error {
-	// 检查数据库连接
-	if dm.DB != nil {
-		if sqlDB, err := dm.DB.DB(); err == nil {
-			if err := sqlDB.PingContext(ctx); err != nil {
-				return err
-			}
-		}
-	}
-
-	// 检查Redis连接
-	if dm.Redis != nil {
-		if err := dm.Redis.Ping(ctx).Err(); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// Stop 停止所有组件
-func (dm *DataManager) Stop(ctx context.Context) error {
-	var errs []error
-
-	// 关闭数据库连接
-	if dm.DB != nil {
-		if sqlDB, err := dm.DB.DB(); err != nil {
-			errs = append(errs, fmt.Errorf("database get db: %w", err))
-		} else if err := sqlDB.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("database close: %w", err))
-		}
-	}
-
-	// 关闭Redis连接
-	if dm.Redis != nil {
-		if err := dm.Redis.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("redis close: %w", err))
-		}
-	}
-
-	// 关闭Kafka连接
-	if dm.Kafka != nil {
-		if err := dm.Kafka.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("kafka close: %w", err))
-		}
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("stop errors: %w", errs[0])
-	}
-	return nil
-}
-
-// Health 检查所有组件的健康状态
-func (dm *DataManager) Health(ctx context.Context) map[string]error {
-	health := make(map[string]error)
-
-	// 数据库状态
-	if dm.DB != nil {
-		if sqlDB, err := dm.DB.DB(); err == nil {
-			health["database"] = sqlDB.PingContext(ctx)
-		} else {
-			health["database"] = err
-		}
-	}
-
-	// Redis状态
-	if dm.Redis != nil {
-		health["redis"] = dm.Redis.Ping(ctx).Err()
-	}
-
-	// Kafka状态
-	if dm.Kafka != nil {
-		health["kafka"] = nil
-	}
-
-	// MongoDB状态
-	if dm.Mongodb != nil {
-		health["mongodb"] = nil
-	}
-
-	return health
-}
-
-// ========== 便捷操作方法 ==========
-
-// DBWithContext 获取带上下文的数据库连接
-func (dm *DataManager) DBWithContext(ctx context.Context) *gorm.DB {
-	if dm.DB == nil {
+// NewDB 提供 GORM 数据库实例（Fx 注入用）
+func NewDB(mgr *Manager) *gorm.DB {
+	if mgr == nil {
 		return nil
 	}
-	return dm.DB.WithContext(ctx)
+	return mgr.DB
 }
 
-// RedisWithContext 获取带上下文的Redis客户端
-func (dm *DataManager) RedisWithContext(ctx context.Context) *redis.Client {
-	if dm.Redis == nil {
+// NewQuery 提供 gen 生成的类型安全查询接口（Fx 注入用）
+func NewQuery(db *gorm.DB) *query.Query {
+	if db == nil {
 		return nil
 	}
-	return dm.Redis
+	return query.Use(db)
 }
 
-// SendKafkaMessage 发送Kafka消息
-func (dm *DataManager) SendKafkaMessage(topic string, key, value []byte) error {
-	if dm.Kafka == nil {
-		return fmt.Errorf("kafka producer not initialized")
-	}
-
-	msg := &sarama.ProducerMessage{
-		Topic: topic,
-		Key:   sarama.ByteEncoder(key),
-		Value: sarama.ByteEncoder(value),
-	}
-
-	_, _, err := dm.Kafka.SendMessage(msg)
-	return err
-}
-
-// IsComponentEnabled 检查组件是否启用
-func (dm *DataManager) IsComponentEnabled(component string) bool {
-	switch component {
-	case "database":
-		return dm.DB != nil
-	case "redis":
-		return dm.Redis != nil
-	case "kafka":
-		return dm.Kafka != nil
-	case "mongodb":
-		return dm.Mongodb != nil
-	default:
-		return false
-	}
-}
-
-// NewDB 提供获取数据库连接的方法
-func NewDB(dm *DataManager) *gorm.DB {
-	if dm == nil {
+// NewKafkaProducer 提供 Kafka 生产者（Fx 注入用）
+func NewKafkaProducer(mgr *Manager) sarama.SyncProducer {
+	if mgr == nil {
 		return nil
 	}
-	return dm.DB
+	return mgr.Kafka
 }
 
-// NewQuery 为了向后兼容，提供获取Query的方法
-func NewQuery(dm *DataManager) *query.Query {
-	if dm == nil || dm.Query == nil {
-		return nil
-	}
-	return dm.Query
+// ========== 内部辅助函数 ==========
+
+// registerCallbacks 注册 GORM 业务回调
+func registerCallbacks(db *gorm.DB) {
+	// 示例：审计日志回调（按需启用）
+	// _ = db.Callback().Create().After("gorm:create").Register("audit:after_create", auditCallback)
 }
 
-var Model = fx.Options(
-	fx.Provide(NewDataManager),
-	fx.Provide(NewDB),
-	fx.Provide(NewQuery),
-)
+// newKafkaSyncProducer 创建 Kafka 同步生产者
+func newKafkaSyncProducer(cfg configs.KafkaConfig) (sarama.SyncProducer, error) {
+	sc := sarama.NewConfig()
+	sc.ClientID = cfg.ClientID
+	sc.Producer.RequiredAcks = sarama.WaitForAll
+	sc.Producer.Retry.Max = 3
+	sc.Producer.Return.Successes = true
+	return sarama.NewSyncProducer(cfg.Brokers, sc)
+}
