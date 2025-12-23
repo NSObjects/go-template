@@ -21,8 +21,8 @@ import (
 
 // DataManager 统一的数据管理器，直接管理所有数据库组件
 type DataManager struct {
-	// 数据库组件
-	Mysql   *gorm.DB
+	// 数据库组件 (通用，支持 mysql/postgres/sqlite)
+	DB      *gorm.DB
 	Mongodb *mongo.Database
 	Redis   *redis.Client
 	Kafka   sarama.SyncProducer
@@ -40,9 +40,9 @@ func NewDataManager(lc fx.Lifecycle, cfg configs.Config) *DataManager {
 		Config: &cfg,
 	}
 
-	// 初始化MySQL
-	if cfg.Mysql.Host != "" {
-		dm.Mysql = NewMysql(cfg.Mysql)
+	// 初始化数据库 (支持 mysql/postgres/sqlite)
+	if cfg.Database.Driver != "" {
+		dm.DB = NewDatabase(cfg.Database)
 	}
 
 	// 初始化MongoDB
@@ -65,8 +65,8 @@ func NewDataManager(lc fx.Lifecycle, cfg configs.Config) *DataManager {
 	}
 
 	// 初始化Query
-	if dm.Mysql != nil {
-		dm.Query = query.Use(dm.Mysql)
+	if dm.DB != nil {
+		dm.Query = query.Use(dm.DB)
 	}
 
 	// 注册生命周期钩子
@@ -84,9 +84,9 @@ func NewDataManager(lc fx.Lifecycle, cfg configs.Config) *DataManager {
 
 // start 启动所有组件
 func (dm *DataManager) start(ctx context.Context) error {
-	// 检查MySQL连接
-	if dm.Mysql != nil {
-		if sqlDB, err := dm.Mysql.DB(); err == nil {
+	// 检查数据库连接
+	if dm.DB != nil {
+		if sqlDB, err := dm.DB.DB(); err == nil {
 			if err := sqlDB.PingContext(ctx); err != nil {
 				return err
 			}
@@ -113,12 +113,12 @@ func (dm *DataManager) start(ctx context.Context) error {
 func (dm *DataManager) Stop(ctx context.Context) error {
 	var errs []error
 
-	// 关闭MySQL连接
-	if dm.Mysql != nil {
-		if sqlDB, err := dm.Mysql.DB(); err != nil {
-			errs = append(errs, fmt.Errorf("mysql get db: %w", err))
+	// 关闭数据库连接
+	if dm.DB != nil {
+		if sqlDB, err := dm.DB.DB(); err != nil {
+			errs = append(errs, fmt.Errorf("database get db: %w", err))
 		} else if err := sqlDB.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("mysql close: %w", err))
+			errs = append(errs, fmt.Errorf("database close: %w", err))
 		}
 	}
 
@@ -147,12 +147,12 @@ func (dm *DataManager) Stop(ctx context.Context) error {
 func (dm *DataManager) Health(ctx context.Context) map[string]error {
 	health := make(map[string]error)
 
-	// MySQL状态
-	if dm.Mysql != nil {
-		if sqlDB, err := dm.Mysql.DB(); err == nil {
-			health["mysql"] = sqlDB.PingContext(ctx)
+	// 数据库状态
+	if dm.DB != nil {
+		if sqlDB, err := dm.DB.DB(); err == nil {
+			health["database"] = sqlDB.PingContext(ctx)
 		} else {
-			health["mysql"] = err
+			health["database"] = err
 		}
 	}
 
@@ -176,12 +176,12 @@ func (dm *DataManager) Health(ctx context.Context) map[string]error {
 
 // ========== 便捷操作方法 ==========
 
-// MySQLWithContext 获取带上下文的MySQL连接
-func (dm *DataManager) MySQLWithContext(ctx context.Context) *gorm.DB {
-	if dm.Mysql == nil {
+// DBWithContext 获取带上下文的数据库连接
+func (dm *DataManager) DBWithContext(ctx context.Context) *gorm.DB {
+	if dm.DB == nil {
 		return nil
 	}
-	return dm.Mysql.WithContext(ctx)
+	return dm.DB.WithContext(ctx)
 }
 
 // RedisWithContext 获取带上下文的Redis客户端
@@ -212,8 +212,8 @@ func (dm *DataManager) SendKafkaMessage(topic string, key, value []byte) error {
 // IsComponentEnabled 检查组件是否启用
 func (dm *DataManager) IsComponentEnabled(component string) bool {
 	switch component {
-	case "mysql":
-		return dm.Mysql != nil
+	case "database":
+		return dm.DB != nil
 	case "redis":
 		return dm.Redis != nil
 	case "kafka":
@@ -225,12 +225,12 @@ func (dm *DataManager) IsComponentEnabled(component string) bool {
 	}
 }
 
-// NewDB 为了向后兼容，提供获取MySQL连接的方法
+// NewDB 提供获取数据库连接的方法
 func NewDB(dm *DataManager) *gorm.DB {
 	if dm == nil {
 		return nil
 	}
-	return dm.Mysql
+	return dm.DB
 }
 
 // NewQuery 为了向后兼容，提供获取Query的方法

@@ -5,20 +5,49 @@ level = 1
 # 环境配置: dev, test, prod
 env = "dev"
 
-[mysql]
-# 容器运行时host修改为 数据库服务名称 mysql
-# links:
-#      - mysql
-host = ""
-docker_host = "db"
-port = "3306"
-database = "test"
+# ============================================================
+# MySQL 配置模板
+# ============================================================
+[database]
+driver = "mysql"
+host = "localhost"
+port = 3306
 user = "root"
-password = "12345678"
-max_idle_conns = 50
+password = "secret"
+database = "myapp"
+charset = "utf8mb4"
+timezone = "Local"
+max_idle_conns = 10
 max_open_conns = 100
-conn_max_lifetime = "1h"
-conn_max_idle_time = "30m"
+max_lifetime = 300
+conn_max_idle_time = 60
+
+# ============================================================
+# PostgreSQL 配置模板
+# ============================================================
+# [database]
+# driver = "postgres"
+# host = "localhost"
+# port = 5432
+# user = "postgres"
+# password = "secret"
+# database = "myapp"
+# ssl_mode = "disable"
+# schema = "public"
+# timezone = "Asia/Shanghai"
+# max_idle_conns = 10
+# max_open_conns = 100
+# max_lifetime = 300
+# conn_max_idle_time = 60
+
+# ============================================================
+# SQLite 配置模板
+# ============================================================
+# [database]
+# driver = "sqlite"
+# database = "./data.db"  # or ":memory:"
+# max_idle_conns = 1
+# max_open_conns = 1
 
 [mongodb]
 host = ""

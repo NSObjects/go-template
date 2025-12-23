@@ -10,8 +10,8 @@ import (
 	"unicode"
 
 	configs "github.com/NSObjects/go-kit/config"
+	kitdb "github.com/NSObjects/go-kit/db"
 	"github.com/spf13/cobra"
-	"gorm.io/driver/mysql"
 	"gorm.io/gen"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
@@ -366,28 +366,17 @@ func getPackagePath(repoRoot string) (string, error) {
 }
 
 func openDatabase(cfg configs.Config) (*gorm.DB, func() error, error) {
-	mysqlCfg := cfg.Mysql
-	if mysqlCfg.Database == "" {
-		return nil, nil, fmt.Errorf("mysql database is not configured")
+	dbCfg := cfg.Database
+	if dbCfg.Driver == "" {
+		return nil, nil, fmt.Errorf("database driver is not configured")
 	}
 
-	host := mysqlCfg.Host
-	if cfg.System.Env == "docker" && mysqlCfg.DockerHost != "" {
-		host = mysqlCfg.DockerHost
-	}
-	if host == "" {
-		return nil, nil, fmt.Errorf("mysql host is not configured")
+	dialector, err := kitdb.NewDialector(dbCfg)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create dialector: %w", err)
 	}
 
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		mysqlCfg.User,
-		mysqlCfg.Password,
-		host,
-		mysqlCfg.Port,
-		mysqlCfg.Database,
-	)
-
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(dialector, &gorm.Config{})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect database: %w", err)
 	}
@@ -397,11 +386,11 @@ func openDatabase(cfg configs.Config) (*gorm.DB, func() error, error) {
 		return nil, nil, fmt.Errorf("failed to get database instance: %w", err)
 	}
 
-	if mysqlCfg.MaxOpenConns > 0 {
-		sqlDB.SetMaxOpenConns(mysqlCfg.MaxOpenConns)
+	if dbCfg.MaxOpenConns > 0 {
+		sqlDB.SetMaxOpenConns(dbCfg.MaxOpenConns)
 	}
-	if mysqlCfg.MaxIdleConns > 0 {
-		sqlDB.SetMaxIdleConns(mysqlCfg.MaxIdleConns)
+	if dbCfg.MaxIdleConns > 0 {
+		sqlDB.SetMaxIdleConns(dbCfg.MaxIdleConns)
 	}
 
 	cleanup := func() error {

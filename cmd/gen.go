@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	configs "github.com/NSObjects/go-kit/config"
+	kitdb "github.com/NSObjects/go-kit/db"
 
 	"github.com/spf13/cobra"
-	"gorm.io/driver/mysql"
 	"gorm.io/gen"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
@@ -24,7 +24,7 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := configs.NewCfg[configs.Config](cfgFile)
-		GenMysql(cfg.Mysql)
+		GenDatabase(cfg.Database)
 		fmt.Println("gen called")
 	},
 }
@@ -44,10 +44,14 @@ type Querier interface {
 	DeleteByID(id int64) error
 }
 
-func GenMysql(cfg configs.MysqlConfig) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=true&loc=Local",
-		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+// GenDatabase 使用通用数据库配置生成代码
+func GenDatabase(cfg configs.DatabaseConfig) {
+	dialector, err := kitdb.NewDialector(cfg)
+	if err != nil {
+		panic(fmt.Errorf("create dialector: %w", err))
+	}
+
+	db, err := gorm.Open(dialector, &gorm.Config{
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true,
 		},
