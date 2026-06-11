@@ -110,6 +110,86 @@ func TestManualBusinessModuleAssemblesWithoutGenerator(t *testing.T) {
 	}
 }
 
+func TestAppAssemblyAppliesCapabilitySelections(t *testing.T) {
+	app, err := Assemble(Options{
+		Modules: []module.Module{
+			staticModule{descriptor: module.Descriptor{
+				Name: "user",
+				Kind: module.BusinessModule,
+				Requires: []module.CapabilityRef{
+					{Name: "user.storage"},
+				},
+				EntryPoints: []module.EntryPoint{
+					{Owner: "user", Type: module.EntryPointHTTP, Name: "list users", Value: noopRoute("user")},
+				},
+			}},
+			staticModule{descriptor: module.Descriptor{
+				Name: "user-storage-memory",
+				Kind: module.CapabilityModule,
+				Provides: []module.Capability{
+					{Name: "user.storage", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
+				},
+			}},
+			staticModule{descriptor: module.Descriptor{
+				Name: "user-storage-mysql",
+				Kind: module.CapabilityModule,
+				Provides: []module.Capability{
+					{Name: "user.storage", Provider: "mysql", Status: module.CapabilityEnabled},
+				},
+			}},
+		},
+		CapabilitySelections: []module.CapabilitySelection{
+			{Capability: "user.storage", Provider: "mysql"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Assemble() error = %v", err)
+	}
+
+	requirement, ok := app.Report().Requirement("user", "user.storage")
+	if !ok {
+		t.Fatal(`Report().Requirement("user", "user.storage") ok = false, want true`)
+	}
+	if !requirement.Satisfied || requirement.Provider != "mysql" {
+		t.Fatalf("requirement = %+v, want satisfied by provider mysql", requirement)
+	}
+}
+
+func TestAppAssemblyRejectsUnavailableCapabilitySelection(t *testing.T) {
+	_, err := Assemble(Options{
+		Modules: []module.Module{
+			staticModule{descriptor: module.Descriptor{
+				Name: "user",
+				Kind: module.BusinessModule,
+				Requires: []module.CapabilityRef{
+					{Name: "user.storage"},
+				},
+			}},
+			staticModule{descriptor: module.Descriptor{
+				Name: "user-storage-memory",
+				Kind: module.CapabilityModule,
+				Provides: []module.Capability{
+					{Name: "user.storage", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
+				},
+			}},
+		},
+		CapabilitySelections: []module.CapabilitySelection{
+			{Capability: "user.storage", Provider: "unknown"},
+		},
+	})
+	if err == nil {
+		t.Fatal("Assemble() error = nil, want unavailable capability provider error")
+	}
+
+	var unavailable *module.UnavailableCapabilityProviderError
+	if !errors.As(err, &unavailable) {
+		t.Fatalf("Assemble() error = %T, want UnavailableCapabilityProviderError", err)
+	}
+	if unavailable.Module != "user" || unavailable.Capability != "user.storage" || unavailable.Provider != "unknown" {
+		t.Fatalf("UnavailableCapabilityProviderError = %+v, want user/user.storage/unknown", unavailable)
+	}
+}
+
 func TestAssemblyIgnoresOpenAPIAndLegacyGeneratedFiles(t *testing.T) {
 	app, err := Assemble(Options{Config: configs.Config{}})
 	if err != nil {
@@ -121,6 +201,32 @@ func TestAssemblyIgnoresOpenAPIAndLegacyGeneratedFiles(t *testing.T) {
 	}
 	if len(app.Routes()) != 0 {
 		t.Fatalf("len(app.Routes()) = %d, want 0", len(app.Routes()))
+	}
+}
+
+func TestUserModuleFailsWhenHTTPAdapterUnavailable(t *testing.T) {
+	_, err := Assemble(Options{
+		Modules: []module.Module{
+			staticModule{descriptor: module.Descriptor{
+				Name: "user",
+				Kind: module.BusinessModule,
+				EntryPoints: []module.EntryPoint{
+					{Owner: "user", Type: module.EntryPointHTTP, Name: "list users", Value: noopRoute("user")},
+				},
+			}},
+		},
+		EntryPointAdapters: []string{"schedule"},
+	})
+	if err == nil {
+		t.Fatal("Assemble() error = nil, want unsupported entry point error")
+	}
+
+	var unsupported *module.UnsupportedEntryPointError
+	if !errors.As(err, &unsupported) {
+		t.Fatalf("Assemble() error = %T, want UnsupportedEntryPointError", err)
+	}
+	if unsupported.Module != "user" || unsupported.EntryPointType != module.EntryPointHTTP {
+		t.Fatalf("UnsupportedEntryPointError = %+v, want user/http", unsupported)
 	}
 }
 

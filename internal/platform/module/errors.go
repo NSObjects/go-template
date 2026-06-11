@@ -13,6 +13,18 @@ func (e *MissingCapabilityError) Error() string {
 	return fmt.Sprintf("module %q requires missing capability %q", e.Module, e.Capability)
 }
 
+// UnavailableCapabilityProviderError blocks assembly when a selected provider
+// cannot satisfy a required capability.
+type UnavailableCapabilityProviderError struct {
+	Module     string
+	Capability string
+	Provider   string
+}
+
+func (e *UnavailableCapabilityProviderError) Error() string {
+	return fmt.Sprintf("module %q requires capability %q provider %q, but it is unavailable", e.Module, e.Capability, e.Provider)
+}
+
 // UnsupportedEntryPointError blocks assembly when no platform adapter can
 // expose a declared entry point type.
 type UnsupportedEntryPointError struct {

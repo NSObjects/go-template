@@ -20,7 +20,7 @@ type UserController struct {
 	user biz.UserUseCase
 }
 
-func NewUserController(h biz.UserUseCase) RegisterRouter {
+func NewUserController(h biz.UserUseCase) *UserController {
 	return &UserController{user: h}
 }
 

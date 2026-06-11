@@ -28,10 +28,11 @@ type CapabilityStarter interface {
 
 // Options contains the inputs needed to assemble an application.
 type Options struct {
-	Config             configs.Config
-	Store              *configs.Store
-	Modules            []module.Module
-	EntryPointAdapters []string
+	Config               configs.Config
+	Store                *configs.Store
+	Modules              []module.Module
+	EntryPointAdapters   []string
+	CapabilitySelections []module.CapabilitySelection
 }
 
 // App is the assembled runtime surface.
@@ -74,7 +75,11 @@ func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
 	if len(adapters) == 0 {
 		adapters = []string{http.EntryPointType}
 	}
-	report, err := module.Assemble(options.Modules, module.WithEntryPointAdapters(adapters...))
+	report, err := module.Assemble(
+		options.Modules,
+		module.WithEntryPointAdapters(adapters...),
+		module.WithCapabilitySelections(options.CapabilitySelections...),
+	)
 	if err != nil {
 		return nil, err
 	}

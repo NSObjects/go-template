@@ -88,6 +88,90 @@ func TestAssembleReportsSatisfiedCapabilities(t *testing.T) {
 	}
 }
 
+func TestAssembleUsesDefaultCapabilityProvider(t *testing.T) {
+	report, err := Assemble([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "user",
+			Kind: BusinessModule,
+			Requires: []CapabilityRef{
+				{Name: "user.storage"},
+			},
+			EntryPoints: []EntryPoint{
+				{Owner: "user", Type: EntryPointHTTP, Name: "list users"},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-memory",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true},
+			},
+		}},
+	}, WithEntryPointAdapters(EntryPointHTTP))
+	if err != nil {
+		t.Fatalf("Assemble() error = %v", err)
+	}
+
+	requirement, ok := report.Requirement("user", "user.storage")
+	if !ok {
+		t.Fatal(`report.Requirement("user", "user.storage") ok = false, want true`)
+	}
+	if !requirement.Satisfied || requirement.Provider != "memory" {
+		t.Fatalf("requirement = %+v, want satisfied by provider memory", requirement)
+	}
+
+	capability, ok := report.Capability("user.storage")
+	if !ok {
+		t.Fatal(`report.Capability("user.storage") ok = false, want true`)
+	}
+	if capability.Provider != "memory" {
+		t.Fatalf("capability.Provider = %q, want memory", capability.Provider)
+	}
+}
+
+func TestAssembleUsesSelectedCapabilityProvider(t *testing.T) {
+	report, err := Assemble([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "user",
+			Kind: BusinessModule,
+			Requires: []CapabilityRef{
+				{Name: "user.storage"},
+			},
+			EntryPoints: []EntryPoint{
+				{Owner: "user", Type: EntryPointHTTP, Name: "list users"},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-memory",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-mysql",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "mysql", Status: CapabilityEnabled},
+			},
+		}},
+	}, WithEntryPointAdapters(EntryPointHTTP), WithCapabilitySelections(CapabilitySelection{
+		Capability: "user.storage",
+		Provider:   "mysql",
+	}))
+	if err != nil {
+		t.Fatalf("Assemble() error = %v", err)
+	}
+
+	requirement, ok := report.Requirement("user", "user.storage")
+	if !ok {
+		t.Fatal(`report.Requirement("user", "user.storage") ok = false, want true`)
+	}
+	if !requirement.Satisfied || requirement.Provider != "mysql" {
+		t.Fatalf("requirement = %+v, want satisfied by provider mysql", requirement)
+	}
+}
+
 func TestAssembleRejectsMissingRequiredCapability(t *testing.T) {
 	_, err := Assemble([]Module{
 		staticModule{descriptor: Descriptor{
@@ -111,6 +195,42 @@ func TestAssembleRejectsMissingRequiredCapability(t *testing.T) {
 	}
 	if missing.Module != "orders" || missing.Capability != "mysql" {
 		t.Fatalf("MissingCapabilityError = %+v, want module orders capability mysql", missing)
+	}
+}
+
+func TestAssembleRejectsUnavailableSelectedCapabilityProvider(t *testing.T) {
+	_, err := Assemble([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "user",
+			Kind: BusinessModule,
+			Requires: []CapabilityRef{
+				{Name: "user.storage"},
+			},
+			EntryPoints: []EntryPoint{
+				{Owner: "user", Type: EntryPointHTTP, Name: "list users"},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-memory",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true},
+			},
+		}},
+	}, WithEntryPointAdapters(EntryPointHTTP), WithCapabilitySelections(CapabilitySelection{
+		Capability: "user.storage",
+		Provider:   "unknown",
+	}))
+	if err == nil {
+		t.Fatal("Assemble() error = nil, want unavailable selected provider error")
+	}
+
+	var unavailable *UnavailableCapabilityProviderError
+	if !errors.As(err, &unavailable) {
+		t.Fatalf("Assemble() error = %T, want UnavailableCapabilityProviderError", err)
+	}
+	if unavailable.Module != "user" || unavailable.Capability != "user.storage" || unavailable.Provider != "unknown" {
+		t.Fatalf("UnavailableCapabilityProviderError = %+v, want user/user.storage/unknown", unavailable)
 	}
 }
 

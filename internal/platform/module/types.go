@@ -42,10 +42,18 @@ type CapabilityRef struct {
 	Name string
 }
 
+// CapabilitySelection requests a specific provider for a capability.
+type CapabilitySelection struct {
+	Capability string
+	Provider   string
+}
+
 // Capability names a capability provided by a capability module.
 type Capability struct {
-	Name   string
-	Status CapabilityState
+	Name     string
+	Provider string
+	Status   CapabilityState
+	Default  bool
 }
 
 // CapabilityStatus is the reportable state of one capability.
@@ -53,6 +61,7 @@ type CapabilityStatus struct {
 	Name     string
 	Status   CapabilityState
 	Provider string
+	Default  bool
 }
 
 // EntryPoint declares an externally reachable trigger owned by a module.

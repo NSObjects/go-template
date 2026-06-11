@@ -81,3 +81,5 @@ enabled = false
 brokers = []
 client_id = "echo-admin"
 topic = "demo"
+
+[capabilities.providers]

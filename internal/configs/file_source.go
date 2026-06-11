@@ -45,6 +45,7 @@ func (f FileSource) Watch(ctx context.Context, onChange func(Config)) error {
 
 // viperInit 支持根据文件后缀自动设置配置类型
 func viperInit(configPath string) (err error) {
+	viper.SetOptions(viper.KeyDelimiter("::"))
 	if configPath != "" {
 		// 根据文件后缀自动设置类型
 		ext := ""
