@@ -17,8 +17,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/NSObjects/go-template/internal/api/service"
 	"github.com/NSObjects/go-template/internal/configs"
+	platformhttp "github.com/NSObjects/go-template/internal/platform/http"
 	"github.com/NSObjects/go-template/internal/resp"
 	"github.com/NSObjects/go-template/internal/server/middlewares"
 	"github.com/go-playground/validator/v10"
@@ -27,11 +27,11 @@ import (
 
 // EchoServer Echo HTTP服务器
 type EchoServer struct {
-	server  *echo.Echo
-	config  *ServerConfig
-	routers []service.RegisterRouter
-	cfg     configs.Config
-	store   *configs.Store
+	server *echo.Echo
+	config *ServerConfig
+	routes []platformhttp.Route
+	cfg    configs.Config
+	store  *configs.Store
 }
 
 // Server 获取Echo实例
@@ -40,13 +40,13 @@ func (s *EchoServer) Server() *echo.Echo {
 }
 
 // NewEchoServer 创建Echo服务器实例
-func NewEchoServer(routes []service.RegisterRouter, cfg configs.Config, store *configs.Store) *EchoServer {
+func NewEchoServer(routes []platformhttp.Route, cfg configs.Config, store *configs.Store) *EchoServer {
 	s := &EchoServer{
-		server:  echo.New(),
-		config:  FromAppConfig(cfg),
-		routers: routes,
-		cfg:     cfg,
-		store:   store,
+		server: echo.New(),
+		config: FromAppConfig(cfg),
+		routes: routes,
+		cfg:    cfg,
+		store:  store,
 	}
 
 	// 配置服务器
@@ -112,8 +112,8 @@ func (s *EchoServer) registerRouter() {
 	apiGroup := s.server.Group("/api")
 
 	// 注册业务路由
-	for _, router := range s.routers {
-		router.RegisterRouter(apiGroup)
+	if err := platformhttp.RegisterRoutes(apiGroup, s.routes); err != nil {
+		s.server.Logger.Fatal("Failed to register routes", err)
 	}
 
 	// 注册系统路由

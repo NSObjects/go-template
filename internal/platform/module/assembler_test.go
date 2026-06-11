@@ -1,0 +1,198 @@
+package module
+
+import (
+	"errors"
+	"testing"
+)
+
+func TestAssembleReportsSatisfiedCapabilities(t *testing.T) {
+	tests := []struct {
+		name              string
+		modules           []Module
+		adapters          []string
+		wantActiveModules []string
+		wantCapability    CapabilityStatus
+	}{
+		{
+			name: "required capability is satisfied",
+			modules: []Module{
+				staticModule{descriptor: Descriptor{
+					Name: "orders",
+					Kind: BusinessModule,
+					Requires: []CapabilityRef{
+						{Name: "mysql"},
+					},
+					EntryPoints: []EntryPoint{
+						{Owner: "orders", Type: EntryPointHTTP, Name: "list orders"},
+					},
+				}},
+				staticModule{descriptor: Descriptor{
+					Name: "mysql",
+					Kind: CapabilityModule,
+					Provides: []Capability{
+						{Name: "mysql", Status: CapabilityEnabled},
+					},
+				}},
+			},
+			adapters:          []string{EntryPointHTTP},
+			wantActiveModules: []string{"orders", "mysql"},
+			wantCapability:    CapabilityStatus{Name: "mysql", Status: CapabilityEnabled, Provider: "mysql"},
+		},
+		{
+			name: "disabled optional capability is observable",
+			modules: []Module{
+				staticModule{descriptor: Descriptor{
+					Name: "redis",
+					Kind: CapabilityModule,
+					Provides: []Capability{
+						{Name: "redis", Status: CapabilityDisabled},
+					},
+				}},
+			},
+			adapters:          []string{EntryPointHTTP},
+			wantActiveModules: []string{"redis"},
+			wantCapability:    CapabilityStatus{Name: "redis", Status: CapabilityDisabled, Provider: "redis"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			report, err := Assemble(tt.modules, WithEntryPointAdapters(tt.adapters...))
+			if err != nil {
+				t.Fatalf("Assemble() error = %v", err)
+			}
+
+			for _, moduleName := range tt.wantActiveModules {
+				if !report.HasActiveModule(moduleName) {
+					t.Fatalf("report.HasActiveModule(%q) = false, want true", moduleName)
+				}
+			}
+
+			got, ok := report.Capability(tt.wantCapability.Name)
+			if !ok {
+				t.Fatalf("report.Capability(%q) ok = false, want true", tt.wantCapability.Name)
+			}
+			if got != tt.wantCapability {
+				t.Fatalf("report.Capability(%q) = %+v, want %+v", tt.wantCapability.Name, got, tt.wantCapability)
+			}
+			if tt.wantCapability.Status == CapabilityEnabled {
+				requirement, ok := report.Requirement("orders", tt.wantCapability.Name)
+				if !ok {
+					t.Fatalf("report.Requirement(%q, %q) ok = false, want true", "orders", tt.wantCapability.Name)
+				}
+				if !requirement.Satisfied || requirement.Provider != tt.wantCapability.Provider {
+					t.Fatalf("requirement = %+v, want satisfied by %q", requirement, tt.wantCapability.Provider)
+				}
+			}
+		})
+	}
+}
+
+func TestAssembleRejectsMissingRequiredCapability(t *testing.T) {
+	_, err := Assemble([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "orders",
+			Kind: BusinessModule,
+			Requires: []CapabilityRef{
+				{Name: "mysql"},
+			},
+			EntryPoints: []EntryPoint{
+				{Owner: "orders", Type: EntryPointHTTP, Name: "list orders"},
+			},
+		}},
+	}, WithEntryPointAdapters(EntryPointHTTP))
+	if err == nil {
+		t.Fatal("Assemble() error = nil, want missing capability error")
+	}
+
+	var missing *MissingCapabilityError
+	if !errors.As(err, &missing) {
+		t.Fatalf("Assemble() error = %T, want MissingCapabilityError", err)
+	}
+	if missing.Module != "orders" || missing.Capability != "mysql" {
+		t.Fatalf("MissingCapabilityError = %+v, want module orders capability mysql", missing)
+	}
+}
+
+func TestAssembleReportsBusinessModuleWithNoEntryPoints(t *testing.T) {
+	report, err := Assemble([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "orders",
+			Kind: BusinessModule,
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Assemble() error = %v", err)
+	}
+
+	if len(report.Warnings) != 1 {
+		t.Fatalf("len(report.Warnings) = %d, want 1", len(report.Warnings))
+	}
+	got := report.Warnings[0]
+	if got.Module != "orders" || got.Code != WarningNoEntryPoints {
+		t.Fatalf("warning = %+v, want no entry points warning for orders", got)
+	}
+}
+
+func TestAssembleRejectsUnsupportedEntryPoint(t *testing.T) {
+	_, err := Assemble([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "orders",
+			Kind: BusinessModule,
+			EntryPoints: []EntryPoint{
+				{Owner: "orders", Type: "schedule", Name: "close stale orders"},
+			},
+		}},
+	}, WithEntryPointAdapters(EntryPointHTTP))
+	if err == nil {
+		t.Fatal("Assemble() error = nil, want unsupported entry point error")
+	}
+
+	var unsupported *UnsupportedEntryPointError
+	if !errors.As(err, &unsupported) {
+		t.Fatalf("Assemble() error = %T, want UnsupportedEntryPointError", err)
+	}
+	if unsupported.Module != "orders" || unsupported.EntryPointType != "schedule" {
+		t.Fatalf("UnsupportedEntryPointError = %+v, want module orders type schedule", unsupported)
+	}
+}
+
+func TestAssembleManualDescriptors(t *testing.T) {
+	report, err := Assemble([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "orders",
+			Kind: BusinessModule,
+			Requires: []CapabilityRef{
+				{Name: "mysql"},
+			},
+			EntryPoints: []EntryPoint{
+				{Owner: "orders", Type: EntryPointHTTP, Name: "list orders"},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "mysql",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "mysql", Status: CapabilityEnabled},
+			},
+		}},
+	}, WithEntryPointAdapters(EntryPointHTTP))
+	if err != nil {
+		t.Fatalf("Assemble() error = %v", err)
+	}
+
+	if !report.HasActiveModule("orders") {
+		t.Fatal("manual business module is not active")
+	}
+	if len(report.EntryPoints) != 1 {
+		t.Fatalf("len(report.EntryPoints) = %d, want 1", len(report.EntryPoints))
+	}
+}
+
+type staticModule struct {
+	descriptor Descriptor
+}
+
+func (m staticModule) Descriptor() Descriptor {
+	return m.descriptor
+}

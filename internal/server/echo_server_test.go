@@ -6,27 +6,18 @@
 package server
 
 import (
+	"net/http"
 	"testing"
 	"time"
 
-	"github.com/NSObjects/go-template/internal/api/service"
 	"github.com/NSObjects/go-template/internal/configs"
+	platformhttp "github.com/NSObjects/go-template/internal/platform/http"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
-// MockRegisterRouter 模拟路由注册器
-type MockRegisterRouter struct {
-	mock.Mock
-}
-
-func (m *MockRegisterRouter) RegisterRouter(s *echo.Group, middlewareFunc ...echo.MiddlewareFunc) {
-	m.Called(s, middlewareFunc)
-}
-
 func TestEchoServer_Server(t *testing.T) {
-	server := NewEchoServer([]service.RegisterRouter{}, configs.Config{}, &configs.Store{})
+	server := NewEchoServer(nil, configs.Config{}, &configs.Store{})
 
 	assert.NotNil(t, server)
 	assert.NotNil(t, server.Server())
@@ -108,20 +99,29 @@ func TestEchoServer_registerSystemRoutes(t *testing.T) {
 }
 
 func TestEchoServer_registerRouter(t *testing.T) {
-	// 创建模拟路由注册器
-	mockRouter := new(MockRegisterRouter)
-	mockRouter.On("RegisterRouter", mock.AnythingOfType("*echo.Group"), mock.AnythingOfType("[]echo.MiddlewareFunc")).Return()
-
 	server := &EchoServer{
-		server:  echo.New(),
-		config:  DefaultServerConfig(),
-		routers: []service.RegisterRouter{mockRouter},
+		server: echo.New(),
+		config: DefaultServerConfig(),
+		routes: []platformhttp.Route{
+			{
+				Owner:   "orders",
+				Name:    "list orders",
+				Method:  http.MethodGet,
+				Path:    "/orders",
+				Handler: func(c echo.Context) error { return c.NoContent(http.StatusNoContent) },
+			},
+		},
 	}
 
 	server.registerRouter()
 
-	// 验证路由注册器被调用
-	mockRouter.AssertExpectations(t)
+	hasBusinessRoute := false
+	for _, route := range server.server.Routes() {
+		if route.Method == http.MethodGet && route.Path == "/api/orders" && route.Name == "list orders" {
+			hasBusinessRoute = true
+		}
+	}
+	assert.True(t, hasBusinessRoute, "Business route should be registered")
 }
 
 func TestEchoServer_Run(t *testing.T) {
@@ -165,7 +165,7 @@ func TestEchoServer_NewEchoServer(t *testing.T) {
 	// 注意：这里需要根据实际的Store实现来设置配置
 	// store.Set(cfg)
 
-	server := NewEchoServer([]service.RegisterRouter{}, cfg, store)
+	server := NewEchoServer(nil, cfg, store)
 
 	assert.NotNil(t, server)
 	assert.NotNil(t, server.server)
