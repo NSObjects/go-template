@@ -25,6 +25,18 @@ func (e *UnavailableCapabilityProviderError) Error() string {
 	return fmt.Sprintf("module %q requires capability %q provider %q, but it is unavailable", e.Module, e.Capability, e.Provider)
 }
 
+// MissingCapabilityValueError blocks wiring when the selected capability
+// provider has no runtime value of the requested type.
+type MissingCapabilityValueError struct {
+	Module     string
+	Capability string
+	Provider   string
+}
+
+func (e *MissingCapabilityValueError) Error() string {
+	return fmt.Sprintf("module %q requires capability %q provider %q, but it has no matching runtime value", e.Module, e.Capability, e.Provider)
+}
+
 // UnsupportedEntryPointError blocks assembly when no platform adapter can
 // expose a declared entry point type.
 type UnsupportedEntryPointError struct {

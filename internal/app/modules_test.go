@@ -30,14 +30,9 @@ func TestModulesIncludesUserWithDefaultStorageProvider(t *testing.T) {
 	if !requirement.Satisfied || requirement.Provider != "memory" {
 		t.Fatalf("requirement = %+v, want satisfied by memory provider", requirement)
 	}
-	if len(result.CapabilitySelections) != 0 {
-		t.Fatalf("len(CapabilitySelections) = %d, want 0 for default provider", len(result.CapabilitySelections))
-	}
-
 	assembled, err := app.Assemble(app.Options{
-		Config:               configs.Config{},
-		Modules:              result.Modules,
-		CapabilitySelections: result.CapabilitySelections,
+		Config:  configs.Config{},
+		Modules: result.Modules,
 	})
 	if err != nil {
 		t.Fatalf("app.Assemble() error = %v", err)
@@ -71,7 +66,7 @@ func TestModulesSelectsConfiguredUserStorageProvider(t *testing.T) {
 	report, err := module.Assemble(
 		result.Modules,
 		module.WithEntryPointAdapters(module.EntryPointHTTP),
-		module.WithCapabilitySelections(result.CapabilitySelections...),
+		module.WithCapabilityProviderSelections(cfg.Capabilities.Providers),
 	)
 	if err != nil {
 		t.Fatalf("module.Assemble() error = %v", err)
@@ -94,22 +89,14 @@ func TestModulesRejectsInvalidConfiguredUserStorageProvider(t *testing.T) {
 		},
 	}
 
-	result, err := Modules(cfg)
-	if err != nil {
-		t.Fatalf("Modules() error = %v", err)
-	}
-	_, err = app.Assemble(app.Options{
-		Config:               cfg,
-		Modules:              result.Modules,
-		CapabilitySelections: result.CapabilitySelections,
-	})
+	_, err := Modules(cfg)
 	if err == nil {
-		t.Fatal("app.Assemble() error = nil, want unavailable capability provider error")
+		t.Fatal("Modules() error = nil, want unavailable capability provider error")
 	}
 
 	var unavailable *module.UnavailableCapabilityProviderError
 	if !errors.As(err, &unavailable) {
-		t.Fatalf("app.Assemble() error = %T, want UnavailableCapabilityProviderError", err)
+		t.Fatalf("Modules() error = %T, want UnavailableCapabilityProviderError", err)
 	}
 	if unavailable.Module != user.ModuleName ||
 		unavailable.Capability != user.StorageCapability ||

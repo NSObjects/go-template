@@ -26,6 +26,15 @@ func WithCapabilitySelections(selections ...CapabilitySelection) Option {
 	}
 }
 
+// WithCapabilityProviderSelections declares preferred providers from a config map.
+func WithCapabilityProviderSelections(selections map[string]string) Option {
+	return func(cfg *assemblerConfig) {
+		for capability, provider := range selections {
+			cfg.capabilitySelections[capability] = provider
+		}
+	}
+}
+
 // Assemble validates module declarations and returns an observable report.
 func Assemble(modules []Module, options ...Option) (Report, error) {
 	cfg := assemblerConfig{
@@ -55,6 +64,7 @@ func Assemble(modules []Module, options ...Option) (Report, error) {
 				Status:   capability.Status,
 				Provider: provider,
 				Default:  capability.Default,
+				Value:    capability.Value,
 			}
 			report.Capabilities = append(report.Capabilities, status)
 			if canSatisfyRequirement(capability.Status) {
@@ -122,6 +132,41 @@ func Assemble(modules []Module, options ...Option) (Report, error) {
 	return report, nil
 }
 
+// ResolveCapabilityValueFromModules returns the runtime value selected for one module requirement.
+func ResolveCapabilityValueFromModules[T any](
+	providers []Module,
+	moduleName string,
+	capabilityName string,
+	options ...Option,
+) (T, error) {
+	modules := make([]Module, 0, len(providers)+1)
+	modules = append(modules, staticDescriptorModule{descriptor: Descriptor{
+		Name: moduleName,
+		Kind: BusinessModule,
+		Requires: []CapabilityRef{
+			{Name: capabilityName},
+		},
+	}})
+	modules = append(modules, providers...)
+
+	report, err := Assemble(modules, options...)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	value, ok := ResolveCapabilityValue[T](report, moduleName, capabilityName)
+	if !ok {
+		var zero T
+		requirement, _ := report.Requirement(moduleName, capabilityName)
+		return zero, &MissingCapabilityValueError{
+			Module:     moduleName,
+			Capability: capabilityName,
+			Provider:   requirement.Provider,
+		}
+	}
+	return value, nil
+}
+
 func resolveCapabilityProvider(capabilities []CapabilityStatus, selectedProvider string) (CapabilityStatus, bool) {
 	if selectedProvider != "" {
 		for _, capability := range capabilities {
@@ -151,4 +196,12 @@ func defaultCapabilityProvider(capabilities []CapabilityStatus) (CapabilityStatu
 
 func canSatisfyRequirement(status CapabilityState) bool {
 	return status == CapabilityEnabled || status == CapabilityHealthy
+}
+
+type staticDescriptorModule struct {
+	descriptor Descriptor
+}
+
+func (m staticDescriptorModule) Descriptor() Descriptor {
+	return m.descriptor
 }

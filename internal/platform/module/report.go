@@ -48,6 +48,27 @@ func (r Report) Requirement(moduleName, capabilityName string) (RequirementStatu
 	return RequirementStatus{}, false
 }
 
+// ResolveCapabilityValue returns the runtime value selected for a module requirement.
+func ResolveCapabilityValue[T any](r Report, moduleName, capabilityName string) (T, bool) {
+	var zero T
+
+	requirement, ok := r.Requirement(moduleName, capabilityName)
+	if !ok || !requirement.Satisfied {
+		return zero, false
+	}
+	for _, capability := range r.Capabilities {
+		if capability.Name != capabilityName || capability.Provider != requirement.Provider {
+			continue
+		}
+		value, ok := capability.Value.(T)
+		if !ok {
+			return zero, false
+		}
+		return value, true
+	}
+	return zero, false
+}
+
 // RequirementStatus records how a module requirement was satisfied.
 type RequirementStatus struct {
 	Module     string

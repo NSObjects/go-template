@@ -20,9 +20,8 @@ func TestExistingUserRouteReachableThroughModuleFirstPath(t *testing.T) {
 		t.Fatalf("Modules() error = %v", err)
 	}
 	app, err := platformapp.Assemble(platformapp.Options{
-		Config:               cfg,
-		Modules:              modules.Modules,
-		CapabilitySelections: modules.CapabilitySelections,
+		Config:  cfg,
+		Modules: modules.Modules,
 	})
 	if err != nil {
 		t.Fatalf("platform app Assemble() error = %v", err)
@@ -58,9 +57,8 @@ func TestInvalidUserInputUsesPlatformErrorEnvelope(t *testing.T) {
 		t.Fatalf("Modules() error = %v", err)
 	}
 	app, err := platformapp.Assemble(platformapp.Options{
-		Config:               cfg,
-		Modules:              modules.Modules,
-		CapabilitySelections: modules.CapabilitySelections,
+		Config:  cfg,
+		Modules: modules.Modules,
 	})
 	if err != nil {
 		t.Fatalf("platform app Assemble() error = %v", err)

@@ -130,6 +130,8 @@ func TestAssembleUsesDefaultCapabilityProvider(t *testing.T) {
 }
 
 func TestAssembleUsesSelectedCapabilityProvider(t *testing.T) {
+	memoryRepository := testRepository{name: "memory"}
+	mysqlRepository := testRepository{name: "mysql"}
 	report, err := Assemble([]Module{
 		staticModule{descriptor: Descriptor{
 			Name: "user",
@@ -145,14 +147,14 @@ func TestAssembleUsesSelectedCapabilityProvider(t *testing.T) {
 			Name: "user-storage-memory",
 			Kind: CapabilityModule,
 			Provides: []Capability{
-				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true},
+				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true, Value: memoryRepository},
 			},
 		}},
 		staticModule{descriptor: Descriptor{
 			Name: "user-storage-mysql",
 			Kind: CapabilityModule,
 			Provides: []Capability{
-				{Name: "user.storage", Provider: "mysql", Status: CapabilityEnabled},
+				{Name: "user.storage", Provider: "mysql", Status: CapabilityEnabled, Value: mysqlRepository},
 			},
 		}},
 	}, WithEntryPointAdapters(EntryPointHTTP), WithCapabilitySelections(CapabilitySelection{
@@ -169,6 +171,116 @@ func TestAssembleUsesSelectedCapabilityProvider(t *testing.T) {
 	}
 	if !requirement.Satisfied || requirement.Provider != "mysql" {
 		t.Fatalf("requirement = %+v, want satisfied by provider mysql", requirement)
+	}
+
+	resolved, ok := ResolveCapabilityValue[testRepository](report, "user", "user.storage")
+	if !ok {
+		t.Fatal(`ResolveCapabilityValue[testRepository](report, "user", "user.storage") ok = false, want true`)
+	}
+	if resolved != mysqlRepository {
+		t.Fatalf("resolved repository = %+v, want %+v", resolved, mysqlRepository)
+	}
+}
+
+func TestResolveCapabilityValueFromModulesUsesProviderSelectionMap(t *testing.T) {
+	memoryRepository := testRepository{name: "memory"}
+	mysqlRepository := testRepository{name: "mysql"}
+
+	resolved, err := ResolveCapabilityValueFromModules[testRepository](
+		[]Module{
+			staticModule{descriptor: Descriptor{
+				Name: "user-storage-memory",
+				Kind: CapabilityModule,
+				Provides: []Capability{
+					{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true, Value: memoryRepository},
+				},
+			}},
+			staticModule{descriptor: Descriptor{
+				Name: "user-storage-mysql",
+				Kind: CapabilityModule,
+				Provides: []Capability{
+					{Name: "user.storage", Provider: "mysql", Status: CapabilityEnabled, Value: mysqlRepository},
+				},
+			}},
+		},
+		"user",
+		"user.storage",
+		WithCapabilityProviderSelections(map[string]string{"user.storage": "mysql"}),
+	)
+	if err != nil {
+		t.Fatalf("ResolveCapabilityValueFromModules() error = %v", err)
+	}
+	if resolved != mysqlRepository {
+		t.Fatalf("resolved repository = %+v, want %+v", resolved, mysqlRepository)
+	}
+}
+
+func TestResolveCapabilityValueFromModulesRejectsMissingRuntimeValue(t *testing.T) {
+	_, err := ResolveCapabilityValueFromModules[testRepository](
+		[]Module{
+			staticModule{descriptor: Descriptor{
+				Name: "user-storage-memory",
+				Kind: CapabilityModule,
+				Provides: []Capability{
+					{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true},
+				},
+			}},
+		},
+		"user",
+		"user.storage",
+	)
+	if err == nil {
+		t.Fatal("ResolveCapabilityValueFromModules() error = nil, want missing capability value error")
+	}
+
+	var missingValue *MissingCapabilityValueError
+	if !errors.As(err, &missingValue) {
+		t.Fatalf("ResolveCapabilityValueFromModules() error = %T, want MissingCapabilityValueError", err)
+	}
+	if missingValue.Module != "user" || missingValue.Capability != "user.storage" || missingValue.Provider != "memory" {
+		t.Fatalf("MissingCapabilityValueError = %+v, want user/user.storage/memory", missingValue)
+	}
+}
+
+func TestAssembleUsesDefaultCapabilityValue(t *testing.T) {
+	memoryRepository := testRepository{name: "memory"}
+	mysqlRepository := testRepository{name: "mysql"}
+	report, err := Assemble([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "user",
+			Kind: BusinessModule,
+			Requires: []CapabilityRef{
+				{Name: "user.storage"},
+			},
+			EntryPoints: []EntryPoint{
+				{Owner: "user", Type: EntryPointHTTP, Name: "list users"},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-memory",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true, Value: memoryRepository},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-mysql",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "mysql", Status: CapabilityEnabled, Value: mysqlRepository},
+			},
+		}},
+	}, WithEntryPointAdapters(EntryPointHTTP))
+	if err != nil {
+		t.Fatalf("Assemble() error = %v", err)
+	}
+
+	resolved, ok := ResolveCapabilityValue[testRepository](report, "user", "user.storage")
+	if !ok {
+		t.Fatal(`ResolveCapabilityValue[testRepository](report, "user", "user.storage") ok = false, want true`)
+	}
+	if resolved != memoryRepository {
+		t.Fatalf("resolved repository = %+v, want %+v", resolved, memoryRepository)
 	}
 }
 
@@ -315,4 +427,8 @@ type staticModule struct {
 
 func (m staticModule) Descriptor() Descriptor {
 	return m.descriptor
+}
+
+type testRepository struct {
+	name string
 }

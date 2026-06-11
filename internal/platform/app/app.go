@@ -52,6 +52,24 @@ func Assemble(options Options) (*App, error) {
 
 // AssembleWithContext validates modules and prepares runtime adapters.
 func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
+	adapters := options.EntryPointAdapters
+	if len(adapters) == 0 {
+		adapters = []string{http.EntryPointType}
+	}
+	report, err := module.Assemble(
+		options.Modules,
+		module.WithEntryPointAdapters(adapters...),
+		module.WithCapabilitySelections(capabilitySelections(options)...),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	routes, err := http.RoutesFromEntryPoints(report.EntryPoints)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, mod := range options.Modules {
 		validator, ok := mod.(CapabilityValidator)
 		if !ok {
@@ -71,24 +89,6 @@ func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
 		}
 	}
 
-	adapters := options.EntryPointAdapters
-	if len(adapters) == 0 {
-		adapters = []string{http.EntryPointType}
-	}
-	report, err := module.Assemble(
-		options.Modules,
-		module.WithEntryPointAdapters(adapters...),
-		module.WithCapabilitySelections(options.CapabilitySelections...),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	routes, err := http.RoutesFromEntryPoints(report.EntryPoints)
-	if err != nil {
-		return nil, err
-	}
-
 	store := options.Store
 	if store == nil {
 		store = configs.NewStore(options.Config)
@@ -102,6 +102,21 @@ func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
 		report: report,
 		routes: routes,
 	}, nil
+}
+
+func capabilitySelections(options Options) []module.CapabilitySelection {
+	if len(options.CapabilitySelections) > 0 {
+		return options.CapabilitySelections
+	}
+
+	selections := make([]module.CapabilitySelection, 0, len(options.Config.Capabilities.Providers))
+	for capability, provider := range options.Config.Capabilities.Providers {
+		selections = append(selections, module.CapabilitySelection{
+			Capability: capability,
+			Provider:   provider,
+		})
+	}
+	return selections
 }
 
 // NewFromConfigFile loads config and assembles an app from the provided modules.

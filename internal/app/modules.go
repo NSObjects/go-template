@@ -14,17 +14,28 @@ import (
 	"github.com/NSObjects/go-template/internal/platform/module"
 )
 
-// ModulesResult contains the explicit modules and capability selections for assembly.
+// ModulesResult contains the explicit modules for assembly.
 type ModulesResult struct {
-	Modules              []module.Module
-	CapabilitySelections []module.CapabilitySelection
+	Modules []module.Module
 }
 
 // Modules returns the capability and business modules explicitly included in the app.
 func Modules(cfg configs.Config) (ModulesResult, error) {
 	memoryProvider := usermemory.New()
 	mysqlProvider := usermysql.New(cfg.Mysql)
-	userRepository := userRepositoryFor(cfg, memoryProvider, mysqlProvider)
+	storageProviders := []module.Module{
+		memoryProvider,
+		mysqlProvider,
+	}
+	userRepository, err := module.ResolveCapabilityValueFromModules[biz.UserRepository](
+		storageProviders,
+		user.ModuleName,
+		user.StorageCapability,
+		module.WithCapabilityProviderSelections(cfg.Capabilities.Providers),
+	)
+	if err != nil {
+		return ModulesResult{}, err
+	}
 	userUseCase := biz.NewUserHandler(userRepository)
 
 	return ModulesResult{
@@ -33,32 +44,9 @@ func Modules(cfg configs.Config) (ModulesResult, error) {
 			redis.New(cfg.Redis),
 			mongodb.New(cfg.Mongodb),
 			kafka.New(cfg.Kafka),
-			memoryProvider,
-			mysqlProvider,
+			storageProviders[0],
+			storageProviders[1],
 			user.New(userUseCase),
 		},
-		CapabilitySelections: capabilitySelections(cfg),
 	}, nil
-}
-
-func capabilitySelections(cfg configs.Config) []module.CapabilitySelection {
-	selections := make([]module.CapabilitySelection, 0, len(cfg.Capabilities.Providers))
-	for capability, provider := range cfg.Capabilities.Providers {
-		selections = append(selections, module.CapabilitySelection{
-			Capability: capability,
-			Provider:   provider,
-		})
-	}
-	return selections
-}
-
-func userRepositoryFor(
-	cfg configs.Config,
-	memoryProvider usermemory.Module,
-	mysqlProvider usermysql.Module,
-) biz.UserRepository {
-	if cfg.Capabilities.Providers[user.StorageCapability] == usermysql.ProviderName {
-		return mysqlProvider.Repository()
-	}
-	return memoryProvider.Repository()
 }

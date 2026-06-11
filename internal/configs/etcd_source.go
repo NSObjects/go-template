@@ -1,11 +1,9 @@
 package configs
 
 import (
-	"bytes"
 	"context"
 	"time"
 
-	"github.com/spf13/viper"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -49,24 +47,7 @@ func (e EtcdSource) Load(ctx context.Context) (Config, error) {
 	}
 	data := resp.Kvs[0].Value
 
-	// 选择解析格式
-	switch e.Format {
-	case "json":
-		viper.SetConfigType("json")
-	case "yaml", "yml":
-		viper.SetConfigType("yaml")
-	default:
-		viper.SetConfigType("toml")
-	}
-
-	if err := viper.ReadConfig(bytes.NewBuffer(data)); err != nil {
-		return Config{}, err
-	}
-	var c Config
-	if err := viper.Unmarshal(&c); err != nil {
-		return Config{}, err
-	}
-	return c, nil
+	return decodeConfig(data, e.Format)
 }
 
 // Watch 支持 etcd 热更新：watch 指定 Key，变更后回调新的 Config
@@ -93,19 +74,9 @@ func (e EtcdSource) Watch(ctx context.Context, onChange func(Config)) error {
 				if ev.Kv == nil {
 					continue
 				}
-				switch e.Format {
-				case "json":
-					viper.SetConfigType("json")
-				case "yaml", "yml":
-					viper.SetConfigType("yaml")
-				default:
-					viper.SetConfigType("toml")
-				}
-				if err := viper.ReadConfig(bytes.NewBuffer(ev.Kv.Value)); err == nil {
-					var c Config
-					if err := viper.Unmarshal(&c); err == nil {
-						onChange(c)
-					}
+				cfg, err := decodeConfig(ev.Kv.Value, e.Format)
+				if err == nil {
+					onChange(cfg)
 				}
 			}
 		}

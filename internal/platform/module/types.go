@@ -54,6 +54,7 @@ type Capability struct {
 	Provider string
 	Status   CapabilityState
 	Default  bool
+	Value    any
 }
 
 // CapabilityStatus is the reportable state of one capability.
@@ -62,6 +63,7 @@ type CapabilityStatus struct {
 	Status   CapabilityState
 	Provider string
 	Default  bool
+	Value    any
 }
 
 // EntryPoint declares an externally reachable trigger owned by a module.

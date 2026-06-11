@@ -65,6 +65,9 @@ func TestModuleReportsUserStorageProviderStatus(t *testing.T) {
 			if capability.Default {
 				t.Fatal("capability.Default = true, want false")
 			}
+			if _, ok := capability.Value.(biz.UserRepository); !ok {
+				t.Fatalf("capability.Value = %T, want biz.UserRepository", capability.Value)
+			}
 		})
 	}
 }

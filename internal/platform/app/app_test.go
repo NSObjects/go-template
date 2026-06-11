@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -155,24 +156,33 @@ func TestAppAssemblyAppliesCapabilitySelections(t *testing.T) {
 	}
 }
 
+func TestAppAssemblyAppliesConfiguredCapabilitySelections(t *testing.T) {
+	app, err := Assemble(Options{
+		Config: configs.Config{
+			Capabilities: configs.CapabilitiesConfig{
+				Providers: map[string]string{
+					"user.storage": "mysql",
+				},
+			},
+		},
+		Modules: userStorageModulesForTest(),
+	})
+	if err != nil {
+		t.Fatalf("Assemble() error = %v", err)
+	}
+
+	requirement, ok := app.Report().Requirement("user", "user.storage")
+	if !ok {
+		t.Fatal(`Report().Requirement("user", "user.storage") ok = false, want true`)
+	}
+	if !requirement.Satisfied || requirement.Provider != "mysql" {
+		t.Fatalf("requirement = %+v, want satisfied by configured provider mysql", requirement)
+	}
+}
+
 func TestAppAssemblyRejectsUnavailableCapabilitySelection(t *testing.T) {
 	_, err := Assemble(Options{
-		Modules: []module.Module{
-			staticModule{descriptor: module.Descriptor{
-				Name: "user",
-				Kind: module.BusinessModule,
-				Requires: []module.CapabilityRef{
-					{Name: "user.storage"},
-				},
-			}},
-			staticModule{descriptor: module.Descriptor{
-				Name: "user-storage-memory",
-				Kind: module.CapabilityModule,
-				Provides: []module.Capability{
-					{Name: "user.storage", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
-				},
-			}},
-		},
+		Modules: userStorageMemoryOnlyModulesForTest(),
 		CapabilitySelections: []module.CapabilitySelection{
 			{Capability: "user.storage", Provider: "unknown"},
 		},
@@ -187,6 +197,45 @@ func TestAppAssemblyRejectsUnavailableCapabilitySelection(t *testing.T) {
 	}
 	if unavailable.Module != "user" || unavailable.Capability != "user.storage" || unavailable.Provider != "unknown" {
 		t.Fatalf("UnavailableCapabilityProviderError = %+v, want user/user.storage/unknown", unavailable)
+	}
+}
+
+func TestAppAssemblyReportsProviderSelectionBeforeCapabilityLifecycle(t *testing.T) {
+	_, err := Assemble(Options{
+		Modules: []module.Module{
+			staticModule{descriptor: module.Descriptor{
+				Name: "user",
+				Kind: module.BusinessModule,
+				Requires: []module.CapabilityRef{
+					{Name: "user.storage"},
+				},
+			}},
+			lifecycleModule{
+				staticModule: staticModule{descriptor: module.Descriptor{
+					Name: "user-storage-mysql",
+					Kind: module.CapabilityModule,
+					Provides: []module.Capability{
+						{Name: "user.storage", Provider: "mysql", Status: module.CapabilityUnavailable},
+					},
+				}},
+				validateErr: errors.New("mysql config invalid"),
+				startErr:    errors.New("mysql connection refused"),
+			},
+		},
+		CapabilitySelections: []module.CapabilitySelection{
+			{Capability: "user.storage", Provider: "mysql"},
+		},
+	})
+	if err == nil {
+		t.Fatal("Assemble() error = nil, want unavailable capability provider error")
+	}
+
+	var unavailable *module.UnavailableCapabilityProviderError
+	if !errors.As(err, &unavailable) {
+		t.Fatalf("Assemble() error = %T, want UnavailableCapabilityProviderError", err)
+	}
+	if unavailable.Module != "user" || unavailable.Capability != "user.storage" || unavailable.Provider != "mysql" {
+		t.Fatalf("UnavailableCapabilityProviderError = %+v, want user/user.storage/mysql", unavailable)
 	}
 }
 
@@ -236,6 +285,53 @@ type staticModule struct {
 
 func (m staticModule) Descriptor() module.Descriptor {
 	return m.descriptor
+}
+
+func userStorageModulesForTest() []module.Module {
+	return []module.Module{
+		staticModule{descriptor: module.Descriptor{
+			Name: "user",
+			Kind: module.BusinessModule,
+			Requires: []module.CapabilityRef{
+				{Name: "user.storage"},
+			},
+			EntryPoints: []module.EntryPoint{
+				{Owner: "user", Type: module.EntryPointHTTP, Name: "list users", Value: noopRoute("user")},
+			},
+		}},
+		staticModule{descriptor: module.Descriptor{
+			Name: "user-storage-memory",
+			Kind: module.CapabilityModule,
+			Provides: []module.Capability{
+				{Name: "user.storage", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
+			},
+		}},
+		staticModule{descriptor: module.Descriptor{
+			Name: "user-storage-mysql",
+			Kind: module.CapabilityModule,
+			Provides: []module.Capability{
+				{Name: "user.storage", Provider: "mysql", Status: module.CapabilityEnabled},
+			},
+		}},
+	}
+}
+
+func userStorageMemoryOnlyModulesForTest() []module.Module {
+	return userStorageModulesForTest()[:2]
+}
+
+type lifecycleModule struct {
+	staticModule
+	validateErr error
+	startErr    error
+}
+
+func (m lifecycleModule) Validate() error {
+	return m.validateErr
+}
+
+func (m lifecycleModule) Start(_ context.Context) error {
+	return m.startErr
 }
 
 func noopRoute(owner string) platformhttp.Route {

@@ -27,10 +27,9 @@ func run(cfg string) error {
 		return fmt.Errorf("build modules: %w", err)
 	}
 	app, err := platformapp.Assemble(platformapp.Options{
-		Config:               loaded,
-		Store:                store,
-		Modules:              modules.Modules,
-		CapabilitySelections: modules.CapabilitySelections,
+		Config:  loaded,
+		Store:   store,
+		Modules: modules.Modules,
 	})
 	if err != nil {
 		return err

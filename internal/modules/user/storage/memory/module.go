@@ -32,6 +32,7 @@ func (m Module) Descriptor() module.Descriptor {
 				Provider: ProviderName,
 				Status:   module.CapabilityEnabled,
 				Default:  true,
+				Value:    m.Repository(),
 			},
 		},
 	}

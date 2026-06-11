@@ -47,6 +47,7 @@ func (m Module) Descriptor() module.Descriptor {
 				Name:     user.StorageCapability,
 				Provider: ProviderName,
 				Status:   status,
+				Value:    m.Repository(),
 			},
 		},
 	}

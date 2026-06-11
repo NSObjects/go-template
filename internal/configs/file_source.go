@@ -14,17 +14,11 @@ import (
 type FileSource struct{ Path string }
 
 func (f FileSource) Load(ctx context.Context) (Config, error) {
-	if err := viperInit(f.Path); err != nil {
+	data, err := os.ReadFile(f.Path)
+	if err != nil {
 		return Config{}, err
 	}
-	viper.SetEnvPrefix("ECHOADMIN")
-	viper.AutomaticEnv()
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	var c Config
-	if err := viper.Unmarshal(&c); err != nil {
-		return Config{}, err
-	}
-	return c, nil
+	return decodeConfigWithEnv(data, formatFromPath(f.Path), true)
 }
 
 // Watch 支持本地文件热更新，变更后回调新的 Config
@@ -35,9 +29,13 @@ func (f FileSource) Watch(ctx context.Context, onChange func(Config)) error {
 	viper.SetConfigFile(f.Path)
 	viper.WatchConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {
-		var c Config
-		if err := viper.Unmarshal(&c); err == nil {
-			onChange(c)
+		data, err := os.ReadFile(e.Name)
+		if err != nil {
+			return
+		}
+		cfg, err := decodeConfig(data, formatFromPath(e.Name))
+		if err == nil {
+			onChange(cfg)
 		}
 	})
 	return nil
@@ -47,19 +45,7 @@ func (f FileSource) Watch(ctx context.Context, onChange func(Config)) error {
 func viperInit(configPath string) (err error) {
 	viper.SetOptions(viper.KeyDelimiter("::"))
 	if configPath != "" {
-		// 根据文件后缀自动设置类型
-		ext := ""
-		if dot := strings.LastIndex(configPath, "."); dot >= 0 {
-			ext = strings.ToLower(configPath[dot+1:])
-		}
-		switch ext {
-		case "json":
-			viper.SetConfigType("json")
-		case "yaml", "yml":
-			viper.SetConfigType("yaml")
-		default:
-			viper.SetConfigType("toml")
-		}
+		viper.SetConfigType(configType(formatFromPath(configPath)))
 		content, err := os.ReadFile(configPath)
 		if err != nil {
 			return err
@@ -67,4 +53,11 @@ func viperInit(configPath string) (err error) {
 		return viper.ReadConfig(bytes.NewBuffer(content))
 	}
 	return nil
+}
+
+func formatFromPath(path string) string {
+	if dot := strings.LastIndex(path, "."); dot >= 0 {
+		return strings.ToLower(path[dot+1:])
+	}
+	return "toml"
 }
