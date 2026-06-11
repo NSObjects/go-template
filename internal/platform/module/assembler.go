@@ -8,6 +8,16 @@ type assemblerConfig struct {
 	capabilitySelections map[string]string
 }
 
+type assemblyResult struct {
+	report           Report
+	capabilityValues map[capabilityProvider]any
+}
+
+type capabilityProvider struct {
+	capability string
+	provider   string
+}
+
 // WithEntryPointAdapters declares the entry point types the platform can expose.
 func WithEntryPointAdapters(entryPointTypes ...string) Option {
 	return func(cfg *assemblerConfig) {
@@ -37,6 +47,14 @@ func WithCapabilityProviderSelections(selections map[string]string) Option {
 
 // Assemble validates module declarations and returns an observable report.
 func Assemble(modules []Module, options ...Option) (Report, error) {
+	result, err := assemble(modules, options...)
+	if err != nil {
+		return Report{}, err
+	}
+	return result.report, nil
+}
+
+func assemble(modules []Module, options ...Option) (assemblyResult, error) {
 	cfg := assemblerConfig{
 		entryPointAdapters:   make(map[string]struct{}),
 		capabilitySelections: make(map[string]string),
@@ -47,6 +65,7 @@ func Assemble(modules []Module, options ...Option) (Report, error) {
 
 	descriptors := make([]Descriptor, 0, len(modules))
 	report := Report{}
+	capabilityValues := make(map[capabilityProvider]any)
 	enabledCapabilities := make(map[string][]CapabilityStatus)
 
 	for _, mod := range modules {
@@ -64,9 +83,14 @@ func Assemble(modules []Module, options ...Option) (Report, error) {
 				Status:   capability.Status,
 				Provider: provider,
 				Default:  capability.Default,
-				Value:    capability.Value,
 			}
 			report.Capabilities = append(report.Capabilities, status)
+			if capability.Value != nil {
+				capabilityValues[capabilityProvider{
+					capability: capability.Name,
+					provider:   provider,
+				}] = capability.Value
+			}
 			if canSatisfyRequirement(capability.Status) {
 				enabledCapabilities[capability.Name] = append(enabledCapabilities[capability.Name], status)
 			}
@@ -97,13 +121,13 @@ func Assemble(modules []Module, options ...Option) (Report, error) {
 			)
 			if !ok {
 				if selectedProvider != "" {
-					return Report{}, &UnavailableCapabilityProviderError{
+					return assemblyResult{}, &UnavailableCapabilityProviderError{
 						Module:     descriptor.Name,
 						Capability: requirement.Name,
 						Provider:   selectedProvider,
 					}
 				}
-				return Report{}, &MissingCapabilityError{
+				return assemblyResult{}, &MissingCapabilityError{
 					Module:     descriptor.Name,
 					Capability: requirement.Name,
 				}
@@ -121,7 +145,7 @@ func Assemble(modules []Module, options ...Option) (Report, error) {
 				continue
 			}
 			if _, ok := cfg.entryPointAdapters[entryPoint.Type]; !ok {
-				return Report{}, &UnsupportedEntryPointError{
+				return assemblyResult{}, &UnsupportedEntryPointError{
 					Module:         descriptor.Name,
 					EntryPointType: entryPoint.Type,
 				}
@@ -129,7 +153,10 @@ func Assemble(modules []Module, options ...Option) (Report, error) {
 		}
 	}
 
-	return report, nil
+	return assemblyResult{
+		report:           report,
+		capabilityValues: capabilityValues,
+	}, nil
 }
 
 // ResolveCapabilityValueFromModules returns the runtime value selected for one module requirement.
@@ -149,15 +176,15 @@ func ResolveCapabilityValueFromModules[T any](
 	}})
 	modules = append(modules, providers...)
 
-	report, err := Assemble(modules, options...)
+	result, err := assemble(modules, options...)
 	if err != nil {
 		var zero T
 		return zero, err
 	}
-	value, ok := ResolveCapabilityValue[T](report, moduleName, capabilityName)
+	value, ok := resolveCapabilityValue[T](result, moduleName, capabilityName)
 	if !ok {
 		var zero T
-		requirement, _ := report.Requirement(moduleName, capabilityName)
+		requirement, _ := result.report.Requirement(moduleName, capabilityName)
 		return zero, &MissingCapabilityValueError{
 			Module:     moduleName,
 			Capability: capabilityName,
@@ -165,6 +192,27 @@ func ResolveCapabilityValueFromModules[T any](
 		}
 	}
 	return value, nil
+}
+
+func resolveCapabilityValue[T any](result assemblyResult, moduleName, capabilityName string) (T, bool) {
+	var zero T
+
+	requirement, ok := result.report.Requirement(moduleName, capabilityName)
+	if !ok || !requirement.Satisfied {
+		return zero, false
+	}
+	value, ok := result.capabilityValues[capabilityProvider{
+		capability: capabilityName,
+		provider:   requirement.Provider,
+	}]
+	if !ok {
+		return zero, false
+	}
+	typed, ok := value.(T)
+	if !ok {
+		return zero, false
+	}
+	return typed, true
 }
 
 func resolveCapabilityProvider(capabilities []CapabilityStatus, selectedProvider string) (CapabilityStatus, bool) {

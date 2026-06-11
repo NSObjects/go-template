@@ -2,6 +2,7 @@ package module
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 )
 
@@ -172,13 +173,8 @@ func TestAssembleUsesSelectedCapabilityProvider(t *testing.T) {
 	if !requirement.Satisfied || requirement.Provider != "mysql" {
 		t.Fatalf("requirement = %+v, want satisfied by provider mysql", requirement)
 	}
-
-	resolved, ok := ResolveCapabilityValue[testRepository](report, "user", "user.storage")
-	if !ok {
-		t.Fatal(`ResolveCapabilityValue[testRepository](report, "user", "user.storage") ok = false, want true`)
-	}
-	if resolved != mysqlRepository {
-		t.Fatalf("resolved repository = %+v, want %+v", resolved, mysqlRepository)
+	if _, ok := reflect.TypeOf(CapabilityStatus{}).FieldByName("Value"); ok {
+		t.Fatal("CapabilityStatus exposes Value field, want observable report metadata only")
 	}
 }
 
@@ -245,39 +241,29 @@ func TestResolveCapabilityValueFromModulesRejectsMissingRuntimeValue(t *testing.
 func TestAssembleUsesDefaultCapabilityValue(t *testing.T) {
 	memoryRepository := testRepository{name: "memory"}
 	mysqlRepository := testRepository{name: "mysql"}
-	report, err := Assemble([]Module{
-		staticModule{descriptor: Descriptor{
-			Name: "user",
-			Kind: BusinessModule,
-			Requires: []CapabilityRef{
-				{Name: "user.storage"},
-			},
-			EntryPoints: []EntryPoint{
-				{Owner: "user", Type: EntryPointHTTP, Name: "list users"},
-			},
-		}},
-		staticModule{descriptor: Descriptor{
-			Name: "user-storage-memory",
-			Kind: CapabilityModule,
-			Provides: []Capability{
-				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true, Value: memoryRepository},
-			},
-		}},
-		staticModule{descriptor: Descriptor{
-			Name: "user-storage-mysql",
-			Kind: CapabilityModule,
-			Provides: []Capability{
-				{Name: "user.storage", Provider: "mysql", Status: CapabilityEnabled, Value: mysqlRepository},
-			},
-		}},
-	}, WithEntryPointAdapters(EntryPointHTTP))
-	if err != nil {
-		t.Fatalf("Assemble() error = %v", err)
-	}
 
-	resolved, ok := ResolveCapabilityValue[testRepository](report, "user", "user.storage")
-	if !ok {
-		t.Fatal(`ResolveCapabilityValue[testRepository](report, "user", "user.storage") ok = false, want true`)
+	resolved, err := ResolveCapabilityValueFromModules[testRepository](
+		[]Module{
+			staticModule{descriptor: Descriptor{
+				Name: "user-storage-memory",
+				Kind: CapabilityModule,
+				Provides: []Capability{
+					{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true, Value: memoryRepository},
+				},
+			}},
+			staticModule{descriptor: Descriptor{
+				Name: "user-storage-mysql",
+				Kind: CapabilityModule,
+				Provides: []Capability{
+					{Name: "user.storage", Provider: "mysql", Status: CapabilityEnabled, Value: mysqlRepository},
+				},
+			}},
+		},
+		"user",
+		"user.storage",
+	)
+	if err != nil {
+		t.Fatalf("ResolveCapabilityValueFromModules() error = %v", err)
 	}
 	if resolved != memoryRepository {
 		t.Fatalf("resolved repository = %+v, want %+v", resolved, memoryRepository)
