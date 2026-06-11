@@ -56,7 +56,7 @@ func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
 	if len(adapters) == 0 {
 		adapters = []string{http.EntryPointType}
 	}
-	report, err := module.Assemble(
+	assembly, err := module.AssembleRuntime(
 		options.Modules,
 		module.WithEntryPointAdapters(adapters...),
 		module.WithCapabilitySelections(capabilitySelections(options)...),
@@ -64,17 +64,15 @@ func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	report := assembly.Report()
 
 	routes, err := http.RoutesFromEntryPoints(report.EntryPoints)
 	if err != nil {
 		return nil, err
 	}
 
-	selectedModules := selectedCapabilityModuleIndexes(report, options.Modules)
-	for index, mod := range options.Modules {
-		if _, ok := selectedModules[index]; !ok {
-			continue
-		}
+	selectedModules := selectedCapabilityModules(options.Modules, assembly.SelectedCapabilityModuleIndexes())
+	for _, mod := range selectedModules {
 		validator, ok := mod.(CapabilityValidator)
 		if !ok {
 			continue
@@ -83,10 +81,7 @@ func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
 			return nil, err
 		}
 	}
-	for index, mod := range options.Modules {
-		if _, ok := selectedModules[index]; !ok {
-			continue
-		}
+	for _, mod := range selectedModules {
 		starter, ok := mod.(CapabilityStarter)
 		if !ok {
 			continue
@@ -111,44 +106,13 @@ func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
 	}, nil
 }
 
-type capabilityProvider struct {
-	capability string
-	provider   string
-}
-
-func selectedCapabilityModuleIndexes(report module.Report, modules []module.Module) map[int]struct{} {
-	selectedProviders := selectedCapabilityProviders(report)
-	selectedModules := make(map[int]struct{})
-	for index, mod := range modules {
-		descriptor := mod.Descriptor()
-		if descriptor.Kind != module.CapabilityModule {
+func selectedCapabilityModules(modules []module.Module, indexes []int) []module.Module {
+	selected := make([]module.Module, 0, len(indexes))
+	for _, index := range indexes {
+		if index < 0 || index >= len(modules) {
 			continue
 		}
-		for _, capability := range descriptor.Provides {
-			provider := capability.Provider
-			if provider == "" {
-				provider = descriptor.Name
-			}
-			key := capabilityProvider{capability: capability.Name, provider: provider}
-			if _, ok := selectedProviders[key]; ok {
-				selectedModules[index] = struct{}{}
-				break
-			}
-		}
-	}
-	return selectedModules
-}
-
-func selectedCapabilityProviders(report module.Report) map[capabilityProvider]struct{} {
-	selected := make(map[capabilityProvider]struct{})
-	for _, requirement := range report.Requirements {
-		if !requirement.Satisfied {
-			continue
-		}
-		selected[capabilityProvider{
-			capability: requirement.Capability,
-			provider:   requirement.Provider,
-		}] = struct{}{}
+		selected = append(selected, modules[index])
 	}
 	return selected
 }

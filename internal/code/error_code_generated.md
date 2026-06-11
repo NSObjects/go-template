@@ -1,6 +1,6 @@
 # 错误码文档
 
-> 系统错误码列表，由 `codegen -type=int -doc` 命令生成，不要对此文件做任何更改。
+> 系统错误码列表。新增错误码时，同步更新 `code_generated.go` 中的注册表和本文档。
 
 ## 功能说明
 
@@ -81,4 +81,3 @@
 | ErrUserCreateFailed | 200005 | 500 | User create failed |
 | ErrUserUpdateFailed | 200006 | 500 | User update failed |
 | ErrUserDeleteFailed | 200007 | 500 | User delete failed |
-

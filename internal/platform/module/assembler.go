@@ -9,13 +9,29 @@ type assemblerConfig struct {
 }
 
 type assemblyResult struct {
-	report           Report
+	Assembly
 	capabilityValues map[capabilityProvider]any
 }
 
 type capabilityProvider struct {
 	capability string
 	provider   string
+}
+
+// Assembly contains the observable report plus runtime assembly metadata.
+type Assembly struct {
+	report                          Report
+	selectedCapabilityModuleIndexes []int
+}
+
+// Report returns the observable assembly report.
+func (a Assembly) Report() Report {
+	return a.report
+}
+
+// SelectedCapabilityModuleIndexes returns input module indexes for selected capability providers.
+func (a Assembly) SelectedCapabilityModuleIndexes() []int {
+	return append([]int(nil), a.selectedCapabilityModuleIndexes...)
 }
 
 // WithEntryPointAdapters declares the entry point types the platform can expose.
@@ -51,7 +67,16 @@ func Assemble(modules []Module, options ...Option) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
-	return result.report, nil
+	return result.Report(), nil
+}
+
+// AssembleRuntime validates module declarations and returns runtime assembly metadata.
+func AssembleRuntime(modules []Module, options ...Option) (Assembly, error) {
+	result, err := assemble(modules, options...)
+	if err != nil {
+		return Assembly{}, err
+	}
+	return result.Assembly, nil
 }
 
 func assemble(modules []Module, options ...Option) (assemblyResult, error) {
@@ -66,9 +91,11 @@ func assemble(modules []Module, options ...Option) (assemblyResult, error) {
 	descriptors := make([]Descriptor, 0, len(modules))
 	report := Report{}
 	capabilityValues := make(map[capabilityProvider]any)
+	capabilityModuleIndexes := make(map[capabilityProvider]int)
+	capabilityProviderModules := make(map[capabilityProvider]string)
 	enabledCapabilities := make(map[string][]CapabilityStatus)
 
-	for _, mod := range modules {
+	for moduleIndex, mod := range modules {
 		descriptor := mod.Descriptor()
 		descriptors = append(descriptors, descriptor)
 		report.ActiveModules = append(report.ActiveModules, descriptor.Name)
@@ -78,6 +105,19 @@ func assemble(modules []Module, options ...Option) (assemblyResult, error) {
 			if provider == "" {
 				provider = descriptor.Name
 			}
+			providerKey := capabilityProvider{
+				capability: capability.Name,
+				provider:   provider,
+			}
+			if firstModule, ok := capabilityProviderModules[providerKey]; ok {
+				return assemblyResult{}, &DuplicateCapabilityProviderError{
+					Capability:   capability.Name,
+					Provider:     provider,
+					FirstModule:  firstModule,
+					SecondModule: descriptor.Name,
+				}
+			}
+			capabilityProviderModules[providerKey] = descriptor.Name
 			status := CapabilityStatus{
 				Name:     capability.Name,
 				Status:   capability.Status,
@@ -85,11 +125,11 @@ func assemble(modules []Module, options ...Option) (assemblyResult, error) {
 				Default:  capability.Default,
 			}
 			report.Capabilities = append(report.Capabilities, status)
+			if descriptor.Kind == CapabilityModule {
+				capabilityModuleIndexes[providerKey] = moduleIndex
+			}
 			if capability.Value != nil {
-				capabilityValues[capabilityProvider{
-					capability: capability.Name,
-					provider:   provider,
-				}] = capability.Value
+				capabilityValues[providerKey] = capability.Value
 			}
 			if canSatisfyRequirement(capability.Status) {
 				enabledCapabilities[capability.Name] = append(enabledCapabilities[capability.Name], status)
@@ -115,11 +155,18 @@ func assemble(modules []Module, options ...Option) (assemblyResult, error) {
 	for _, descriptor := range descriptors {
 		for _, requirement := range descriptor.Requires {
 			selectedProvider := cfg.capabilitySelections[requirement.Name]
-			status, ok := resolveCapabilityProvider(
+			status, resolution := resolveCapabilityProvider(
 				enabledCapabilities[requirement.Name],
 				selectedProvider,
 			)
-			if !ok {
+			if !resolution.ok {
+				if resolution.ambiguous {
+					return assemblyResult{}, &AmbiguousCapabilityProviderError{
+						Module:     descriptor.Name,
+						Capability: requirement.Name,
+						Providers:  capabilityProviders(enabledCapabilities[requirement.Name]),
+					}
+				}
 				if selectedProvider != "" {
 					return assemblyResult{}, &UnavailableCapabilityProviderError{
 						Module:     descriptor.Name,
@@ -153,8 +200,12 @@ func assemble(modules []Module, options ...Option) (assemblyResult, error) {
 		}
 	}
 
+	selectedCapabilityModuleIndexes := selectedCapabilityModuleIndexes(report, capabilityModuleIndexes)
 	return assemblyResult{
-		report:           report,
+		Assembly: Assembly{
+			report:                          report,
+			selectedCapabilityModuleIndexes: selectedCapabilityModuleIndexes,
+		},
 		capabilityValues: capabilityValues,
 	}, nil
 }
@@ -184,7 +235,7 @@ func ResolveCapabilityValueFromModules[T any](
 	value, ok := resolveCapabilityValue[T](result, moduleName, capabilityName)
 	if !ok {
 		var zero T
-		requirement, _ := result.report.Requirement(moduleName, capabilityName)
+		requirement, _ := result.Report().Requirement(moduleName, capabilityName)
 		return zero, &MissingCapabilityValueError{
 			Module:     moduleName,
 			Capability: capabilityName,
@@ -197,7 +248,7 @@ func ResolveCapabilityValueFromModules[T any](
 func resolveCapabilityValue[T any](result assemblyResult, moduleName, capabilityName string) (T, bool) {
 	var zero T
 
-	requirement, ok := result.report.Requirement(moduleName, capabilityName)
+	requirement, ok := result.Report().Requirement(moduleName, capabilityName)
 	if !ok || !requirement.Satisfied {
 		return zero, false
 	}
@@ -215,31 +266,76 @@ func resolveCapabilityValue[T any](result assemblyResult, moduleName, capability
 	return typed, true
 }
 
-func resolveCapabilityProvider(capabilities []CapabilityStatus, selectedProvider string) (CapabilityStatus, bool) {
+func selectedCapabilityModuleIndexes(report Report, capabilityModuleIndexes map[capabilityProvider]int) []int {
+	selected := make([]int, 0, len(report.Requirements))
+	seen := make(map[int]struct{})
+	for _, requirement := range report.Requirements {
+		if !requirement.Satisfied {
+			continue
+		}
+		index, ok := capabilityModuleIndexes[capabilityProvider{
+			capability: requirement.Capability,
+			provider:   requirement.Provider,
+		}]
+		if !ok {
+			continue
+		}
+		if _, ok := seen[index]; ok {
+			continue
+		}
+		seen[index] = struct{}{}
+		selected = append(selected, index)
+	}
+	return selected
+}
+
+type capabilityProviderResolution struct {
+	ok        bool
+	ambiguous bool
+}
+
+func resolveCapabilityProvider(capabilities []CapabilityStatus, selectedProvider string) (CapabilityStatus, capabilityProviderResolution) {
 	if selectedProvider != "" {
 		for _, capability := range capabilities {
 			if capability.Provider == selectedProvider {
-				return capability, true
+				return capability, capabilityProviderResolution{ok: true}
 			}
 		}
-		return CapabilityStatus{}, false
+		return CapabilityStatus{}, capabilityProviderResolution{}
 	}
 	return defaultCapabilityProvider(capabilities)
 }
 
-func defaultCapabilityProvider(capabilities []CapabilityStatus) (CapabilityStatus, bool) {
+func defaultCapabilityProvider(capabilities []CapabilityStatus) (CapabilityStatus, capabilityProviderResolution) {
 	if len(capabilities) == 0 {
-		return CapabilityStatus{}, false
+		return CapabilityStatus{}, capabilityProviderResolution{}
 	}
+	var defaultCapability CapabilityStatus
+	defaultCount := 0
 	for _, capability := range capabilities {
 		if capability.Default {
-			return capability, true
+			defaultCapability = capability
+			defaultCount++
 		}
 	}
-	if len(capabilities) == 1 {
-		return capabilities[0], true
+	if defaultCount == 1 {
+		return defaultCapability, capabilityProviderResolution{ok: true}
 	}
-	return CapabilityStatus{}, false
+	if defaultCount > 1 {
+		return CapabilityStatus{}, capabilityProviderResolution{ambiguous: true}
+	}
+	if len(capabilities) == 1 {
+		return capabilities[0], capabilityProviderResolution{ok: true}
+	}
+	return CapabilityStatus{}, capabilityProviderResolution{ambiguous: true}
+}
+
+func capabilityProviders(capabilities []CapabilityStatus) []string {
+	providers := make([]string, 0, len(capabilities))
+	for _, capability := range capabilities {
+		providers = append(providers, capability.Provider)
+	}
+	return providers
 }
 
 func canSatisfyRequirement(status CapabilityState) bool {

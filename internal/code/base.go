@@ -6,9 +6,6 @@
 
 package code
 
-//go:generate codegen -type=int
-//go:generate codegen -type=int -doc -output ./error_code_generated.md
-
 // 通用: 基本错误
 // Code must start with 1xxxxx.
 const (

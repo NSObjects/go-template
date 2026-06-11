@@ -37,7 +37,6 @@ show_help() {
     echo ""
     echo "命令:"
     echo "  setup          - 初始化开发环境"
-    echo "  new <module>   - 创建新的API模块"
     echo "  build          - 构建项目"
     echo "  run            - 运行项目"
     echo "  test           - 运行测试"
@@ -49,7 +48,6 @@ show_help() {
     echo ""
     echo "示例:"
     echo "  $0 setup"
-    echo "  $0 new user"
     echo "  $0 build"
     echo "  $0 run"
 }
@@ -67,7 +65,7 @@ check_dependencies() {
     # 检查gentool
     if ! command -v gentool &> /dev/null; then
         print_warning "gentool 未安装，正在安装..."
-        go install gorm.io/gen/tools/gentool@latest
+        go install gorm.io/gen/tools/gentool@v0.3.28
     fi
     
     print_success "依赖检查完成"
@@ -84,33 +82,12 @@ setup() {
     print_info "下载Go模块依赖..."
     go mod download
     
-    # 生成错误码
-    print_info "生成错误码..."
-    make gen-code
-    
     # 创建必要的目录
     print_info "创建必要的目录..."
     mkdir -p logs
     mkdir -p tmp
     
     print_success "开发环境初始化完成"
-}
-
-# 创建新模块
-new_module() {
-    if [ -z "$1" ]; then
-        print_error "请指定模块名称"
-        echo "用法: $0 new <module_name>"
-        exit 1
-    fi
-    
-    module_name="$1"
-    print_info "创建新模块: $module_name"
-    
-    # 使用改进的modgen工具生成模块
-    go run muban/modgen/main.go --name="$module_name" --force
-    
-    print_success "模块 $module_name 创建完成"
 }
 
 # 构建项目
@@ -206,9 +183,6 @@ db_gen() {
     # 生成模型和查询
     make db-gen
     
-    # 生成Dynamic SQL
-    make db-gen-dynamic
-    
     print_success "数据库代码生成完成"
 }
 
@@ -217,9 +191,6 @@ main() {
     case "${1:-help}" in
         setup)
             setup
-            ;;
-        new)
-            new_module "$2"
             ;;
         build)
             build

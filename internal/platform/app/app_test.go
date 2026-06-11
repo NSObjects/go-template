@@ -318,7 +318,56 @@ func TestAppAssemblyRunsLifecycleForSelectedCapabilityProvider(t *testing.T) {
 	}
 }
 
-func TestAssemblyIgnoresOpenAPIAndLegacyGeneratedFiles(t *testing.T) {
+func TestAppAssemblyRunsSharedCapabilityProviderLifecycleOnce(t *testing.T) {
+	var validateCalls int
+	var startCalls int
+	_, err := Assemble(Options{
+		Modules: []module.Module{
+			staticModule{descriptor: module.Descriptor{
+				Name: "orders",
+				Kind: module.BusinessModule,
+				Requires: []module.CapabilityRef{
+					{Name: "mysql"},
+				},
+				EntryPoints: []module.EntryPoint{
+					{Owner: "orders", Type: module.EntryPointHTTP, Name: "list orders", Value: noopRoute("orders")},
+				},
+			}},
+			staticModule{descriptor: module.Descriptor{
+				Name: "users",
+				Kind: module.BusinessModule,
+				Requires: []module.CapabilityRef{
+					{Name: "mysql"},
+				},
+				EntryPoints: []module.EntryPoint{
+					{Owner: "users", Type: module.EntryPointHTTP, Name: "list users", Value: noopRoute("users")},
+				},
+			}},
+			lifecycleModule{
+				staticModule: staticModule{descriptor: module.Descriptor{
+					Name: "mysql",
+					Kind: module.CapabilityModule,
+					Provides: []module.Capability{
+						{Name: "mysql", Status: module.CapabilityEnabled},
+					},
+				}},
+				validateCalls: &validateCalls,
+				startCalls:    &startCalls,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Assemble() error = %v", err)
+	}
+	if validateCalls != 1 {
+		t.Fatalf("validateCalls = %d, want 1 for shared provider", validateCalls)
+	}
+	if startCalls != 1 {
+		t.Fatalf("startCalls = %d, want 1 for shared provider", startCalls)
+	}
+}
+
+func TestAssemblyIgnoresLegacyGeneratedFiles(t *testing.T) {
 	app, err := Assemble(Options{Config: configs.Config{}})
 	if err != nil {
 		t.Fatalf("Assemble() error = %v", err)
@@ -401,15 +450,23 @@ func userStorageMemoryOnlyModulesForTest() []module.Module {
 
 type lifecycleModule struct {
 	staticModule
-	validateErr error
-	startErr    error
+	validateErr   error
+	startErr      error
+	validateCalls *int
+	startCalls    *int
 }
 
 func (m lifecycleModule) Validate() error {
+	if m.validateCalls != nil {
+		*m.validateCalls++
+	}
 	return m.validateErr
 }
 
 func (m lifecycleModule) Start(_ context.Context) error {
+	if m.startCalls != nil {
+		*m.startCalls++
+	}
 	return m.startErr
 }
 

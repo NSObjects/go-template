@@ -178,6 +178,86 @@ func TestAssembleUsesSelectedCapabilityProvider(t *testing.T) {
 	}
 }
 
+func TestAssembleRejectsAmbiguousCapabilityProvider(t *testing.T) {
+	_, err := Assemble([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "user",
+			Kind: BusinessModule,
+			Requires: []CapabilityRef{
+				{Name: "user.storage"},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-memory",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-mysql",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "mysql", Status: CapabilityEnabled},
+			},
+		}},
+	})
+	if err == nil {
+		t.Fatal("Assemble() error = nil, want ambiguous capability provider error")
+	}
+
+	var ambiguous *AmbiguousCapabilityProviderError
+	if !errors.As(err, &ambiguous) {
+		t.Fatalf("Assemble() error = %T, want AmbiguousCapabilityProviderError", err)
+	}
+	if ambiguous.Module != "user" || ambiguous.Capability != "user.storage" {
+		t.Fatalf("AmbiguousCapabilityProviderError = %+v, want user/user.storage", ambiguous)
+	}
+	if !reflect.DeepEqual(ambiguous.Providers, []string{"memory", "mysql"}) {
+		t.Fatalf("AmbiguousCapabilityProviderError.Providers = %+v, want [memory mysql]", ambiguous.Providers)
+	}
+}
+
+func TestAssembleRejectsMultipleDefaultCapabilityProviders(t *testing.T) {
+	_, err := Assemble([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "user",
+			Kind: BusinessModule,
+			Requires: []CapabilityRef{
+				{Name: "user.storage"},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-memory",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-mysql",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "mysql", Status: CapabilityEnabled, Default: true},
+			},
+		}},
+	})
+	if err == nil {
+		t.Fatal("Assemble() error = nil, want ambiguous capability provider error")
+	}
+
+	var ambiguous *AmbiguousCapabilityProviderError
+	if !errors.As(err, &ambiguous) {
+		t.Fatalf("Assemble() error = %T, want AmbiguousCapabilityProviderError", err)
+	}
+	if ambiguous.Module != "user" || ambiguous.Capability != "user.storage" {
+		t.Fatalf("AmbiguousCapabilityProviderError = %+v, want user/user.storage", ambiguous)
+	}
+	if !reflect.DeepEqual(ambiguous.Providers, []string{"memory", "mysql"}) {
+		t.Fatalf("AmbiguousCapabilityProviderError.Providers = %+v, want [memory mysql]", ambiguous.Providers)
+	}
+}
+
 func TestResolveCapabilityValueFromModulesUsesProviderSelectionMap(t *testing.T) {
 	memoryRepository := testRepository{name: "memory"}
 	mysqlRepository := testRepository{name: "mysql"}
@@ -235,6 +315,165 @@ func TestResolveCapabilityValueFromModulesRejectsMissingRuntimeValue(t *testing.
 	}
 	if missingValue.Module != "user" || missingValue.Capability != "user.storage" || missingValue.Provider != "memory" {
 		t.Fatalf("MissingCapabilityValueError = %+v, want user/user.storage/memory", missingValue)
+	}
+}
+
+func TestAssembleRuntimeReportsSelectedCapabilityModuleIndexes(t *testing.T) {
+	result, err := AssembleRuntime([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "user",
+			Kind: BusinessModule,
+			Requires: []CapabilityRef{
+				{Name: "user.storage"},
+			},
+			EntryPoints: []EntryPoint{
+				{Owner: "user", Type: EntryPointHTTP, Name: "list users"},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-memory",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-mysql",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "mysql", Status: CapabilityEnabled},
+			},
+		}},
+	}, WithEntryPointAdapters(EntryPointHTTP), WithCapabilitySelections(CapabilitySelection{
+		Capability: "user.storage",
+		Provider:   "mysql",
+	}))
+	if err != nil {
+		t.Fatalf("AssembleRuntime() error = %v", err)
+	}
+
+	selected := result.SelectedCapabilityModuleIndexes()
+	if len(selected) != 1 {
+		t.Fatalf("len(SelectedCapabilityModuleIndexes()) = %d, want 1", len(selected))
+	}
+	if selected[0] != 2 {
+		t.Fatalf("SelectedCapabilityModuleIndexes()[0] = %d, want mysql provider index 2", selected[0])
+	}
+}
+
+func TestAssembleRuntimeReportsDefaultCapabilityModuleIndex(t *testing.T) {
+	result, err := AssembleRuntime([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "user",
+			Kind: BusinessModule,
+			Requires: []CapabilityRef{
+				{Name: "user.storage"},
+			},
+			EntryPoints: []EntryPoint{
+				{Owner: "user", Type: EntryPointHTTP, Name: "list users"},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-memory",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-mysql",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "mysql", Status: CapabilityEnabled},
+			},
+		}},
+	}, WithEntryPointAdapters(EntryPointHTTP))
+	if err != nil {
+		t.Fatalf("AssembleRuntime() error = %v", err)
+	}
+
+	selected := result.SelectedCapabilityModuleIndexes()
+	if len(selected) != 1 {
+		t.Fatalf("len(SelectedCapabilityModuleIndexes()) = %d, want 1", len(selected))
+	}
+	if selected[0] != 1 {
+		t.Fatalf("SelectedCapabilityModuleIndexes()[0] = %d, want memory provider index 1", selected[0])
+	}
+}
+
+func TestAssembleRuntimeSelectedCapabilityModuleIndexesReturnsCopy(t *testing.T) {
+	result, err := AssembleRuntime([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "user",
+			Kind: BusinessModule,
+			Requires: []CapabilityRef{
+				{Name: "user.storage"},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-memory",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true},
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("AssembleRuntime() error = %v", err)
+	}
+
+	selected := result.SelectedCapabilityModuleIndexes()
+	selected[0] = 99
+
+	selectedAgain := result.SelectedCapabilityModuleIndexes()
+	if len(selectedAgain) != 1 {
+		t.Fatalf("len(SelectedCapabilityModuleIndexes()) = %d, want 1", len(selectedAgain))
+	}
+	if selectedAgain[0] != 1 {
+		t.Fatalf("SelectedCapabilityModuleIndexes()[0] = %d after caller mutation, want 1", selectedAgain[0])
+	}
+}
+
+func TestAssembleRuntimeReportsSharedCapabilityModuleIndexOnce(t *testing.T) {
+	result, err := AssembleRuntime([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "orders",
+			Kind: BusinessModule,
+			Requires: []CapabilityRef{
+				{Name: "mysql"},
+			},
+			EntryPoints: []EntryPoint{
+				{Owner: "orders", Type: EntryPointHTTP, Name: "list orders"},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "users",
+			Kind: BusinessModule,
+			Requires: []CapabilityRef{
+				{Name: "mysql"},
+			},
+			EntryPoints: []EntryPoint{
+				{Owner: "users", Type: EntryPointHTTP, Name: "list users"},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "mysql",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "mysql", Status: CapabilityEnabled},
+			},
+		}},
+	}, WithEntryPointAdapters(EntryPointHTTP))
+	if err != nil {
+		t.Fatalf("AssembleRuntime() error = %v", err)
+	}
+
+	selected := result.SelectedCapabilityModuleIndexes()
+	if len(selected) != 1 {
+		t.Fatalf("len(SelectedCapabilityModuleIndexes()) = %d, want 1 shared provider", len(selected))
+	}
+	if selected[0] != 2 {
+		t.Fatalf("SelectedCapabilityModuleIndexes()[0] = %d, want shared mysql provider index 2", selected[0])
 	}
 }
 
@@ -329,6 +568,39 @@ func TestAssembleRejectsUnavailableSelectedCapabilityProvider(t *testing.T) {
 	}
 	if unavailable.Module != "user" || unavailable.Capability != "user.storage" || unavailable.Provider != "unknown" {
 		t.Fatalf("UnavailableCapabilityProviderError = %+v, want user/user.storage/unknown", unavailable)
+	}
+}
+
+func TestAssembleRejectsDuplicateCapabilityProvider(t *testing.T) {
+	_, err := Assemble([]Module{
+		staticModule{descriptor: Descriptor{
+			Name: "user-storage-memory",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled, Default: true},
+			},
+		}},
+		staticModule{descriptor: Descriptor{
+			Name: "another-memory-storage",
+			Kind: CapabilityModule,
+			Provides: []Capability{
+				{Name: "user.storage", Provider: "memory", Status: CapabilityEnabled},
+			},
+		}},
+	})
+	if err == nil {
+		t.Fatal("Assemble() error = nil, want duplicate capability provider error")
+	}
+
+	var duplicate *DuplicateCapabilityProviderError
+	if !errors.As(err, &duplicate) {
+		t.Fatalf("Assemble() error = %T, want DuplicateCapabilityProviderError", err)
+	}
+	if duplicate.Capability != "user.storage" || duplicate.Provider != "memory" {
+		t.Fatalf("DuplicateCapabilityProviderError = %+v, want user.storage/memory", duplicate)
+	}
+	if duplicate.FirstModule != "user-storage-memory" || duplicate.SecondModule != "another-memory-storage" {
+		t.Fatalf("DuplicateCapabilityProviderError modules = %+v, want user-storage-memory/another-memory-storage", duplicate)
 	}
 }
 

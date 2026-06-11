@@ -1,6 +1,6 @@
 # =============================================================================
 # Go Template Project Makefile
-# 整合了所有 muban 目录下的工具，提供完整的开发工作流
+# 提供业务开发常用的构建、运行、测试和数据库模型生成命令
 # =============================================================================
 
 # 默认目标
@@ -16,7 +16,6 @@ NC := \033[0m # No Color
 # 项目配置
 BIN_DIR := bin
 APP_NAME := app
-DEFAULT_OPENAPI := doc/openapi.yaml
 DEFAULT_DSN := "root:12345678@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=True&loc=Local"
 
 # =============================================================================
@@ -85,25 +84,25 @@ vet:
 # 代码检查（使用golangci-lint）
 lint:
 	@echo "$(BLUE)[INFO]$(NC) Running linter..."
-	@golangci-lint run --skip-dirs=vendor,muban/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' || true
+	@golangci-lint run --skip-dirs=vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' || true
 	@echo "$(GREEN)[SUCCESS]$(NC) Linting completed"
 
 # 严格代码检查（失败时退出）
 lint-strict:
 	@echo "$(BLUE)[INFO]$(NC) Running strict linter..."
-	@golangci-lint run --skip-dirs=vendor,muban/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
+	@golangci-lint run --skip-dirs=vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
 	@echo "$(GREEN)[SUCCESS]$(NC) Strict linting completed"
 
 # 快速代码检查（只运行快速linter）
 lint-fast:
 	@echo "$(BLUE)[INFO]$(NC) Running fast linter..."
-	@golangci-lint run --fast-only --skip-dirs=vendor,muban/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
+	@golangci-lint run --fast-only --skip-dirs=vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
 	@echo "$(GREEN)[SUCCESS]$(NC) Fast linting completed"
 
 # 修复可自动修复的问题
 lint-fix:
 	@echo "$(BLUE)[INFO]$(NC) Running linter with auto-fix..."
-	@golangci-lint run --fix --skip-dirs=vendor,muban/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
+	@golangci-lint run --fix --skip-dirs=vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
 	@echo "$(GREEN)[SUCCESS]$(NC) Linting with auto-fix completed"
 
 # 检查特定目录
@@ -113,13 +112,13 @@ lint-dir:
 		exit 1; \
 	fi
 	@echo "$(BLUE)[INFO]$(NC) Running linter on directory: $(DIR)"
-	@golangci-lint run --skip-dirs=vendor,muban/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' $(DIR)
+	@golangci-lint run --skip-dirs=vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' $(DIR)
 	@echo "$(GREEN)[SUCCESS]$(NC) Directory linting completed"
 
 # 生成lint报告
 lint-report:
 	@echo "$(BLUE)[INFO]$(NC) Generating lint report..."
-	@golangci-lint run --output.checkstyle.path=golangci-report.xml --skip-dirs=vendor,muban/vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' || true
+	@golangci-lint run --output.checkstyle.path=golangci-report.xml --skip-dirs=vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' || true
 	@echo "$(GREEN)[SUCCESS]$(NC) Lint report generated: golangci-report.xml"
 
 # 安装golangci-lint
@@ -151,99 +150,16 @@ test-coverage:
 # 代码生成工具
 # =============================================================================
 
-.PHONY: init-project gen-code gen-module gen-module-tests gen-module-openapi gen-module-openapi-tests gen-module-route gen-all-modules gen-all-modules-tests db-gen db-gen-table gen-all
+.PHONY: ensure-gentool db-gen db-gen-table gen-all
 
-# 使用模板生成全新项目骨架
-init-project:
-	@if [ -z "$(MODULE)" ]; then \
-		echo "$(RED)[ERROR]$(NC) Usage: make init-project MODULE=github.com/acme/demo [OUTPUT=path] [NAME=ProjectName] [FORCE=1]"; \
-		exit 1; \
-	fi
-	@OUTPUT_DIR=$${OUTPUT:-$$(basename $(MODULE))}; \
-		NAME_FLAG=""; \
-		if [ -n "$(NAME)" ]; then NAME_FLAG="--name=$(NAME)"; fi; \
-		FORCE_FLAG=""; \
-		if [ "$(FORCE)" = "1" ]; then FORCE_FLAG="--force"; fi; \
-		echo "$(BLUE)[INFO]$(NC) Generating project skeleton: $(MODULE) -> $$OUTPUT_DIR"; \
-            go run ./muban -- new project --module=$(MODULE) --output=$$OUTPUT_DIR $$NAME_FLAG $$FORCE_FLAG; \
-		echo "$(GREEN)[SUCCESS]$(NC) Project generated at $$OUTPUT_DIR"
-
-
-# 生成错误码和文档
-gen-code:
-       @echo "$(BLUE)[INFO]$(NC) Generating error codes and documentation..."
-       @go run ./muban -- codegen --type=int ./internal/code
-       @go run ./muban -- codegen --type=int --doc --output=./internal/code/error_code_generated.md ./internal/code
-	@echo "$(GREEN)[SUCCESS]$(NC) Error code generation completed"
-
-# 生成业务模块（基础模板）
-gen-module:
-	@if [ -z "$(NAME)" ]; then \
-		echo "$(RED)[ERROR]$(NC) Usage: make gen-module NAME=module_name"; \
-		exit 1; \
-	fi
-       @echo "$(BLUE)[INFO]$(NC) Generating module: $(NAME)"
-@go run ./muban -- module --name=$(NAME) --force
-	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) generation completed"
-
-# 生成模块但跳过测试用例（兼容旧命令）
-gen-module-tests:
-        @if [ -z "$(NAME)" ]; then \
-                echo "$(RED)[ERROR]$(NC) Usage: make gen-module-tests NAME=module_name"; \
-                exit 1; \
-        fi
-       @echo "$(BLUE)[INFO]$(NC) Generating module without tests: $(NAME)"
-@go run ./muban -- module --name=$(NAME) --tests=false --force
-        @echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) without tests generation completed"
-
-# 从OpenAPI文档生成模块
-gen-module-openapi:
-	@if [ -z "$(NAME)" ]; then \
-		echo "$(RED)[ERROR]$(NC) Usage: make gen-module-openapi NAME=module_name [OPENAPI=doc/openapi.yaml]"; \
-		exit 1; \
-	fi
-       @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
-       echo "$(BLUE)[INFO]$(NC) Generating module from OpenAPI: $(NAME) ($$OPENAPI_FILE)"; \
-go run ./muban -- module --name=$(NAME) --openapi=$$OPENAPI_FILE --force
-	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) generated from OpenAPI"
-
-# 从OpenAPI生成模块但跳过测试用例（兼容旧命令）
-gen-module-openapi-tests:
-        @if [ -z "$(NAME)" ]; then \
-                echo "$(RED)[ERROR]$(NC) Usage: make gen-module-openapi-tests NAME=module_name [OPENAPI=doc/openapi.yaml]"; \
-                exit 1; \
-        fi
-       @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
-       echo "$(BLUE)[INFO]$(NC) Generating module from OpenAPI without tests: $(NAME) ($$OPENAPI_FILE)"; \
-go run ./muban -- module --name=$(NAME) --openapi=$$OPENAPI_FILE --tests=false --force
-        @echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) without tests generated from OpenAPI"
-
-# 生成所有API模块（从OpenAPI）
-gen-all-modules:
-       @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
-       echo "$(BLUE)[INFO]$(NC) Generating all modules from OpenAPI: $$OPENAPI_FILE"; \
-go run -mod=mod ./muban -- module --all --openapi=$$OPENAPI_FILE --force
-	@echo "$(GREEN)[SUCCESS]$(NC) All modules generated from OpenAPI"
-
-# 生成所有API模块但跳过测试用例（兼容旧命令）
-gen-all-modules-tests:
-       @OPENAPI_FILE=$${OPENAPI:-$(DEFAULT_OPENAPI)}; \
-       echo "$(BLUE)[INFO]$(NC) Generating all modules without tests from OpenAPI: $$OPENAPI_FILE"; \
-go run -mod=mod ./muban -- module --all --openapi=$$OPENAPI_FILE --tests=false --force
-        @echo "$(GREEN)[SUCCESS]$(NC) All modules without tests generated from OpenAPI"
-
-# 生成模块（指定路由）
-gen-module-route:
-	@if [ -z "$(NAME)" ] || [ -z "$(ROUTE)" ]; then \
-		echo "$(RED)[ERROR]$(NC) Usage: make gen-module-route NAME=module_name ROUTE=/api/module_name"; \
-		exit 1; \
-	fi
-       @echo "$(BLUE)[INFO]$(NC) Generating module with custom route: $(NAME) -> $(ROUTE)"
-@go run ./muban -- module --name=$(NAME) --route=$(ROUTE) --force
-	@echo "$(GREEN)[SUCCESS]$(NC) Module $(NAME) with route $(ROUTE) generation completed"
+ensure-gentool:
+	@command -v gentool >/dev/null 2>&1 || { \
+		echo "$(YELLOW)[WARNING]$(NC) gentool 未安装，正在安装 gorm.io/gen/tools/gentool@v0.3.28"; \
+		go install gorm.io/gen/tools/gentool@v0.3.28; \
+	}
 
 # 生成数据库模型和查询
-db-gen:
+db-gen: ensure-gentool
 	@echo "$(BLUE)[INFO]$(NC) Generating database models and queries..."
 	@$(shell go env GOPATH)/bin/gentool \
 		-dsn=$(DEFAULT_DSN) \
@@ -254,7 +170,7 @@ db-gen:
 	@echo "$(GREEN)[SUCCESS]$(NC) Database generation completed"
 
 # 生成指定表的模型和查询方法
-db-gen-table:
+db-gen-table: ensure-gentool
 	@if [ -z "$(TABLE)" ]; then \
 		echo "$(RED)[ERROR]$(NC) Usage: make db-gen-table TABLE=table_name"; \
 		exit 1; \
@@ -269,14 +185,8 @@ db-gen-table:
 		-tables="$(TABLE)"
 	@echo "$(GREEN)[SUCCESS]$(NC) Table $(TABLE) generation completed"
 
-# 生成Dynamic SQL查询方法
-db-gen-dynamic:
-       @echo "$(BLUE)[INFO]$(NC) Generating Dynamic SQL queries..."
-       @go run ./muban -- dynamic-sql --config=configs/config.toml
-	@echo "$(GREEN)[SUCCESS]$(NC) Dynamic SQL generation completed"
-
-# 完整生成（数据库 + 错误码）
-gen-all: db-gen gen-code
+# 完整生成（数据库模型和查询）
+gen-all: db-gen
 	@echo "$(GREEN)[SUCCESS]$(NC) All generation completed"
 
 # =============================================================================
@@ -296,7 +206,7 @@ dev-check: fmt vet lint test
 	@echo "$(GREEN)[SUCCESS]$(NC) Development check completed"
 
 # 完整开发流程
-dev-full: clean dev-check gen-all
+dev-full: clean dev-check
 	@echo "$(GREEN)[SUCCESS]$(NC) Full development workflow completed"
 
 # =============================================================================
@@ -307,7 +217,6 @@ dev-full: clean dev-check gen-all
 clean:
 	@echo "$(BLUE)[INFO]$(NC) Cleaning generated files..."
 	@rm -f coverage.out coverage.html
-	@rm -f internal/code/error_code_generated.md
 	@rm -rf $(BIN_DIR)
 	@echo "$(GREEN)[SUCCESS]$(NC) Clean completed"
 
@@ -348,47 +257,13 @@ docker-clean: docker-stop
 	@docker system prune -f
 	@echo "$(GREEN)[SUCCESS]$(NC) Docker resources cleaned"
 
-# =============================================================================
-# 代码质量相关命令
-# =============================================================================
-
-.PHONY: lint-fix test-coverage security-scan
-
-# 修复代码格式问题
-lint-fix:
-	@echo "$(BLUE)[INFO]$(NC) Fixing code format issues..."
-	@golangci-lint run --fix
-	@echo "$(GREEN)[SUCCESS]$(NC) Code format issues fixed"
-
-# 生成测试覆盖率报告
-test-coverage:
-	@echo "$(BLUE)[INFO]$(NC) Generating test coverage report..."
-	@go test -coverprofile=coverage.out ./...
-	@go tool cover -html=coverage.out -o coverage.html
-	@echo "$(GREEN)[SUCCESS]$(NC) Coverage report generated: coverage.html"
+.PHONY: security-scan
 
 # 安全扫描
 security-scan:
 	@echo "$(BLUE)[INFO]$(NC) Running security scan..."
 	@gosec ./...
 	@echo "$(GREEN)[SUCCESS]$(NC) Security scan completed"
-
-# =============================================================================
-# 文档生成相关命令
-# =============================================================================
-
-.PHONY: docs-swagger docs-api
-
-# 生成Swagger文档
-docs-swagger:
-	@echo "$(BLUE)[INFO]$(NC) Generating Swagger documentation..."
-	@go run muban/docs/swagger_generator.go
-	@echo "$(GREEN)[SUCCESS]$(NC) Swagger documentation generated"
-
-# 生成API文档
-docs-api: docs-swagger
-	@echo "$(BLUE)[INFO]$(NC) Generating API documentation..."
-	@echo "$(GREEN)[SUCCESS]$(NC) API documentation generated"
 
 # =============================================================================
 # 性能测试相关命令
@@ -441,19 +316,9 @@ help:
 	@echo "  $(GREEN)test-coverage$(NC)      - 生成测试覆盖率报告"
 	@echo ""
 	@echo "$(YELLOW)代码生成:$(NC)"
-	@echo "  $(GREEN)init-project$(NC)                - 基于模板生成新项目 (MODULE=module_path [OUTPUT=dir])"
-	@echo "  $(GREEN)gen-code$(NC)                    - 生成错误码和文档"
-	@echo "  $(GREEN)gen-module$(NC)                  - 生成业务模块 (NAME=module_name)"
-        @echo "  $(GREEN)gen-module-tests$(NC)            - 生成模块（跳过测试用例，兼容旧命令） (NAME=module_name)"
-	@echo "  $(GREEN)gen-module-openapi$(NC)          - 从OpenAPI生成模块 (NAME=name [OPENAPI=path])"
-        @echo "  $(GREEN)gen-module-openapi-tests$(NC)    - 从OpenAPI生成模块（跳过测试用例，兼容旧命令） (NAME=name [OPENAPI=path])"
-	@echo "  $(GREEN)gen-module-route$(NC)            - 生成模块（指定路由） (NAME=name ROUTE=path)"
-	@echo "  $(GREEN)gen-all-modules$(NC)             - 生成所有API模块 (OPENAPI=path)"
-        @echo "  $(GREEN)gen-all-modules-tests$(NC)       - 生成所有API模块（跳过测试用例，兼容旧命令） (OPENAPI=path)"
 	@echo "  $(GREEN)db-gen$(NC)                      - 生成数据库模型和查询"
 	@echo "  $(GREEN)db-gen-table$(NC)                - 生成指定表模型 (TABLE=table_name)"
-	@echo "  $(GREEN)db-gen-dynamic$(NC)              - 生成Dynamic SQL查询"
-	@echo "  $(GREEN)gen-all$(NC)                     - 生成所有代码（数据库+错误码）"
+	@echo "  $(GREEN)gen-all$(NC)                     - 生成所有数据库代码"
 	@echo ""
 	@echo "$(YELLOW)开发工作流:$(NC)"
 	@echo "  $(GREEN)dev-setup$(NC)          - 设置开发环境"
@@ -472,24 +337,11 @@ help:
 	@echo "  $(GREEN)docker-clean$(NC)       - 清理Docker资源"
 	@echo ""
 	@echo "$(YELLOW)环境变量:$(NC)"
-	@echo "  $(GREEN)MODULE$(NC)             - 新项目的Go Module路径 (用于init-project)"
-	@echo "  $(GREEN)OUTPUT$(NC)             - 生成新项目的输出目录 (用于init-project)"
-	@echo "  $(GREEN)FORCE$(NC)              - 允许覆盖已有目录 (1 表示开启，适用于init-project)"
-	@echo "  $(GREEN)NAME$(NC)               - 模块名 (用于gen-module)"
-	@echo "  $(GREEN)ROUTE$(NC)              - 路由路径 (用于gen-module-route)"
-	@echo "  $(GREEN)OPENAPI$(NC)            - OpenAPI文档路径 (默认: doc/openapi.yaml)"
 	@echo "  $(GREEN)TABLE$(NC)              - 表名 (用于db-gen-table)"
 	@echo "  $(GREEN)DIR$(NC)                - 目录路径 (用于lint-dir)"
 	@echo "  $(GREEN)m$(NC)                  - 提交消息 (用于push)"
 	@echo ""
 	@echo "$(YELLOW)示例用法:$(NC)"
-	@echo "  make gen-module NAME=user"
-        @echo "  make gen-module-tests NAME=product"
-	@echo "  make gen-module-openapi NAME=article"
-        @echo "  make gen-module-openapi-tests NAME=user"
-	@echo "  make gen-module-route NAME=order ROUTE=/api/v1/orders"
-	@echo "  make gen-all-modules OPENAPI=doc/openapi.yaml"
-        @echo "  make gen-all-modules-tests OPENAPI=doc/openapi.yaml"
 	@echo "  make db-gen-table TABLE=users"
 	@echo "  make lint-dir DIR=./internal/api"
 	@echo "  make lint-fix"

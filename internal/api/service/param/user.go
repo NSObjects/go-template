@@ -1,8 +1,3 @@
-/*
- * Generated from OpenAPI3 document
- * Module: User
- */
-
 package param
 
 import (

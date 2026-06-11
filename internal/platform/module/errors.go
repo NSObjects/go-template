@@ -1,6 +1,9 @@
 package module
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // MissingCapabilityError blocks assembly when a business module requires a
 // capability that no enabled provider can satisfy.
@@ -23,6 +26,31 @@ type UnavailableCapabilityProviderError struct {
 
 func (e *UnavailableCapabilityProviderError) Error() string {
 	return fmt.Sprintf("module %q requires capability %q provider %q, but it is unavailable", e.Module, e.Capability, e.Provider)
+}
+
+// DuplicateCapabilityProviderError blocks assembly when two modules provide
+// the same provider identity for one capability.
+type DuplicateCapabilityProviderError struct {
+	Capability   string
+	Provider     string
+	FirstModule  string
+	SecondModule string
+}
+
+func (e *DuplicateCapabilityProviderError) Error() string {
+	return fmt.Sprintf("capability %q provider %q is declared by both %q and %q", e.Capability, e.Provider, e.FirstModule, e.SecondModule)
+}
+
+// AmbiguousCapabilityProviderError blocks assembly when a capability has
+// multiple usable providers and no explicit or default selection.
+type AmbiguousCapabilityProviderError struct {
+	Module     string
+	Capability string
+	Providers  []string
+}
+
+func (e *AmbiguousCapabilityProviderError) Error() string {
+	return fmt.Sprintf("module %q requires capability %q, but provider selection is ambiguous: %s", e.Module, e.Capability, strings.Join(e.Providers, ", "))
 }
 
 // MissingCapabilityValueError blocks wiring when the selected capability
