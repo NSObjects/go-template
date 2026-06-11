@@ -21,7 +21,7 @@ import (
 	"github.com/NSObjects/go-template/internal/configs"
 	"github.com/NSObjects/go-template/internal/resp"
 	"github.com/NSObjects/go-template/internal/server/middlewares"
-	"github.com/casbin/casbin/v2"
+	"github.com/casbin/casbin/v3"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/marmotedu/errors"

@@ -14,7 +14,7 @@ import (
 	"github.com/NSObjects/go-template/internal/api/data/query"
 	"github.com/NSObjects/go-template/internal/configs"
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.uber.org/fx"
 	"gorm.io/gorm"
 )

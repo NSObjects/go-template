@@ -9,11 +9,12 @@
 package middlewares
 
 import (
+	"net/http"
+
 	"{{.ModulePath}}/internal/code"
 	"{{.ModulePath}}/internal/utils"
-	"github.com/casbin/casbin/v2"
+	"github.com/casbin/casbin/v3"
 	"github.com/golang-jwt/jwt/v5"
-	casbin_mw "github.com/labstack/echo-contrib/casbin"
 	"github.com/labstack/echo/v4"
 	"github.com/marmotedu/errors"
 	"github.com/samber/lo"
@@ -53,56 +54,59 @@ func Casbin(enforce *casbin.Enforcer, config *CasbinConfig) echo.MiddlewareFunc 
 		}
 	}
 
-	return casbin_mw.MiddlewareWithConfig(casbin_mw.Config{
-		Enforcer: enforce,
-		Skipper: func(c echo.Context) bool {
-			path := c.Path()
-			return lo.Contains(config.SkipPaths, path)
-		},
-		ErrorHandler: func(c echo.Context, internal error, proposedStatus int) error {
-			return errors.WrapC(internal, code.ErrPermissionDenied, "权限不足")
-		},
-		UserGetter: func(c echo.Context) (string, error) {
-			token, ok := c.Get("user").(*jwt.Token)
-			if !ok {
-				return "", errors.WrapC(errors.New("token is nil"), code.ErrSignatureInvalid, "JWT签名无效")
-			}
-			if token == nil {
-				return "", nil
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if lo.Contains(config.SkipPaths, c.Path()) {
+				return next(c)
 			}
 
-			user, ok := token.Claims.(*utils.JwtCustomClaims)
-			if !ok {
-				return "", errors.WrapC(errors.New("invalid token claims type"), code.ErrSignatureInvalid, "JWT签名无效")
-			}
-			if user == nil {
-				return "", nil
-			}
-			if user.Admin {
-				return "root", nil
-			}
-
-			return cast.ToString(user.ID), nil
-		},
-		EnforceHandler: func(c echo.Context, user string) (bool, error) {
-			// 检查是否为管理员用户
-			if lo.Contains(config.AdminUsers, user) {
-				return true, nil
-			}
-
-			// 获取请求路径和方法
-			path := c.Path()
-			method := c.Request().Method
-
-			// 使用Casbin进行权限检查
-			allowed, err := enforce.Enforce(user, path, method)
+			user, err := casbinUser(c)
 			if err != nil {
-				return false, errors.WrapC(err, code.ErrPermissionDenied, "权限检查失败")
+				return errors.WrapC(err, code.ErrPermissionDenied, "权限不足")
 			}
 
-			return allowed, nil
-		},
-	})
+			allowed, err := casbinAllowed(enforce, config, c, user)
+			if err != nil {
+				return errors.WrapC(err, code.ErrPermissionDenied, "权限检查失败")
+			}
+			if !allowed {
+				return errors.WrapC(errors.New(http.StatusText(http.StatusForbidden)), code.ErrPermissionDenied, "权限不足")
+			}
+
+			return next(c)
+		}
+	}
+}
+
+func casbinUser(c echo.Context) (string, error) {
+	token, ok := c.Get("user").(*jwt.Token)
+	if !ok {
+		return "", errors.WrapC(errors.New("token is nil"), code.ErrSignatureInvalid, "JWT签名无效")
+	}
+	if token == nil {
+		return "", nil
+	}
+
+	user, ok := token.Claims.(*utils.JwtCustomClaims)
+	if !ok {
+		return "", errors.WrapC(errors.New("invalid token claims type"), code.ErrSignatureInvalid, "JWT签名无效")
+	}
+	if user == nil {
+		return "", nil
+	}
+	if user.Admin {
+		return "root", nil
+	}
+
+	return cast.ToString(user.ID), nil
+}
+
+func casbinAllowed(enforce *casbin.Enforcer, config *CasbinConfig, c echo.Context, user string) (bool, error) {
+	if lo.Contains(config.AdminUsers, user) {
+		return true, nil
+	}
+
+	return enforce.Enforce(user, c.Path(), c.Request().Method)
 }
 
 // CreateCasbinConfig 从应用配置创建Casbin配置
