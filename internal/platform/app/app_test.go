@@ -239,6 +239,85 @@ func TestAppAssemblyReportsProviderSelectionBeforeCapabilityLifecycle(t *testing
 	}
 }
 
+func TestAppAssemblySkipsLifecycleForUnselectedCapabilityProvider(t *testing.T) {
+	_, err := Assemble(Options{
+		Modules: []module.Module{
+			staticModule{descriptor: module.Descriptor{
+				Name: "user",
+				Kind: module.BusinessModule,
+				Requires: []module.CapabilityRef{
+					{Name: "user.storage"},
+				},
+				EntryPoints: []module.EntryPoint{
+					{Owner: "user", Type: module.EntryPointHTTP, Name: "list users", Value: noopRoute("user")},
+				},
+			}},
+			staticModule{descriptor: module.Descriptor{
+				Name: "user-storage-memory",
+				Kind: module.CapabilityModule,
+				Provides: []module.Capability{
+					{Name: "user.storage", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
+				},
+			}},
+			lifecycleModule{
+				staticModule: staticModule{descriptor: module.Descriptor{
+					Name: "user-storage-mysql",
+					Kind: module.CapabilityModule,
+					Provides: []module.Capability{
+						{Name: "user.storage", Provider: "mysql", Status: module.CapabilityEnabled},
+					},
+				}},
+				validateErr: errors.New("unselected mysql validate should not run"),
+				startErr:    errors.New("unselected mysql start should not run"),
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Assemble() error = %v, want nil for unselected capability lifecycle errors", err)
+	}
+}
+
+func TestAppAssemblyRunsLifecycleForSelectedCapabilityProvider(t *testing.T) {
+	validateErr := errors.New("selected mysql validate failed")
+	_, err := Assemble(Options{
+		Modules: []module.Module{
+			staticModule{descriptor: module.Descriptor{
+				Name: "user",
+				Kind: module.BusinessModule,
+				Requires: []module.CapabilityRef{
+					{Name: "user.storage"},
+				},
+				EntryPoints: []module.EntryPoint{
+					{Owner: "user", Type: module.EntryPointHTTP, Name: "list users", Value: noopRoute("user")},
+				},
+			}},
+			staticModule{descriptor: module.Descriptor{
+				Name: "user-storage-memory",
+				Kind: module.CapabilityModule,
+				Provides: []module.Capability{
+					{Name: "user.storage", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
+				},
+			}},
+			lifecycleModule{
+				staticModule: staticModule{descriptor: module.Descriptor{
+					Name: "user-storage-mysql",
+					Kind: module.CapabilityModule,
+					Provides: []module.Capability{
+						{Name: "user.storage", Provider: "mysql", Status: module.CapabilityEnabled},
+					},
+				}},
+				validateErr: validateErr,
+			},
+		},
+		CapabilitySelections: []module.CapabilitySelection{
+			{Capability: "user.storage", Provider: "mysql"},
+		},
+	})
+	if !errors.Is(err, validateErr) {
+		t.Fatalf("Assemble() error = %v, want selected provider validate error", err)
+	}
+}
+
 func TestAssemblyIgnoresOpenAPIAndLegacyGeneratedFiles(t *testing.T) {
 	app, err := Assemble(Options{Config: configs.Config{}})
 	if err != nil {

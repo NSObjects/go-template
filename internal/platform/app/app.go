@@ -70,7 +70,11 @@ func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
 		return nil, err
 	}
 
-	for _, mod := range options.Modules {
+	selectedModules := selectedCapabilityModuleIndexes(report, options.Modules)
+	for index, mod := range options.Modules {
+		if _, ok := selectedModules[index]; !ok {
+			continue
+		}
 		validator, ok := mod.(CapabilityValidator)
 		if !ok {
 			continue
@@ -79,7 +83,10 @@ func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
 			return nil, err
 		}
 	}
-	for _, mod := range options.Modules {
+	for index, mod := range options.Modules {
+		if _, ok := selectedModules[index]; !ok {
+			continue
+		}
 		starter, ok := mod.(CapabilityStarter)
 		if !ok {
 			continue
@@ -102,6 +109,48 @@ func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
 		report: report,
 		routes: routes,
 	}, nil
+}
+
+type capabilityProvider struct {
+	capability string
+	provider   string
+}
+
+func selectedCapabilityModuleIndexes(report module.Report, modules []module.Module) map[int]struct{} {
+	selectedProviders := selectedCapabilityProviders(report)
+	selectedModules := make(map[int]struct{})
+	for index, mod := range modules {
+		descriptor := mod.Descriptor()
+		if descriptor.Kind != module.CapabilityModule {
+			continue
+		}
+		for _, capability := range descriptor.Provides {
+			provider := capability.Provider
+			if provider == "" {
+				provider = descriptor.Name
+			}
+			key := capabilityProvider{capability: capability.Name, provider: provider}
+			if _, ok := selectedProviders[key]; ok {
+				selectedModules[index] = struct{}{}
+				break
+			}
+		}
+	}
+	return selectedModules
+}
+
+func selectedCapabilityProviders(report module.Report) map[capabilityProvider]struct{} {
+	selected := make(map[capabilityProvider]struct{})
+	for _, requirement := range report.Requirements {
+		if !requirement.Satisfied {
+			continue
+		}
+		selected[capabilityProvider{
+			capability: requirement.Capability,
+			provider:   requirement.Provider,
+		}] = struct{}{}
+	}
+	return selected
 }
 
 func capabilitySelections(options Options) []module.CapabilitySelection {

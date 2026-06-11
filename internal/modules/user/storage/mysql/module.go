@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -19,6 +21,8 @@ const (
 	ModuleName   = "user-storage-mysql"
 	ProviderName = "mysql"
 )
+
+var ErrInvalidConfig = errors.New("invalid user mysql storage config")
 
 // Module exposes MySQL as an optional user.storage provider.
 type Module struct {
@@ -56,6 +60,36 @@ func (m Module) Descriptor() module.Descriptor {
 // Repository returns a lazy MySQL-backed user repository.
 func (m Module) Repository() biz.UserRepository {
 	return &repository{cfg: m.cfg}
+}
+
+// Validate returns a startup-blocking error when selected MySQL storage config is unusable.
+func (m Module) Validate() error {
+	if !m.cfg.Enabled {
+		return nil
+	}
+	if !hasRequiredConfig(m.cfg) {
+		return fmt.Errorf("%w: host, port, user, and database are required", ErrInvalidConfig)
+	}
+	return nil
+}
+
+// Start verifies the selected MySQL storage provider can initialize and reach MySQL.
+func (m Module) Start(ctx context.Context) error {
+	if !m.cfg.Enabled {
+		return nil
+	}
+	if err := m.Validate(); err != nil {
+		return err
+	}
+	dataManager, err := db.NewDataManager(configs.Config{Mysql: m.cfg})
+	if err != nil {
+		return code.WrapDatabaseError(err, "initialize user mysql storage")
+	}
+	defer dataManager.Shutdown(context.Background())
+	if err := dataManager.Start(ctx); err != nil {
+		return code.WrapDatabaseError(err, "start user mysql storage")
+	}
+	return nil
 }
 
 type repository struct {

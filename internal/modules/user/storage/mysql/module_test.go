@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/NSObjects/go-template/internal/api/biz"
@@ -74,4 +75,24 @@ func TestModuleReportsUserStorageProviderStatus(t *testing.T) {
 
 func TestModuleExposesUserRepository(t *testing.T) {
 	var _ biz.UserRepository = New(configs.MysqlConfig{}).Repository()
+}
+
+func TestValidateIgnoresDisabledConfig(t *testing.T) {
+	mod := New(configs.MysqlConfig{Enabled: false})
+
+	if err := mod.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v, want nil for disabled config", err)
+	}
+}
+
+func TestValidateRejectsEnabledInvalidConfig(t *testing.T) {
+	mod := New(configs.MysqlConfig{Enabled: true})
+
+	err := mod.Validate()
+	if err == nil {
+		t.Fatal("Validate() error = nil, want invalid config error")
+	}
+	if !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("Validate() error = %v, want ErrInvalidConfig", err)
+	}
 }
