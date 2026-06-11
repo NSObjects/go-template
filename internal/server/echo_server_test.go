@@ -26,7 +26,7 @@ func (m *MockRegisterRouter) RegisterRouter(s *echo.Group, middlewareFunc ...ech
 }
 
 func TestEchoServer_Server(t *testing.T) {
-	server := NewEchoServer([]service.RegisterRouter{}, nil, configs.Config{}, &configs.Store{})
+	server := NewEchoServer([]service.RegisterRouter{}, configs.Config{}, &configs.Store{})
 
 	assert.NotNil(t, server)
 	assert.NotNil(t, server.Server())
@@ -68,9 +68,7 @@ func TestEchoServer_createMiddlewareConfig(t *testing.T) {
 	assert.True(t, config.EnableGzip)
 	assert.True(t, config.EnableCORS)
 	assert.False(t, config.EnableJWT) // 默认情况下JWT应该被禁用
-	assert.False(t, config.EnableCasbin)
 	assert.NotNil(t, config.JWT)
-	assert.NotNil(t, config.Casbin)
 }
 
 func TestEchoServer_registerSystemRoutes(t *testing.T) {
@@ -167,7 +165,7 @@ func TestEchoServer_NewEchoServer(t *testing.T) {
 	// 注意：这里需要根据实际的Store实现来设置配置
 	// store.Set(cfg)
 
-	server := NewEchoServer([]service.RegisterRouter{}, nil, cfg, store)
+	server := NewEchoServer([]service.RegisterRouter{}, cfg, store)
 
 	assert.NotNil(t, server)
 	assert.NotNil(t, server.server)

@@ -30,7 +30,6 @@ Server包是HTTP服务的核心，负责管理Echo服务器实例、中间件配
 - **请求日志中间件**: 记录请求详情和响应时间
 - **压缩中间件**: 自动压缩响应内容
 - **CORS中间件**: 跨域资源共享配置
-- **权限控制中间件**: 基于Casbin的权限管理
 
 ### 4. 路由管理优化
 
@@ -63,12 +62,7 @@ Server包是HTTP服务的核心，负责管理Echo服务器实例、中间件配
 
 ```go
 // 创建服务器实例
-server := NewEchoServer(Params{
-    Routes:   routers,
-    Enforcer: enforcer,
-    Cfg:      config,
-    Store:    store,
-})
+server := NewEchoServer(routers, config, store)
 
 // 启动服务器
 server.Run(":8080")
@@ -85,7 +79,6 @@ server.Run(":8080")
 
 - 错误信息不泄露敏感信息
 - 请求日志记录
-- 权限控制集成
 - CORS安全配置
 
 ## 监控和调试

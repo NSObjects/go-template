@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"github.com/NSObjects/go-template/internal/api/service/param"
-	"github.com/NSObjects/go-template/internal/code"
 )
 
 // UserRepository 数据访问接口 - 符合依赖注入原则
@@ -64,8 +63,7 @@ func NewUserHandler(repo UserRepository) UserUseCase {
 func (h *UserHandler) ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error) {
 	list, total, err := h.repo.ListUsers(ctx, req)
 	if err != nil {
-		// 使用internal/code包包装错误 - 符合错误处理规范
-		return nil, 0, code.WrapDatabaseError(err, "查询User列表失败")
+		return nil, 0, err
 	}
 	return list, total, nil
 
@@ -75,7 +73,7 @@ func (h *UserHandler) Create(ctx context.Context, req param.UserCreateRequest) e
 
 	err := h.repo.Create(ctx, req)
 	if err != nil {
-		return code.WrapDatabaseError(err, "查询User详情失败")
+		return err
 	}
 	return nil
 
@@ -86,7 +84,7 @@ func (h *UserHandler) GetByID(ctx context.Context, id int64) (param.UserData, er
 	result, err := h.repo.GetByID(ctx, id)
 	if err != nil {
 
-		return result, code.WrapDatabaseError(err, "查询User详情失败")
+		return result, err
 	}
 	return result, nil
 
@@ -96,7 +94,7 @@ func (h *UserHandler) Update(ctx context.Context, id int64, req param.UserUpdate
 
 	err := h.repo.Update(ctx, id, req)
 	if err != nil {
-		return code.WrapDatabaseError(err, "查询User详情失败")
+		return err
 	}
 	return nil
 
@@ -105,7 +103,7 @@ func (h *UserHandler) Update(ctx context.Context, id int64, req param.UserUpdate
 func (h *UserHandler) Delete(ctx context.Context, id int64) error {
 	err := h.repo.Delete(ctx, id)
 	if err != nil {
-		return code.WrapDatabaseError(err, "删除User失败")
+		return err
 	}
 	return nil
 

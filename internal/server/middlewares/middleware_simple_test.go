@@ -1,10 +1,13 @@
 package middlewares
 
 import (
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/NSObjects/go-template/internal/code"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,10 +21,8 @@ func TestDefaultMiddlewareConfig(t *testing.T) {
 	assert.True(t, config.EnableGzip)
 	assert.True(t, config.EnableCORS)
 	assert.False(t, config.EnableJWT)
-	assert.False(t, config.EnableCasbin)
 	assert.NotEmpty(t, config.LoggerFormat)
 	assert.NotNil(t, config.JWT)
-	assert.NotNil(t, config.Casbin)
 }
 
 func TestDefaultJWTConfig(t *testing.T) {
@@ -31,15 +32,6 @@ func TestDefaultJWTConfig(t *testing.T) {
 	assert.False(t, config.Enabled)
 	assert.NotNil(t, config.SkipPaths)
 	assert.NotEmpty(t, config.SigningKey) // 默认配置有默认密钥
-}
-
-func TestDefaultCasbinConfig(t *testing.T) {
-	config := DefaultCasbinConfig()
-
-	assert.NotNil(t, config)
-	assert.False(t, config.Enabled)
-	assert.NotNil(t, config.SkipPaths)
-	assert.NotNil(t, config.AdminUsers)
 }
 
 func TestCreateJWTConfig(t *testing.T) {
@@ -74,38 +66,6 @@ func TestCreateJWTConfig(t *testing.T) {
 	}
 }
 
-func TestCreateCasbinConfig(t *testing.T) {
-	tests := []struct {
-		name       string
-		enabled    bool
-		skipPaths  []string
-		adminUsers []string
-	}{
-		{
-			name:       "enabled Casbin",
-			enabled:    true,
-			skipPaths:  []string{"/api/health"},
-			adminUsers: []string{"admin"},
-		},
-		{
-			name:       "disabled Casbin",
-			enabled:    false,
-			skipPaths:  []string{},
-			adminUsers: []string{},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			config := CreateCasbinConfig(tt.enabled, tt.skipPaths, tt.adminUsers)
-			assert.NotNil(t, config)
-			assert.Equal(t, tt.enabled, config.Enabled)
-			assert.Equal(t, tt.skipPaths, config.SkipPaths)
-			assert.Equal(t, tt.adminUsers, config.AdminUsers)
-		})
-	}
-}
-
 func TestApplyMiddlewares(t *testing.T) {
 	e := echo.New()
 	config := DefaultMiddlewareConfig()
@@ -121,6 +81,7 @@ func TestApplyMiddlewares(t *testing.T) {
 func TestErrorRecovery(t *testing.T) {
 	e := echo.New()
 	e.Use(ErrorRecovery())
+	e.HTTPErrorHandler = ErrorHandler
 
 	// 创建一个会panic的路由
 	e.GET("/panic", func(c echo.Context) error {
@@ -133,6 +94,68 @@ func TestErrorRecovery(t *testing.T) {
 	// 测试panic恢复
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	assertErrorPayload(t, rec, code.ErrInternalServer, "Internal server error")
+}
+
+func TestErrorHandlerNormalizesErrors(t *testing.T) {
+	tests := []struct {
+		name       string
+		err        error
+		wantStatus int
+		wantCode   int
+		wantMsg    string
+	}{
+		{
+			name:       "plain error becomes internal server error",
+			err:        errors.New("database password leaked in raw error"),
+			wantStatus: http.StatusInternalServerError,
+			wantCode:   code.ErrInternalServer,
+			wantMsg:    "Internal server error",
+		},
+		{
+			name:       "echo bad request becomes bad request code",
+			err:        echo.NewHTTPError(http.StatusBadRequest, "invalid query"),
+			wantStatus: http.StatusBadRequest,
+			wantCode:   code.ErrBadRequest,
+			wantMsg:    "invalid query",
+		},
+		{
+			name:       "validation error becomes validation code",
+			err:        &ValidationError{Field: "email", Message: "invalid format"},
+			wantStatus: http.StatusBadRequest,
+			wantCode:   code.ErrValidation,
+			wantMsg:    "invalid format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, "/users", nil)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+
+			ErrorHandler(tt.err, c)
+
+			assert.Equal(t, tt.wantStatus, rec.Code)
+			assertErrorPayload(t, rec, tt.wantCode, tt.wantMsg)
+		})
+	}
+}
+
+func assertErrorPayload(t *testing.T, rec *httptest.ResponseRecorder, wantCode int, wantMessage string) {
+	t.Helper()
+
+	var got map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response body is not valid JSON: %v", err)
+	}
+	if got["code"] != float64(wantCode) {
+		t.Fatalf("code = %v, want %d", got["code"], wantCode)
+	}
+	if got["message"] != wantMessage {
+		t.Fatalf("message = %v, want %q", got["message"], wantMessage)
+	}
 }
 
 func TestJWTConfig(t *testing.T) {
@@ -169,22 +192,6 @@ func TestJWTConfig(t *testing.T) {
 	}
 }
 
-func TestCasbinConfig(t *testing.T) {
-	// 创建测试用的Casbin enforcer
-	// 注意：这里我们只测试配置创建，不测试实际的权限检查
-	config := &CasbinConfig{
-		Enabled:    true,
-		SkipPaths:  []string{"/api/health"},
-		AdminUsers: []string{"admin"},
-	}
-
-	// 测试配置创建
-	assert.NotNil(t, config)
-	assert.True(t, config.Enabled)
-	assert.Equal(t, []string{"/api/health"}, config.SkipPaths)
-	assert.Equal(t, []string{"admin"}, config.AdminUsers)
-}
-
 func TestMiddlewareConfig(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -202,10 +209,8 @@ func TestMiddlewareConfig(t *testing.T) {
 				EnableGzip:     true,
 				EnableCORS:     true,
 				EnableJWT:      false,
-				EnableCasbin:   false,
 				LoggerFormat:   "custom format",
 				JWT:            DefaultJWTConfig(),
-				Casbin:         DefaultCasbinConfig(),
 			},
 		},
 	}

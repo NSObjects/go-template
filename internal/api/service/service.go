@@ -6,7 +6,6 @@ import (
 	"github.com/NSObjects/go-template/internal/api/biz"
 	"github.com/NSObjects/go-template/internal/code"
 	"github.com/labstack/echo/v4"
-	"github.com/marmotedu/errors"
 	"github.com/samber/do/v2"
 )
 
@@ -23,11 +22,11 @@ func Register(i do.Injector) {
 
 func BindAndValidate(ctx echo.Context, obj any) error {
 	if err := ctx.Bind(obj); err != nil {
-		return errors.WrapC(err, code.ErrBind, "bind request failed")
+		return code.WrapError(err, code.ErrBind, "bind request failed")
 	}
 
 	if err := ctx.Validate(obj); err != nil {
-		return errors.WrapC(err, code.ErrValidation, "validation failed")
+		return code.WrapError(err, code.ErrValidation, "validation failed")
 	}
 
 	return nil

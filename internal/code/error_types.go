@@ -1,6 +1,7 @@
 package code
 
 import (
+	stderrors "errors"
 	"fmt"
 
 	errorslib "github.com/marmotedu/errors"
@@ -52,39 +53,80 @@ func NewErrorInfo(err error) ErrorInfo {
 		return ErrorInfo{}
 	}
 
+	details := fmt.Sprintf("%+v", err)
 	info := ErrorInfo{
 		Type:     InternalError,
 		Category: CategorySystem,
-		Message:  err.Error(),
-		Details:  fmt.Sprintf("%+v", err),
+		Code:     ErrUnknown,
+		Message:  lookupMessage(ErrUnknown, "Internal server error"),
+		Details:  details,
 	}
 
-	coder := errorslib.ParseCoder(err)
-	if coder == nil {
+	appErr, ok := ParseError(err)
+	if ok {
+		coder, registered := Lookup(appErr.Code())
+		if !registered {
+			info.Details = appErr.Detail()
+			return info
+		}
+
+		info.Code = coder.Code()
+		info.Message = appErr.Message()
+		info.Type = classifyErrorType(coder.Code())
+		info.Category = classifyErrorCategory(coder.Code())
+		info.Details = appErr.Detail()
+		return info
+	}
+
+	coder, ok := ParseRegisteredCoder(err)
+	if !ok {
 		return info
 	}
 
 	code := coder.Code()
-	if _, ok := Lookup(code); !ok {
-		info.Code = ErrUnknown
-		if unknown, ok := Lookup(ErrUnknown); ok {
-			info.Message = unknown.String()
-		} else {
-			info.Message = coder.String()
-		}
-		return info
-	}
-
 	info.Code = code
 	info.Message = coder.String()
 	info.Type = classifyErrorType(code)
 	info.Category = classifyErrorCategory(code)
 
-	if info.Type == BusinessError {
-		info.Details = ""
+	return info
+}
+
+func lookupMessage(code int, fallback string) string {
+	if coder, ok := Lookup(code); ok {
+		return coder.String()
+	}
+	return fallback
+}
+
+// ParseError returns the first project AppError in err's unwrap chain.
+func ParseError(err error) (*AppError, bool) {
+	var appErr *AppError
+	if stderrors.As(err, &appErr) {
+		return appErr, true
+	}
+	return nil, false
+}
+
+// ParseRegisteredCoder returns the first project-registered coder in err's unwrap chain.
+func ParseRegisteredCoder(err error) (*ErrCode, bool) {
+	if appErr, ok := ParseError(err); ok {
+		if registered, ok := Lookup(appErr.Code()); ok {
+			return registered, true
+		}
 	}
 
-	return info
+	for current := err; current != nil; current = stderrors.Unwrap(current) {
+		coder := errorslib.ParseCoder(current)
+		if coder == nil {
+			continue
+		}
+		registered, ok := Lookup(coder.Code())
+		if ok {
+			return registered, true
+		}
+	}
+	return nil, false
 }
 
 // IsInternal 判断是否为内部错误

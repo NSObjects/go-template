@@ -162,13 +162,6 @@ func Merge(dst, src Config) Config {
 	if src.CORS.AllowCredentials {
 		dst.CORS.AllowCredentials = true
 	}
-	// Casbin
-	if src.Casbin.Model != "" {
-		dst.Casbin.Model = src.Casbin.Model
-	}
-	if src.Casbin.ModelFile != "" {
-		dst.Casbin.ModelFile = src.Casbin.ModelFile
-	}
 	// Etcd/Consul 客户端配置
 	if len(src.Etcd.Endpoints) > 0 {
 		dst.Etcd.Endpoints = src.Etcd.Endpoints

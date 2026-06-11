@@ -76,11 +76,6 @@ allow_headers = ["Origin", "Content-Type", "Accept"]
 allow_methods = ["GET","HEAD","PUT","PATCH","POST","DELETE"]
 allow_credentials = true
 
-[casbin]
-# model 直接内联或使用 model_file 指向文件
-model = ""
-model_file = ""
-
 [kafka]
 enabled = false
 brokers = []

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	errorslib "github.com/marmotedu/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,8 +31,8 @@ func TestWrapOrNewHelpers(t *testing.T) {
 	err := WrapDatabaseError(errors.New("boom"), "query")
 	assert.NotNil(t, err)
 
-	coder := errorslib.ParseCoder(err)
-	if assert.NotNil(t, coder) {
+	coder, ok := ParseRegisteredCoder(err)
+	if assert.True(t, ok) {
 		assert.Equal(t, ErrDatabase, coder.Code())
 	}
 
@@ -42,8 +41,8 @@ func TestWrapOrNewHelpers(t *testing.T) {
 
 	err = WrapError(nil, ErrForbidden, "access denied")
 	assert.NotNil(t, err)
-	coder = errorslib.ParseCoder(err)
-	if assert.NotNil(t, coder) {
+	coder, ok = ParseRegisteredCoder(err)
+	if assert.True(t, ok) {
 		assert.Equal(t, ErrForbidden, coder.Code())
 	}
 }

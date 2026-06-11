@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/NSObjects/go-template/internal/code"
 	"github.com/labstack/echo/v4"
 )
 
@@ -25,29 +26,38 @@ func GetContext() (echo.Context, *httptest.ResponseRecorder) {
 }
 
 func TestApiError(t *testing.T) {
-	type args struct {
-		err error
-	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name       string
+		err        error
+		wantErr    bool
+		wantStatus int
+		wantCode   float64
+		wantMsg    string
 	}{
 		{
-			args:    args{err: errors.New("api error")},
-			wantErr: false,
+			name:       "plain error is rendered as unknown internal error",
+			err:        errors.New("api error"),
+			wantStatus: http.StatusInternalServerError,
+			wantCode:   float64(code.ErrUnknown),
+			wantMsg:    "Internal server error",
 		},
 		{
-			args:    args{err: nil},
+			name:    "nil error returns error",
+			err:     nil,
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, _ := GetContext()
-			if err := APIError(c, tt.args.err); (err != nil) != tt.wantErr {
+			c, rec := GetContext()
+			if err := APIError(c, tt.err); (err != nil) != tt.wantErr {
 				t.Errorf("APIError() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			if tt.wantErr {
+				return
+			}
+
+			assertErrorResponse(t, rec, tt.wantStatus, tt.wantCode, tt.wantMsg)
 		})
 	}
 }
@@ -177,6 +187,32 @@ func assertJSONResponse(t *testing.T, rec *httptest.ResponseRecorder, wantStatus
 	}
 
 	assertMapEqual(t, got, want)
+}
+
+func assertErrorResponse(t *testing.T, rec *httptest.ResponseRecorder, wantStatus int, wantCode float64, wantMessage string) {
+	t.Helper()
+
+	if rec.Code != wantStatus {
+		t.Fatalf("status = %d, want %d", rec.Code, wantStatus)
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("response body is not valid JSON: %v", err)
+	}
+
+	if got["code"] != wantCode {
+		t.Fatalf("code = %v, want %v", got["code"], wantCode)
+	}
+	if got["message"] != wantMessage {
+		t.Fatalf("message = %v, want %v", got["message"], wantMessage)
+	}
+	if got["request_id"] == "" {
+		t.Fatal("request_id is empty")
+	}
+	if _, ok := got["timestamp"].(float64); !ok {
+		t.Fatalf("timestamp = %T, want number", got["timestamp"])
+	}
 }
 
 func assertMapEqual(t *testing.T, got, want map[string]any) {

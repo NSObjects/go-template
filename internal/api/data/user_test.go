@@ -7,7 +7,6 @@ import (
 	"github.com/NSObjects/go-template/internal/api/data/db"
 	"github.com/NSObjects/go-template/internal/api/service/param"
 	"github.com/NSObjects/go-template/internal/code"
-	"github.com/marmotedu/errors"
 )
 
 func TestUserRepositoryReturnsDatabaseErrorWhenMysqlDisabled(t *testing.T) {
@@ -58,8 +57,8 @@ func TestUserRepositoryReturnsDatabaseErrorWhenMysqlDisabled(t *testing.T) {
 			if err == nil {
 				t.Fatal("repository method error = nil, want database error")
 			}
-			coder := errors.ParseCoder(err)
-			if coder == nil {
+			coder, ok := code.ParseRegisteredCoder(err)
+			if !ok {
 				t.Fatalf("repository method error has no code: %v", err)
 			}
 			if coder.Code() != code.ErrDatabase {

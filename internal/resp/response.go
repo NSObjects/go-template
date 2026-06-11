@@ -7,17 +7,14 @@
 package resp
 
 import (
+	"errors"
 	"net/http"
 	"reflect"
 	"time"
 
-	"log/slog"
-
 	"github.com/NSObjects/go-template/internal/code"
-	"github.com/NSObjects/go-template/internal/log"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/marmotedu/errors"
 )
 
 const successCode = 0
@@ -53,57 +50,18 @@ func APIError(c echo.Context, err error) error {
 		return errors.New("error can't be nil")
 	}
 
-	// 解析错误码
-	codeError := errors.ParseCoder(err)
-	if codeError == nil {
-		err = code.WrapInternalServerError(err, "internal server error")
-		codeError = errors.ParseCoder(err)
-	}
-	if codeError == nil {
-		err = errors.WithCode(code.ErrInternalServer, "%s", "internal server error")
-		codeError = errors.ParseCoder(err)
-	}
-	errorCode := codeError.Code()
-
-	// 获取HTTP状态码（只支持200,400,401,403,404,500）
-	httpStatus := code.HTTPStatus(errorCode)
+	info := code.NewErrorInfo(err)
 
 	// 构建错误响应
 	rjson := ErrorResponse{
-		Code:      errorCode,
-		Message:   codeError.String(),
-		RequestID: getRequestID(c),
+		Code:      info.Code,
+		Message:   info.Message,
+		RequestID: RequestID(c),
 		Timestamp: time.Now().Unix(),
 	}
 
-	// 统一记录错误日志（所有错误都打印到日志）
-	logError(c, err, errorCode, codeError.String(), rjson.RequestID)
-
 	// 返回对应的HTTP状态码
-	return c.JSON(httpStatus, rjson)
-}
-
-// logError 统一错误日志记录
-func logError(c echo.Context, err error, errorCode int, message, requestID string) {
-	// 构建基础日志字段
-	fields := []slog.Attr{
-		slog.Int("code", errorCode),
-		slog.String("message", message),
-		slog.String("request_id", requestID),
-		slog.String("method", c.Request().Method),
-		slog.String("uri", c.Request().RequestURI),
-		slog.String("user_agent", c.Request().UserAgent()),
-		slog.String("error", err.Error()),
-	}
-
-	// 根据错误类型选择日志级别
-	if code.IsInternalError(errorCode) {
-		// 内部错误：使用Error级别，记录详细信息
-		log.Error("Internal Error", fields...)
-	} else {
-		// 业务错误：使用Warn级别，记录业务信息
-		log.Warn("Business Error", fields...)
-	}
+	return c.JSON(code.HTTPStatus(info.Code), rjson)
 }
 
 func OperateSuccess(c echo.Context) error {
@@ -145,8 +103,8 @@ func OneDataResponse(c echo.Context, data interface{}) error {
 	return c.JSON(http.StatusOK, r)
 }
 
-// getRequestID 获取请求ID，用于错误追踪
-func getRequestID(c echo.Context) string {
+// RequestID 获取请求ID，用于错误追踪。
+func RequestID(c echo.Context) string {
 	// 优先从请求头获取
 	if requestID := c.Request().Header.Get("X-Request-ID"); requestID != "" {
 		return requestID

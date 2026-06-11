@@ -9,7 +9,6 @@
 package middlewares
 
 import (
-	"github.com/casbin/casbin/v3"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -26,14 +25,10 @@ type MiddlewareConfig struct {
 	EnableCORS bool
 	// 是否启用JWT
 	EnableJWT bool
-	// 是否启用Casbin
-	EnableCasbin bool
 	// 日志格式
 	LoggerFormat string
 	// JWT配置
 	JWT *JWTConfig
-	// Casbin配置
-	Casbin *CasbinConfig
 }
 
 // DefaultMiddlewareConfig 默认中间件配置
@@ -44,10 +39,8 @@ func DefaultMiddlewareConfig() *MiddlewareConfig {
 		EnableGzip:     true,
 		EnableCORS:     true,
 		EnableJWT:      false,
-		EnableCasbin:   false,
 		LoggerFormat:   "method=${method}, uri=${uri}, status=${status}, latency=${latency_human}\n",
 		JWT:            DefaultJWTConfig(),
-		Casbin:         DefaultCasbinConfig(),
 	}
 }
 
@@ -99,14 +92,5 @@ func ApplyMiddlewares(e *echo.Echo, config *MiddlewareConfig) {
 	// JWT中间件
 	if config.EnableJWT && config.JWT != nil {
 		e.Use(JWT(config.JWT))
-	}
-}
-
-// ApplyCasbinMiddleware 应用Casbin中间件
-func ApplyCasbinMiddleware(e *echo.Echo, enforce interface{}, config *CasbinConfig) {
-	if config != nil && config.Enabled {
-		if enforcer, ok := enforce.(*casbin.Enforcer); ok {
-			e.Use(Casbin(enforcer, config))
-		}
 	}
 }

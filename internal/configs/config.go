@@ -61,7 +61,6 @@ type Config struct {
 	Redis   RedisConfig        `mapstructure:"redis"`
 	JWT     JWTConfig          `mapstructure:"jwt"`
 	CORS    CORSConfig         `mapstructure:"cors"`
-	Casbin  CasbinConfig       `mapstructure:"casbin"`
 	Kafka   KafkaConfig        `mapstructure:"kafka"`
 	Etcd    EtcdClientConfig   `mapstructure:"etcd"`
 	Consul  ConsulClientConfig `mapstructure:"consul"`
@@ -150,11 +149,6 @@ type CORSConfig struct {
 	AllowHeaders     []string `mapstructure:"allow_headers"`
 	AllowMethods     []string `mapstructure:"allow_methods"`
 	AllowCredentials bool     `mapstructure:"allow_credentials"`
-}
-
-type CasbinConfig struct {
-	Model     string `mapstructure:"model"`
-	ModelFile string `mapstructure:"model_file"`
 }
 
 type KafkaConfig struct {

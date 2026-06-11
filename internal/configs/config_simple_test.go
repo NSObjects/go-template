@@ -126,16 +126,6 @@ func TestCORSConfig(t *testing.T) {
 	assert.True(t, cfg.AllowCredentials)
 }
 
-func TestCasbinConfig(t *testing.T) {
-	cfg := CasbinConfig{
-		Model:     "rbac",
-		ModelFile: "rbac_model.conf",
-	}
-
-	assert.Equal(t, "rbac", cfg.Model)
-	assert.Equal(t, "rbac_model.conf", cfg.ModelFile)
-}
-
 func TestKafkaConfig(t *testing.T) {
 	cfg := KafkaConfig{
 		Enabled:  true,

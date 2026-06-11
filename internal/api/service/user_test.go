@@ -14,7 +14,6 @@ import (
 	"github.com/NSObjects/go-template/internal/server/middlewares"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
-	merrors "github.com/marmotedu/errors"
 )
 
 type userUseCaseStub struct {
@@ -341,8 +340,8 @@ func assertCoder(t *testing.T, err error, wantCode int) {
 	if err == nil {
 		t.Fatalf("error = nil, want code %d", wantCode)
 	}
-	coder := merrors.ParseCoder(err)
-	if coder == nil {
+	coder, ok := code.ParseRegisteredCoder(err)
+	if !ok {
 		t.Fatalf("error = %v has no coder, want code %d", err, wantCode)
 	}
 	if coder.Code() != wantCode {

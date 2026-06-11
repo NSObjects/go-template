@@ -18,13 +18,13 @@ func TestNewError(t *testing.T) {
 			name:     "success",
 			code:     ErrSuccess,
 			message:  "operation successful",
-			expected: "OK",
+			expected: "operation successful",
 		},
 		{
 			name:     "bad request",
 			code:     ErrBadRequest,
 			message:  "invalid request",
-			expected: "Bad request",
+			expected: "invalid request",
 		},
 	}
 
@@ -50,7 +50,7 @@ func TestNewErrorf(t *testing.T) {
 			code:     ErrBadRequest,
 			format:   "invalid %s: %s",
 			args:     []interface{}{"field", "value"},
-			expected: "Bad request",
+			expected: "invalid field: value",
 		},
 	}
 
@@ -92,6 +92,11 @@ func TestWrapError(t *testing.T) {
 			err := WrapError(tt.err, tt.code, tt.message)
 			assert.NotNil(t, err)
 			assert.Contains(t, err.Error(), tt.expected)
+			info := NewErrorInfo(err)
+			assert.Contains(t, info.Details, tt.message)
+			if tt.err != nil {
+				assert.Contains(t, info.Details, tt.err.Error())
+			}
 		})
 	}
 }
@@ -175,7 +180,7 @@ func TestNewValidationError(t *testing.T) {
 			name:     "validation error",
 			field:    "email",
 			message:  "invalid format",
-			expected: "Validation failed",
+			expected: "invalid format",
 		},
 	}
 
@@ -199,7 +204,7 @@ func TestNewPermissionDeniedError(t *testing.T) {
 			name:     "permission denied",
 			resource: "user",
 			action:   "delete",
-			expected: "Permission denied",
+			expected: "permission denied for delete on user",
 		},
 	}
 
@@ -221,7 +226,7 @@ func TestNewNotFoundError(t *testing.T) {
 		{
 			name:     "not found",
 			resource: "user",
-			expected: "Not found",
+			expected: "user not found",
 		},
 	}
 

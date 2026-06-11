@@ -10,6 +10,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
 	"os/signal"
@@ -20,10 +21,8 @@ import (
 	"github.com/NSObjects/go-template/internal/configs"
 	"github.com/NSObjects/go-template/internal/resp"
 	"github.com/NSObjects/go-template/internal/server/middlewares"
-	"github.com/casbin/casbin/v3"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
-	"github.com/marmotedu/errors"
 )
 
 // EchoServer Echo HTTP服务器
@@ -41,7 +40,7 @@ func (s *EchoServer) Server() *echo.Echo {
 }
 
 // NewEchoServer 创建Echo服务器实例
-func NewEchoServer(routes []service.RegisterRouter, enforcer *casbin.Enforcer, cfg configs.Config, store *configs.Store) *EchoServer {
+func NewEchoServer(routes []service.RegisterRouter, cfg configs.Config, store *configs.Store) *EchoServer {
 	s := &EchoServer{
 		server:  echo.New(),
 		config:  FromAppConfig(cfg),
@@ -52,7 +51,7 @@ func NewEchoServer(routes []service.RegisterRouter, enforcer *casbin.Enforcer, c
 
 	// 配置服务器
 	s.setupServer()
-	s.loadMiddleware(enforcer)
+	s.loadMiddleware()
 	s.registerRouter()
 
 	return s
@@ -77,15 +76,12 @@ func (s *EchoServer) setupServer() {
 }
 
 // loadMiddleware 加载中间件
-func (s *EchoServer) loadMiddleware(enforce *casbin.Enforcer) {
+func (s *EchoServer) loadMiddleware() {
 	// 创建中间件配置
 	config := s.createMiddlewareConfig()
 
 	// 应用基础中间件
 	middlewares.ApplyMiddlewares(s.server, config)
-
-	// 应用Casbin中间件
-	middlewares.ApplyCasbinMiddleware(s.server, enforce, config.Casbin)
 }
 
 // createMiddlewareConfig 创建中间件配置
@@ -99,28 +95,14 @@ func (s *EchoServer) createMiddlewareConfig() *middlewares.MiddlewareConfig {
 		false, // 禁用JWT
 	)
 
-	// 创建Casbin配置
-	casbinConfig := middlewares.CreateCasbinConfig(
-		false, // 默认禁用Casbin，后续作为独立模板能力处理
-		[]string{
-			"/api/health",
-			"/api/info",
-			"/api/login",
-			"/api/users",
-		},
-		[]string{"root", "admin"},
-	)
-
 	return &middlewares.MiddlewareConfig{
 		EnableRecovery: true,
 		EnableLogger:   true,
 		EnableGzip:     true,
 		EnableCORS:     true,
 		EnableJWT:      jwtConfig.Enabled,
-		EnableCasbin:   casbinConfig.Enabled,
 		LoggerFormat:   "method=${method}, uri=${uri}, status=${status}, latency=${latency_human}\n",
 		JWT:            jwtConfig,
-		Casbin:         casbinConfig,
 	}
 }
 

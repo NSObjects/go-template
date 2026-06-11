@@ -52,7 +52,7 @@ func (u userRepository) ListUsers(ctx context.Context, req param.UserListUsersRe
 
 	count, err := q.User.Count()
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, code.WrapDatabaseError(err, "查询User列表失败")
 	}
 
 	return list, count, nil
@@ -73,7 +73,7 @@ func (u userRepository) Create(ctx context.Context, req param.UserCreateRequest)
 	}
 	err = q.User.WithContext(ctx).Create(&user)
 	if err != nil {
-		return err
+		return code.WrapDatabaseError(err, "创建User失败")
 	}
 
 	return nil
@@ -87,7 +87,7 @@ func (u userRepository) GetByID(ctx context.Context, id int64) (param.UserData, 
 
 	user, err := q.User.WithContext(ctx).GetByID(uint(id))
 	if err != nil {
-		return param.UserData{}, err
+		return param.UserData{}, code.WrapDatabaseError(err, "查询User详情失败")
 	}
 
 	return param.UserData{
@@ -112,7 +112,7 @@ func (u userRepository) Update(ctx context.Context, id int64, req param.UserUpda
 		Age:      int32(req.Age),
 	})
 	if err != nil {
-		return err
+		return code.WrapDatabaseError(err, "更新User失败")
 	}
 
 	return nil
@@ -126,7 +126,7 @@ func (u userRepository) Delete(ctx context.Context, id int64) error {
 
 	err = q.User.WithContext(ctx).DeleteByID(uint(id))
 	if err != nil {
-		return err
+		return code.WrapDatabaseError(err, "删除User失败")
 	}
 
 	return nil

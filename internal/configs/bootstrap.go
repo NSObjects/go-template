@@ -5,7 +5,19 @@ import "context"
 // Bootstrap 仅以本地文件为入口初始化配置，随后按文件中的 etcd/consul 配置进行增量合并并挂载热更新。
 // 返回最终 Config 以及可动态读取/更新的 Store。
 func Bootstrap(path string) (Config, *Store) {
-	base := NewCfg(path)
+	cfg, store, err := BootstrapE(path)
+	if err != nil {
+		panic(err)
+	}
+	return cfg, store
+}
+
+// BootstrapE 仅以本地文件为入口初始化配置，返回可处理的加载错误。
+func BootstrapE(path string) (Config, *Store, error) {
+	base, err := FileSource{Path: path}.Load(context.Background())
+	if err != nil {
+		return Config{}, nil, err
+	}
 	merged := base
 	ctx := context.Background()
 
@@ -68,5 +80,5 @@ func Bootstrap(path string) (Config, *Store) {
 		})
 	}
 
-	return merged, store
+	return merged, store, nil
 }

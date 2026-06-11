@@ -41,6 +41,12 @@ func NewDataManager(cfg configs.Config) (*DataManager, error) {
 	dm := &DataManager{
 		Config: &cfg,
 	}
+	initialized := false
+	defer func() {
+		if !initialized {
+			_ = dm.Shutdown(context.Background())
+		}
+	}()
 
 	if err := validateEnabledComponents(cfg); err != nil {
 		return nil, err
@@ -83,6 +89,7 @@ func NewDataManager(cfg configs.Config) (*DataManager, error) {
 		dm.Query = query.Use(dm.Mysql)
 	}
 
+	initialized = true
 	return dm, nil
 }
 

@@ -1,15 +1,66 @@
 package code
 
-import "github.com/marmotedu/errors"
+import (
+	"fmt"
+)
+
+// AppError is the project error value used to carry a business code,
+// a safe client-facing message, an internal diagnostic detail, and a cause.
+type AppError struct {
+	code    int
+	message string
+	detail  string
+	cause   error
+}
+
+// Error returns the safe message. Use Detail for internal diagnostics.
+func (e *AppError) Error() string {
+	if e == nil {
+		return ""
+	}
+	return e.message
+}
+
+// Unwrap returns the underlying cause.
+func (e *AppError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.cause
+}
+
+// Code returns the project error code.
+func (e *AppError) Code() int {
+	if e == nil {
+		return ErrUnknown
+	}
+	return e.code
+}
+
+// Message returns the client-facing message.
+func (e *AppError) Message() string {
+	if e == nil {
+		return ""
+	}
+	return e.message
+}
+
+// Detail returns the internal diagnostic detail for logs.
+func (e *AppError) Detail() string {
+	if e == nil {
+		return ""
+	}
+	return e.detail
+}
 
 // NewError 创建带错误码的错误
 func NewError(code int, message string) error {
-	return errors.WithCode(code, "%s", message)
+	return newAppError(code, message, "", nil)
 }
 
 // NewErrorf 创建带错误码的格式化错误
 func NewErrorf(code int, format string, args ...interface{}) error {
-	return errors.WithCode(code, format, args...)
+	return NewError(code, fmt.Sprintf(format, args...))
 }
 
 // WrapError 包装错误并添加错误码
@@ -26,21 +77,57 @@ func wrapIfError(err error, code int, format string, args ...interface{}) error 
 	if err == nil {
 		return nil
 	}
-	return errors.WrapC(err, code, format, args...)
+	message := registeredMessage(code)
+	detail := fmt.Sprintf(format, args...)
+	return newAppError(code, message, joinDetail(detail, err), err)
 }
 
 func wrapOrNew(err error, code int, message string) error {
-	if err == nil {
-		return NewError(code, message)
-	}
-	return errors.WrapC(err, code, "%s", message)
+	return newAppError(code, message, joinDetail(message, err), err)
 }
 
 func wrapOrNewf(err error, code int, format string, args ...interface{}) error {
-	if err == nil {
-		return NewErrorf(code, format, args...)
+	message := fmt.Sprintf(format, args...)
+	return newAppError(code, message, joinDetail(message, err), err)
+}
+
+func newAppError(code int, message, detail string, cause error) error {
+	if message == "" {
+		message = registeredMessage(code)
 	}
-	return errors.WrapC(err, code, format, args...)
+	if detail == "" {
+		detail = message
+	}
+	if IsServerError(code) {
+		message = registeredMessage(code)
+	}
+	return &AppError{
+		code:    code,
+		message: message,
+		detail:  detail,
+		cause:   cause,
+	}
+}
+
+func registeredMessage(code int) string {
+	if coder, ok := Lookup(code); ok {
+		return coder.String()
+	}
+	return "Internal server error"
+}
+
+func joinDetail(detail string, cause error) string {
+	if cause == nil {
+		return detail
+	}
+	causeDetail := fmt.Sprintf("%+v", cause)
+	if appErr, ok := ParseError(cause); ok && appErr.Detail() != "" {
+		causeDetail = appErr.Detail()
+	}
+	if detail == "" {
+		return causeDetail
+	}
+	return fmt.Sprintf("%s: %s", detail, causeDetail)
 }
 
 // ========== 数据源底层错误包装函数 ==========
@@ -96,7 +183,7 @@ func WrapInternalServerError(err error, message string) error {
 
 // NewValidationError 验证错误
 func NewValidationError(field, message string) error {
-	return NewErrorf(ErrValidation, "validation failed for field %s: %s", field, message)
+	return newAppError(ErrValidation, message, fmt.Sprintf("validation failed for field %s: %s", field, message), nil)
 }
 
 // NewPermissionDeniedError 权限拒绝错误

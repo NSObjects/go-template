@@ -30,6 +30,5 @@ func IsServerError(code int) bool {
 
 // IsInternalError 判断是否为内部错误（需要记录详细日志）
 func IsInternalError(code int) bool {
-	// 内部错误码范围：100101-100199
-	return code >= 100101 && code <= 100199
+	return IsServerError(code)
 }
