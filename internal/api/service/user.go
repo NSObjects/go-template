@@ -10,6 +10,7 @@ import (
 
 	"github.com/NSObjects/go-template/internal/api/biz"
 	"github.com/NSObjects/go-template/internal/api/service/param"
+	"github.com/NSObjects/go-template/internal/code"
 	"github.com/NSObjects/go-template/internal/resp"
 	"github.com/NSObjects/go-template/internal/utils"
 	"github.com/labstack/echo/v4"
@@ -26,9 +27,9 @@ func NewUserController(h biz.UserUseCase) RegisterRouter {
 func (c *UserController) RegisterRouter(g *echo.Group, m ...echo.MiddlewareFunc) {
 	g.GET("/users", c.ListUsers).Name = "获取用户列表"
 	g.POST("/users", c.Create).Name = "创建用户"
-	g.GET("/users/{id}", c.GetByID).Name = "获取用户详情"
-	g.PUT("/users/{id}", c.Update).Name = "更新用户"
-	g.DELETE("/users/{id}", c.Delete).Name = "删除用户"
+	g.GET("/users/:id", c.GetByID).Name = "获取用户详情"
+	g.PUT("/users/:id", c.Update).Name = "更新用户"
+	g.DELETE("/users/:id", c.Delete).Name = "删除用户"
 }
 
 func (c *UserController) ListUsers(ctx echo.Context) error {
@@ -70,7 +71,10 @@ func (c *UserController) Create(ctx echo.Context) error {
 
 func (c *UserController) GetByID(ctx echo.Context) error {
 	// 获取路径参数
-	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	id, err := parseUserID(ctx)
+	if err != nil {
+		return err
+	}
 
 	// 调用业务逻辑 - 构造包含链路追踪信息的context
 	bizCtx := utils.BuildContext(ctx)
@@ -85,7 +89,10 @@ func (c *UserController) GetByID(ctx echo.Context) error {
 
 func (c *UserController) Update(ctx echo.Context) error {
 	// 获取路径参数
-	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	id, err := parseUserID(ctx)
+	if err != nil {
+		return err
+	}
 
 	// 绑定和验证请求体参数
 	var req param.UserUpdateRequest
@@ -95,7 +102,7 @@ func (c *UserController) Update(ctx echo.Context) error {
 
 	// 调用业务逻辑 - 构造包含链路追踪信息的context
 	bizCtx := utils.BuildContext(ctx)
-	err := c.user.Update(bizCtx, id, req)
+	err = c.user.Update(bizCtx, id, req)
 	if err != nil {
 		return err
 	}
@@ -106,7 +113,10 @@ func (c *UserController) Update(ctx echo.Context) error {
 
 func (c *UserController) Delete(ctx echo.Context) error {
 	// 获取路径参数
-	id, _ := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	id, err := parseUserID(ctx)
+	if err != nil {
+		return err
+	}
 
 	// 调用业务逻辑 - 构造包含链路追踪信息的context
 	bizCtx := utils.BuildContext(ctx)
@@ -116,4 +126,12 @@ func (c *UserController) Delete(ctx echo.Context) error {
 
 	// 返回操作成功 - 使用统一的响应格式
 	return resp.OperateSuccess(ctx)
+}
+
+func parseUserID(ctx echo.Context) (int64, error) {
+	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
+	if err != nil {
+		return 0, code.WrapBadRequestError(err, "invalid user id")
+	}
+	return id, nil
 }

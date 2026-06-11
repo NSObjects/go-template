@@ -74,6 +74,7 @@ type SystemConfig struct {
 }
 
 type RedisConfig struct {
+	Enabled  bool   `mapstructure:"enabled"`
 	Host     string `mapstructure:"host"`
 	Port     string `mapstructure:"port"`
 	Password string `mapstructure:"password"`
@@ -118,6 +119,7 @@ type LokiSinkConfig struct {
 }
 
 type MysqlConfig struct {
+	Enabled      bool   `mapstructure:"enabled"`
 	DockerHost   string `mapstructure:"docker_host"`
 	Host         string `mapstructure:"host"`
 	Port         string `mapstructure:"port"`
@@ -135,6 +137,7 @@ type JWTConfig struct {
 }
 
 type Mongodb struct {
+	Enabled  bool   `mapstructure:"enabled"`
 	Host     string `mapstructure:"host"`
 	Port     string `mapstructure:"port"`
 	User     string `mapstructure:"user"`
@@ -155,6 +158,7 @@ type CasbinConfig struct {
 }
 
 type KafkaConfig struct {
+	Enabled  bool     `mapstructure:"enabled"`
 	Brokers  []string `mapstructure:"brokers"`
 	ClientID string   `mapstructure:"client_id"`
 	Topic    string   `mapstructure:"topic"`

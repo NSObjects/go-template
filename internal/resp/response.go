@@ -20,6 +20,8 @@ import (
 	"github.com/marmotedu/errors"
 )
 
+const successCode = 0
+
 type ListResponse struct {
 	Code int      `json:"code"`
 	Msg  string   `json:"msg"`
@@ -105,13 +107,11 @@ func logError(c echo.Context, err error, errorCode int, message, requestID strin
 }
 
 func OperateSuccess(c echo.Context) error {
-	var rjson struct {
-		Code int    `json:"code"`
-		Msg  string `json:"msg"`
+	rjson := DataResponse{
+		Code: successCode,
+		Msg:  "success",
+		Data: map[string]interface{}{},
 	}
-
-	rjson.Code = http.StatusOK
-	rjson.Msg = "success"
 
 	return c.JSON(http.StatusOK, rjson)
 }
@@ -124,7 +124,7 @@ func ListDataResponse(c echo.Context, arr interface{}, total int64) error {
 	}
 
 	r := ListResponse{
-		Code: http.StatusOK,
+		Code: successCode,
 		Msg:  "success",
 		Data: ListData{
 			List:  arr,
@@ -137,7 +137,7 @@ func ListDataResponse(c echo.Context, arr interface{}, total int64) error {
 
 func OneDataResponse(c echo.Context, data interface{}) error {
 	r := DataResponse{
-		Code: http.StatusOK,
+		Code: successCode,
 		Msg:  "success",
 		Data: data,
 	}

@@ -15,9 +15,13 @@ func TestConfigDefaults(t *testing.T) {
 	assert.Equal(t, "", cfg.System.Env)
 
 	// 测试数据库配置默认值
+	assert.False(t, cfg.Mysql.Enabled)
 	assert.Equal(t, "", cfg.Mysql.Host)
 	assert.Equal(t, "", cfg.Mysql.Port)
 	assert.Equal(t, "", cfg.Mysql.Database)
+	assert.False(t, cfg.Mongodb.Enabled)
+	assert.False(t, cfg.Redis.Enabled)
+	assert.False(t, cfg.Kafka.Enabled)
 
 	// 测试日志配置默认值
 	assert.Equal(t, "", cfg.Log.Level)
@@ -46,6 +50,7 @@ func TestSystemConfig(t *testing.T) {
 
 func TestMysqlConfig(t *testing.T) {
 	cfg := MysqlConfig{
+		Enabled:      true,
 		Host:         "localhost",
 		Port:         "3306",
 		Database:     "testdb",
@@ -55,6 +60,7 @@ func TestMysqlConfig(t *testing.T) {
 		MaxOpenConns: 100,
 	}
 
+	assert.True(t, cfg.Enabled)
 	assert.Equal(t, "localhost", cfg.Host)
 	assert.Equal(t, "3306", cfg.Port)
 	assert.Equal(t, "testdb", cfg.Database)
@@ -132,11 +138,13 @@ func TestCasbinConfig(t *testing.T) {
 
 func TestKafkaConfig(t *testing.T) {
 	cfg := KafkaConfig{
+		Enabled:  true,
 		ClientID: "echo-admin",
 		Topic:    "user-events",
 		Brokers:  []string{"localhost:9092"},
 	}
 
+	assert.True(t, cfg.Enabled)
 	assert.Equal(t, "echo-admin", cfg.ClientID)
 	assert.Equal(t, "user-events", cfg.Topic)
 	assert.Equal(t, []string{"localhost:9092"}, cfg.Brokers)
@@ -144,10 +152,12 @@ func TestKafkaConfig(t *testing.T) {
 
 func TestMongodbConfig(t *testing.T) {
 	cfg := Mongodb{
-		Host: "localhost",
-		Port: "27017",
+		Enabled: true,
+		Host:    "localhost",
+		Port:    "27017",
 	}
 
+	assert.True(t, cfg.Enabled)
 	assert.Equal(t, "localhost", cfg.Host)
 	assert.Equal(t, "27017", cfg.Port)
 }

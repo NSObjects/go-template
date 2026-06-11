@@ -7,7 +7,16 @@
 package biz
 
 import (
-	"go.uber.org/fx"
+	"github.com/samber/do/v2"
 )
 
-var Model = fx.Options(fx.Provide(NewUserHandler))
+// Register 注册业务层依赖。
+func Register(i do.Injector) {
+	do.Provide[UserUseCase](i, func(i do.Injector) (UserUseCase, error) {
+		repo, err := do.Invoke[UserRepository](i)
+		if err != nil {
+			return nil, err
+		}
+		return NewUserHandler(repo), nil
+	})
+}

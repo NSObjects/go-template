@@ -20,7 +20,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-func NewMysql(cfg configs.MysqlConfig) *gorm.DB {
+func NewMysql(cfg configs.MysqlConfig) (*gorm.DB, error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=true&loc=Local",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
 
@@ -37,19 +37,19 @@ func NewMysql(cfg configs.MysqlConfig) *gorm.DB {
 
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: newLogger})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	err = db.Callback().Create().After("gorm:create").Register("role:menu_after_create", AfterCreate)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	// set connection pool on the underlying *sql.DB
 	sqlDB, err := db.DB()
 	if err == nil {
 		configureSQLPool(sqlDB, cfg)
 	}
-	return db
+	return db, nil
 }
 
 func configureSQLPool(sqlDB *sql.DB, cfg configs.MysqlConfig) {

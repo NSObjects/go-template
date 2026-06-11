@@ -1,1753 +1,351 @@
-/*
- * Generated enhanced test cases from OpenAPI3 document
- * Module: User
- * Features: Table-driven tests with comprehensive coverage
- */
-
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/NSObjects/go-template/internal/api/service/param"
-	"github.com/NSObjects/go-template/internal/resp"
+	"github.com/NSObjects/go-template/internal/code"
+	"github.com/NSObjects/go-template/internal/server/middlewares"
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	merrors "github.com/marmotedu/errors"
 )
 
-// MockUserUseCase 模拟业务逻辑接口
-type MockUserUseCase struct {
-	mock.Mock
+type userUseCaseStub struct {
+	t *testing.T
+
+	listUsers func(context.Context, param.UserListUsersRequest) ([]param.UserListItem, int64, error)
+	create    func(context.Context, param.UserCreateRequest) error
+	getByID   func(context.Context, int64) (param.UserData, error)
+	update    func(context.Context, int64, param.UserUpdateRequest) error
+	delete    func(context.Context, int64) error
 }
 
-func (m *MockUserUseCase) ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error) {
-	args := m.Called(ctx, req)
-	return args.Get(0).([]param.UserListItem), args.Get(1).(int64), args.Error(2)
-}
-
-func (m *MockUserUseCase) Create(ctx context.Context, req param.UserCreateRequest) error {
-	args := m.Called(ctx, req)
-	return args.Error(0)
-}
-
-func (m *MockUserUseCase) GetByID(ctx context.Context, id int64) (param.UserData, error) {
-	args := m.Called(ctx, id)
-	if args.Get(0) == nil {
-		return param.UserData{}, args.Error(1)
+func (s userUseCaseStub) ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error) {
+	s.t.Helper()
+	if s.listUsers == nil {
+		s.t.Fatal("unexpected ListUsers call")
 	}
-	return args.Get(0).(param.UserData), args.Error(1)
+	return s.listUsers(ctx, req)
 }
 
-func (m *MockUserUseCase) Update(ctx context.Context, id int64, req param.UserUpdateRequest) error {
-	args := m.Called(ctx, id, req)
-	return args.Error(0)
-}
-
-func (m *MockUserUseCase) Delete(ctx context.Context, id int64) error {
-	args := m.Called(ctx, id)
-	return args.Error(0)
-}
-
-func TestUserController_ListUsers(t *testing.T) {
-	tests := []struct {
-		name             string
-		setupMock        func(*MockUserUseCase)
-		setupRequest     func() (*http.Request, echo.Context)
-		expectedStatus   int
-		expectedError    bool
-		validateResponse func(t *testing.T, status int, body string)
-	}{
-		{
-			name: "成功场景",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("ListUsers", mock.Anything, mock.Anything).Return([]param.UserListItem{
-					{
-						Id:       1,
-						Username: "test",
-						Email:    "test@example.com",
-
-						Age: 18,
-					},
-				}, int64(1), nil)
-
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				reqBody := `{"page":1,"size":10}`
-				req := httptest.NewRequest(http.MethodGet, "/user", bytes.NewBufferString(reqBody))
-
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				return req, c
-			},
-			expectedStatus: http.StatusOK,
-			expectedError:  false,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusOK, status)
-				var response resp.DataResponse
-				err := json.Unmarshal([]byte(body), &response)
-				assert.NoError(t, err)
-				assert.Equal(t, 200, response.Code)
-				assert.Equal(t, "success", response.Msg)
-			},
-		},
-		{
-			name: "业务逻辑错误",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("ListUsers", mock.Anything, mock.Anything).Return([]param.UserListItem{}, int64(0), assert.AnError)
-
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				reqBody := `{"page":1,"size":10}`
-				req := httptest.NewRequest(http.MethodGet, "/user", bytes.NewBufferString(reqBody))
-
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				return req, c
-			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				// 错误响应验证
-			},
-		},
-
-		{
-			name: "无效请求体",
-			setupMock: func(m *MockUserUseCase) {
-				// 无效请求不会调用biz层
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-				req := httptest.NewRequest(http.MethodGet, "/user", bytes.NewBufferString("invalid json"))
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				return req, c
-			},
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusBadRequest, status)
-			},
-		},
-
-		{
-			name: "参数验证失败",
-			setupMock: func(m *MockUserUseCase) {
-				// 验证失败不会调用biz层
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				// 测试分页参数无效
-				reqBody := `{"page":-1,"size":0}`
-
-				req := httptest.NewRequest(http.MethodGet, "/user", bytes.NewBufferString(reqBody))
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				return req, c
-			},
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusBadRequest, status)
-			},
-		},
+func (s userUseCaseStub) Create(ctx context.Context, req param.UserCreateRequest) error {
+	s.t.Helper()
+	if s.create == nil {
+		s.t.Fatal("unexpected Create call")
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-			tt.setupMock(mockUseCase)
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 设置请求
-			_, c := tt.setupRequest()
-
-			// 执行测试
-			err := controller.ListUsers(c)
-
-			// 验证结果
-			if tt.expectedError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			// 验证响应
-			if tt.validateResponse != nil {
-				status := c.Response().Status
-				body := ""
-				// 注意：在Echo中，响应体需要通过其他方式获取
-				// 这里简化处理，实际项目中可能需要更复杂的响应体获取逻辑
-				tt.validateResponse(t, status, body)
-			}
-
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
-	}
+	return s.create(ctx, req)
 }
 
-func TestUserController_ListUsers_Validation(t *testing.T) {
-	tests := []struct {
-		name        string
-		requestBody string
-		expectError bool
-		errorMsg    string
-	}{
-
-		{
-			name:        "有效分页参数",
-			requestBody: `{"page":1,"size":10}`,
-			expectError: false,
-		},
-		{
-			name:        "无效页码",
-			requestBody: `{"page":0,"size":10}`,
-			expectError: true,
-			errorMsg:    "页码必须大于0",
-		},
-		{
-			name:        "页面大小超出限制",
-			requestBody: `{"page":1,"size":101}`,
-			expectError: true,
-			errorMsg:    "页面大小超出限制",
-		},
-
-		{
-			name:        "无效JSON格式",
-			requestBody: `invalid json`,
-			expectError: true,
-			errorMsg:    "无效JSON格式",
-		},
+func (s userUseCaseStub) GetByID(ctx context.Context, id int64) (param.UserData, error) {
+	s.t.Helper()
+	if s.getByID == nil {
+		s.t.Fatal("unexpected GetByID call")
 	}
+	return s.getByID(ctx, id)
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
+func (s userUseCaseStub) Update(ctx context.Context, id int64, req param.UserUpdateRequest) error {
+	s.t.Helper()
+	if s.update == nil {
+		s.t.Fatal("unexpected Update call")
+	}
+	return s.update(ctx, id, req)
+}
 
-			if !tt.expectError {
+func (s userUseCaseStub) Delete(ctx context.Context, id int64) error {
+	s.t.Helper()
+	if s.delete == nil {
+		s.t.Fatal("unexpected Delete call")
+	}
+	return s.delete(ctx, id)
+}
 
-				mockUseCase.On("ListUsers", mock.Anything, mock.Anything).Return([]param.UserListItem{}, int64(0), nil)
-
-			}
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 创建请求
-			e := echo.New()
-			req := httptest.NewRequest(http.MethodGet, "/user", bytes.NewBufferString(tt.requestBody))
-			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-			rec := httptest.NewRecorder()
-			c := e.NewContext(req, rec)
-
-			// 执行测试
-			err := controller.ListUsers(c)
-
-			// 验证结果
-			if tt.expectError {
-				assert.Error(t, err)
-				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg)
+func TestUserControllerListUsersBindsQueryAndReturnsListEnvelope(t *testing.T) {
+	controller := &UserController{
+		user: userUseCaseStub{
+			t: t,
+			listUsers: func(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error) {
+				if ctx == nil {
+					t.Fatal("context is nil")
 				}
-			} else {
-				assert.NoError(t, err)
-			}
-
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
-	}
-}
-
-func TestUserController_Create(t *testing.T) {
-	tests := []struct {
-		name             string
-		setupMock        func(*MockUserUseCase)
-		setupRequest     func() (*http.Request, echo.Context)
-		expectedStatus   int
-		expectedError    bool
-		validateResponse func(t *testing.T, status int, body string)
-	}{
-		{
-			name: "成功场景",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("Create", mock.Anything, mock.Anything).Return(nil)
-
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				reqBody := `{"username":"testuser","email":"test@example.com"}`
-				req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBufferString(reqBody))
-
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				return req, c
-			},
-			expectedStatus: http.StatusOK,
-			expectedError:  false,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusOK, status)
-				var response resp.DataResponse
-				err := json.Unmarshal([]byte(body), &response)
-				assert.NoError(t, err)
-				assert.Equal(t, 200, response.Code)
-				assert.Equal(t, "success", response.Msg)
-			},
-		},
-		{
-			name: "业务逻辑错误",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("Create", mock.Anything, mock.Anything).Return(nil, assert.AnError)
-
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				reqBody := `{"username":"testuser","email":"test@example.com"}`
-				req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBufferString(reqBody))
-
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				return req, c
-			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				// 错误响应验证
-			},
-		},
-
-		{
-			name: "无效请求体",
-			setupMock: func(m *MockUserUseCase) {
-				// 无效请求不会调用biz层
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-				req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBufferString("invalid json"))
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				return req, c
-			},
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusBadRequest, status)
-			},
-		},
-
-		{
-			name: "参数验证失败",
-			setupMock: func(m *MockUserUseCase) {
-				// 验证失败不会调用biz层
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				// 测试必填字段缺失
-				reqBody := `{}`
-
-				req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBufferString(reqBody))
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				return req, c
-			},
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusBadRequest, status)
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-			tt.setupMock(mockUseCase)
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 设置请求
-			_, c := tt.setupRequest()
-
-			// 执行测试
-			err := controller.Create(c)
-
-			// 验证结果
-			if tt.expectedError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			// 验证响应
-			if tt.validateResponse != nil {
-				status := c.Response().Status
-				body := ""
-				// 注意：在Echo中，响应体需要通过其他方式获取
-				// 这里简化处理，实际项目中可能需要更复杂的响应体获取逻辑
-				tt.validateResponse(t, status, body)
-			}
-
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
-	}
-}
-
-func TestUserController_Create_Validation(t *testing.T) {
-	tests := []struct {
-		name        string
-		requestBody string
-		expectError bool
-		errorMsg    string
-	}{
-
-		{
-			name:        "有效请求体",
-			requestBody: `{"username":"testuser","email":"test@example.com","age":25}`,
-			expectError: false,
-		},
-		{
-			name:        "缺少必填字段",
-			requestBody: `{"username":"testuser"}`,
-			expectError: true,
-			errorMsg:    "缺少必填字段",
-		},
-		{
-			name:        "无效邮箱格式",
-			requestBody: `{"username":"testuser","email":"invalid-email","age":25}`,
-			expectError: true,
-			errorMsg:    "无效邮箱格式",
-		},
-		{
-			name:        "用户名长度不足",
-			requestBody: `{"username":"ab","email":"test@example.com","age":25}`,
-			expectError: true,
-			errorMsg:    "用户名长度不足",
-		},
-		{
-			name:        "年龄超出范围",
-			requestBody: `{"username":"testuser","email":"test@example.com","age":200}`,
-			expectError: true,
-			errorMsg:    "年龄超出范围",
-		},
-
-		{
-			name:        "无效JSON格式",
-			requestBody: `invalid json`,
-			expectError: true,
-			errorMsg:    "无效JSON格式",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-
-			if !tt.expectError {
-
-				mockUseCase.On("Create", mock.Anything, mock.Anything).Return(nil)
-
-			}
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 创建请求
-			e := echo.New()
-			req := httptest.NewRequest(http.MethodPost, "/user", bytes.NewBufferString(tt.requestBody))
-			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-			rec := httptest.NewRecorder()
-			c := e.NewContext(req, rec)
-
-			// 执行测试
-			err := controller.Create(c)
-
-			// 验证结果
-			if tt.expectError {
-				assert.Error(t, err)
-				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg)
+				if req.Page != 2 || req.Count != 5 {
+					t.Fatalf("request = %+v, want page=2 count=5", req)
 				}
-			} else {
-				assert.NoError(t, err)
-			}
+				return []param.UserListItem{{Id: 7, Username: "lintao", Email: "lintao@example.com"}}, 1, nil
+			},
+		},
+	}
+	ctx, rec := newServiceTestContext(http.MethodGet, "/users?page=2&count=5", "")
 
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
+	if err := controller.ListUsers(ctx); err != nil {
+		t.Fatalf("ListUsers() error = %v", err)
+	}
+
+	body := decodeJSONBody(t, rec)
+	assertSuccessEnvelope(t, rec, body)
+	data := body["data"].(map[string]interface{})
+	if data["total"] != float64(1) {
+		t.Fatalf("total = %v, want 1", data["total"])
+	}
+	list := data["list"].([]interface{})
+	if len(list) != 1 {
+		t.Fatalf("list length = %d, want 1", len(list))
+	}
+	item := list[0].(map[string]interface{})
+	if item["id"] != float64(7) || item["username"] != "lintao" {
+		t.Fatalf("list item = %+v, want user id=7 username=lintao", item)
 	}
 }
 
-func TestUserController_GetByID(t *testing.T) {
-	tests := []struct {
-		name             string
-		setupMock        func(*MockUserUseCase)
-		setupRequest     func() (*http.Request, echo.Context)
-		expectedStatus   int
-		expectedError    bool
-		validateResponse func(t *testing.T, status int, body string)
-	}{
-		{
-			name: "成功场景",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("GetByID", mock.Anything, mock.Anything).Return(param.UserData{
-					Username:  "test",
-					Email:     "test@example.com",
-					Age:       18,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-					Id:        1,
-				}, nil)
-
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				req := httptest.NewRequest(http.MethodGet, "/user", nil)
-
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				c.SetPath("/user/:id")
-				c.SetParamNames("id")
-				c.SetParamValues("1")
-
-				return req, c
-			},
-			expectedStatus: http.StatusOK,
-			expectedError:  false,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusOK, status)
-				var response resp.DataResponse
-				err := json.Unmarshal([]byte(body), &response)
-				assert.NoError(t, err)
-				assert.Equal(t, 200, response.Code)
-				assert.Equal(t, "success", response.Msg)
-			},
-		},
-		{
-			name: "业务逻辑错误",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("GetByID", mock.Anything, mock.Anything).Return(nil, assert.AnError)
-
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				req := httptest.NewRequest(http.MethodGet, "/user", nil)
-
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				c.SetPath("/user/:id")
-				c.SetParamNames("id")
-				c.SetParamValues("1")
-
-				return req, c
-			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				// 错误响应验证
-			},
-		},
-
-		{
-			name: "无效路径参数",
-			setupMock: func(m *MockUserUseCase) {
-				// 无效参数不会调用biz层
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				req := httptest.NewRequest(http.MethodGet, "/user", nil)
-
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-				c.SetPath("/user/:id")
-				c.SetParamNames("id")
-				c.SetParamValues("invalid")
-				return req, c
-			},
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusBadRequest, status)
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-			tt.setupMock(mockUseCase)
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 设置请求
-			_, c := tt.setupRequest()
-
-			// 执行测试
-			err := controller.GetByID(c)
-
-			// 验证结果
-			if tt.expectedError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			// 验证响应
-			if tt.validateResponse != nil {
-				status := c.Response().Status
-				body := ""
-				// 注意：在Echo中，响应体需要通过其他方式获取
-				// 这里简化处理，实际项目中可能需要更复杂的响应体获取逻辑
-				tt.validateResponse(t, status, body)
-			}
-
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
-	}
-}
-
-func TestUserController_GetByID_PathParams(t *testing.T) {
-	tests := []struct {
-		name        string
-		pathParam   string
-		expectError bool
-		errorMsg    string
-	}{
-		{
-			name:        "有效ID",
-			pathParam:   "123",
-			expectError: false,
-		},
-		{
-			name:        "零ID",
-			pathParam:   "0",
-			expectError: true,
-			errorMsg:    "ID必须大于0",
-		},
-		{
-			name:        "负数ID",
-			pathParam:   "-1",
-			expectError: true,
-			errorMsg:    "ID必须大于0",
-		},
-		{
-			name:        "非数字ID",
-			pathParam:   "invalid",
-			expectError: true,
-			errorMsg:    "无效的ID格式",
-		},
-		{
-			name:        "空ID",
-			pathParam:   "",
-			expectError: true,
-			errorMsg:    "ID不能为空",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-			if !tt.expectError {
-
-				mockUseCase.On("GetByID", mock.Anything, mock.Anything).Return(param.UserData{
-					Username:  "test",
-					Email:     "test@example.com",
-					Age:       18,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-					Id:        1,
-				}, nil)
-
-			}
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 创建请求
-			e := echo.New()
-
-			req := httptest.NewRequest(http.MethodGet, "/user", nil)
-
-			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-			rec := httptest.NewRecorder()
-			c := e.NewContext(req, rec)
-			c.SetPath("/user/:id")
-			c.SetParamNames("id")
-			c.SetParamValues(tt.pathParam)
-
-			// 执行测试
-			err := controller.GetByID(c)
-
-			// 验证结果
-			if tt.expectError {
-				assert.Error(t, err)
-				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg)
+func TestUserControllerCreateBindsJSONAndReturnsOperateSuccess(t *testing.T) {
+	controller := &UserController{
+		user: userUseCaseStub{
+			t: t,
+			create: func(ctx context.Context, req param.UserCreateRequest) error {
+				if req.Username != "lintao" || req.Email != "lintao@example.com" || req.Age != 18 {
+					t.Fatalf("request = %+v, want create payload", req)
 				}
-			} else {
-				assert.NoError(t, err)
-			}
+				return nil
+			},
+		},
+	}
+	ctx, rec := newServiceTestContext(
+		http.MethodPost,
+		"/users",
+		`{"username":"lintao","email":"lintao@example.com","age":18}`,
+	)
 
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
+	if err := controller.Create(ctx); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	body := decodeJSONBody(t, rec)
+	assertSuccessEnvelope(t, rec, body)
+	data := body["data"].(map[string]interface{})
+	if len(data) != 0 {
+		t.Fatalf("data = %+v, want empty object", data)
 	}
 }
 
-// TestUserController_GetByID_BoundaryValues 测试获取用户详情边界值
-func TestUserController_GetByID_BoundaryValues(t *testing.T) {
+func TestUserControllerCreateRejectsInvalidJSONBeforeUseCase(t *testing.T) {
+	controller := &UserController{user: userUseCaseStub{t: t}}
+	ctx, _ := newServiceTestContext(http.MethodPost, "/users", `{"username":`)
 
-	t.Skip("此操作无需请求体测试")
-
+	err := controller.Create(ctx)
+	assertCoder(t, err, code.ErrBind)
 }
 
-// TestUserController_GetByID_HTTPStatusCodes 测试获取用户详情HTTP状态码
-func TestUserController_GetByID_HTTPStatusCodes(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupMock      func(*MockUserUseCase)
-		expectedStatus int
-		description    string
-	}{
-		{
-			name: "成功状态码200",
-			setupMock: func(m *MockUserUseCase) {
+func TestUserControllerCreateRejectsInvalidPayloadBeforeUseCase(t *testing.T) {
+	controller := &UserController{user: userUseCaseStub{t: t}}
+	ctx, _ := newServiceTestContext(http.MethodPost, "/users", `{"username":"li","email":"bad"}`)
 
-				m.On("GetByID", mock.Anything, mock.Anything).Return(param.UserData{
-					Username:  "test",
-					Email:     "test@example.com",
-					Age:       18,
-					CreatedAt: time.Now(),
-					UpdatedAt: time.Now(),
-					Id:        1,
-				}, nil)
-
-			},
-			expectedStatus: 200,
-			description:    "测试成功响应状态码",
-		},
-		{
-			name: "业务逻辑错误状态码500",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("GetByID", mock.Anything, mock.Anything).Return(nil, assert.AnError)
-
-			},
-			expectedStatus: 500,
-			description:    "测试业务逻辑错误状态码",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-			tt.setupMock(mockUseCase)
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 设置请求
-			e := echo.New()
-
-			req := httptest.NewRequest(http.MethodGet, "/user/1", nil)
-
-			rec := httptest.NewRecorder()
-			c := e.NewContext(req, rec)
-
-			// 执行测试
-
-			err := controller.GetByID(c)
-
-			// 验证结果
-			if tt.expectedStatus >= 400 {
-				assert.Error(t, err, tt.description)
-			} else {
-				assert.NoError(t, err, tt.description)
-			}
-
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
-	}
+	err := controller.Create(ctx)
+	assertCoder(t, err, code.ErrValidation)
 }
 
-// TestUserController_GetByID_ResponseFormat 测试获取用户详情响应格式
-func TestUserController_GetByID_ResponseFormat(t *testing.T) {
-
-	t.Run("响应格式验证", func(t *testing.T) {
-		// 创建mock
-		mockUseCase := new(MockUserUseCase)
-
-		mockUseCase.On("GetByID", mock.Anything, mock.Anything).Return(param.UserData{
-			Username:  "test",
-			Email:     "test@example.com",
-			Age:       18,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
-			Id:        1,
-		}, nil)
-
-		// 创建控制器
-		controller := &UserController{
-			user: mockUseCase,
-		}
-
-		// 设置请求
-		e := echo.New()
-
-		req := httptest.NewRequest(http.MethodGet, "/user/1", nil)
-
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		// 执行测试
-
-		err := controller.GetByID(c)
-
-		// 验证结果
-		assert.NoError(t, err)
-
-		// 验证响应格式
-		var response resp.DataResponse
-		err = json.Unmarshal(rec.Body.Bytes(), &response)
-		assert.NoError(t, err)
-		assert.Equal(t, 200, response.Code)
-		assert.Equal(t, "success", response.Msg)
-
-		// 验证mock调用
-		mockUseCase.AssertExpectations(t)
-	})
-
-}
-
-func TestUserController_Update(t *testing.T) {
-	tests := []struct {
-		name             string
-		setupMock        func(*MockUserUseCase)
-		setupRequest     func() (*http.Request, echo.Context)
-		expectedStatus   int
-		expectedError    bool
-		validateResponse func(t *testing.T, status int, body string)
-	}{
-		{
-			name: "成功场景",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("Update", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				reqBody := `{"username":"testuser","email":"test@example.com"}`
-				req := httptest.NewRequest(http.MethodPut, "/user", bytes.NewBufferString(reqBody))
-
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				c.SetPath("/user/:id")
-				c.SetParamNames("id")
-				c.SetParamValues("1")
-
-				return req, c
-			},
-			expectedStatus: http.StatusOK,
-			expectedError:  false,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusOK, status)
-				var response resp.DataResponse
-				err := json.Unmarshal([]byte(body), &response)
-				assert.NoError(t, err)
-				assert.Equal(t, 200, response.Code)
-				assert.Equal(t, "success", response.Msg)
-			},
-		},
-		{
-			name: "业务逻辑错误",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("Update", mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
-
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				reqBody := `{"username":"testuser","email":"test@example.com"}`
-				req := httptest.NewRequest(http.MethodPut, "/user", bytes.NewBufferString(reqBody))
-
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				c.SetPath("/user/:id")
-				c.SetParamNames("id")
-				c.SetParamValues("1")
-
-				return req, c
-			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				// 错误响应验证
-			},
-		},
-
-		{
-			name: "无效请求体",
-			setupMock: func(m *MockUserUseCase) {
-				// 无效请求不会调用biz层
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-				req := httptest.NewRequest(http.MethodPut, "/user", bytes.NewBufferString("invalid json"))
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				c.SetPath("/user/:id")
-				c.SetParamNames("id")
-				c.SetParamValues("1")
-
-				return req, c
-			},
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusBadRequest, status)
-			},
-		},
-
-		{
-			name: "无效路径参数",
-			setupMock: func(m *MockUserUseCase) {
-				// 无效参数不会调用biz层
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				reqBody := `{"username":"testuser","email":"test@example.com"}`
-				req := httptest.NewRequest(http.MethodPut, "/user", bytes.NewBufferString(reqBody))
-
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-				c.SetPath("/user/:id")
-				c.SetParamNames("id")
-				c.SetParamValues("invalid")
-				return req, c
-			},
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusBadRequest, status)
-			},
-		},
-
-		{
-			name: "参数验证失败",
-			setupMock: func(m *MockUserUseCase) {
-				// 验证失败不会调用biz层
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				// 测试必填字段缺失
-				reqBody := `{}`
-
-				req := httptest.NewRequest(http.MethodPut, "/user", bytes.NewBufferString(reqBody))
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				c.SetPath("/user/:id")
-				c.SetParamNames("id")
-				c.SetParamValues("1")
-
-				return req, c
-			},
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusBadRequest, status)
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-			tt.setupMock(mockUseCase)
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 设置请求
-			_, c := tt.setupRequest()
-
-			// 执行测试
-			err := controller.Update(c)
-
-			// 验证结果
-			if tt.expectedError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			// 验证响应
-			if tt.validateResponse != nil {
-				status := c.Response().Status
-				body := ""
-				// 注意：在Echo中，响应体需要通过其他方式获取
-				// 这里简化处理，实际项目中可能需要更复杂的响应体获取逻辑
-				tt.validateResponse(t, status, body)
-			}
-
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
-	}
-}
-
-func TestUserController_Update_Validation(t *testing.T) {
-	tests := []struct {
-		name        string
-		requestBody string
-		expectError bool
-		errorMsg    string
-	}{
-
-		{
-			name:        "有效请求体",
-			requestBody: `{"username":"testuser","email":"test@example.com","age":25}`,
-			expectError: false,
-		},
-		{
-			name:        "缺少必填字段",
-			requestBody: `{"username":"testuser"}`,
-			expectError: true,
-			errorMsg:    "缺少必填字段",
-		},
-		{
-			name:        "无效邮箱格式",
-			requestBody: `{"username":"testuser","email":"invalid-email","age":25}`,
-			expectError: true,
-			errorMsg:    "无效邮箱格式",
-		},
-		{
-			name:        "用户名长度不足",
-			requestBody: `{"username":"ab","email":"test@example.com","age":25}`,
-			expectError: true,
-			errorMsg:    "用户名长度不足",
-		},
-		{
-			name:        "年龄超出范围",
-			requestBody: `{"username":"testuser","email":"test@example.com","age":200}`,
-			expectError: true,
-			errorMsg:    "年龄超出范围",
-		},
-
-		{
-			name:        "无效JSON格式",
-			requestBody: `invalid json`,
-			expectError: true,
-			errorMsg:    "无效JSON格式",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 创建请求
-			e := echo.New()
-			req := httptest.NewRequest(http.MethodPut, "/user", bytes.NewBufferString(tt.requestBody))
-			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-			rec := httptest.NewRecorder()
-			c := e.NewContext(req, rec)
-
-			c.SetPath("/user/:id")
-			c.SetParamNames("id")
-			c.SetParamValues("1")
-
-			// 执行测试
-			err := controller.Update(c)
-
-			// 验证结果
-			if tt.expectError {
-				assert.Error(t, err)
-				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg)
+func TestUserControllerGetByIDParsesPathParamAndReturnsData(t *testing.T) {
+	controller := &UserController{
+		user: userUseCaseStub{
+			t: t,
+			getByID: func(ctx context.Context, id int64) (param.UserData, error) {
+				if id != 42 {
+					t.Fatalf("id = %d, want 42", id)
 				}
-			} else {
-				assert.NoError(t, err)
-			}
+				return param.UserData{Id: 42, Username: "lintao", Email: "lintao@example.com"}, nil
+			},
+		},
+	}
+	ctx, rec := newServiceTestContext(http.MethodGet, "/users/42", "")
+	setIDParam(ctx, "42")
 
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
+	if err := controller.GetByID(ctx); err != nil {
+		t.Fatalf("GetByID() error = %v", err)
+	}
+
+	body := decodeJSONBody(t, rec)
+	assertSuccessEnvelope(t, rec, body)
+	data := body["data"].(map[string]interface{})
+	if data["id"] != float64(42) || data["username"] != "lintao" {
+		t.Fatalf("data = %+v, want user id=42 username=lintao", data)
 	}
 }
 
-func TestUserController_Update_PathParams(t *testing.T) {
-	tests := []struct {
-		name        string
-		pathParam   string
-		expectError bool
-		errorMsg    string
-	}{
-		{
-			name:        "有效ID",
-			pathParam:   "123",
-			expectError: false,
-		},
-		{
-			name:        "零ID",
-			pathParam:   "0",
-			expectError: true,
-			errorMsg:    "ID必须大于0",
-		},
-		{
-			name:        "负数ID",
-			pathParam:   "-1",
-			expectError: true,
-			errorMsg:    "ID必须大于0",
-		},
-		{
-			name:        "非数字ID",
-			pathParam:   "invalid",
-			expectError: true,
-			errorMsg:    "无效的ID格式",
-		},
-		{
-			name:        "空ID",
-			pathParam:   "",
-			expectError: true,
-			errorMsg:    "ID不能为空",
-		},
-	}
+func TestUserControllerGetByIDRejectsInvalidPathParamBeforeUseCase(t *testing.T) {
+	controller := &UserController{user: userUseCaseStub{t: t}}
+	ctx, _ := newServiceTestContext(http.MethodGet, "/users/not-a-number", "")
+	setIDParam(ctx, "not-a-number")
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-			if !tt.expectError {
+	err := controller.GetByID(ctx)
+	assertCoder(t, err, code.ErrBadRequest)
+}
 
-				mockUseCase.On("Update", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-			}
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 创建请求
-			e := echo.New()
-
-			reqBody := `{"username":"testuser","email":"test@example.com"}`
-			req := httptest.NewRequest(http.MethodPut, "/user", bytes.NewBufferString(reqBody))
-
-			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-			rec := httptest.NewRecorder()
-			c := e.NewContext(req, rec)
-			c.SetPath("/user/:id")
-			c.SetParamNames("id")
-			c.SetParamValues(tt.pathParam)
-
-			// 执行测试
-			err := controller.Update(c)
-
-			// 验证结果
-			if tt.expectError {
-				assert.Error(t, err)
-				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg)
+func TestUserControllerUpdateParsesPathParamAndReturnsOperateSuccess(t *testing.T) {
+	controller := &UserController{
+		user: userUseCaseStub{
+			t: t,
+			update: func(ctx context.Context, id int64, req param.UserUpdateRequest) error {
+				if id != 42 {
+					t.Fatalf("id = %d, want 42", id)
 				}
-			} else {
-				assert.NoError(t, err)
-			}
-
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
-	}
-}
-
-// TestUserController_Update_BoundaryValues 测试更新用户边界值
-func TestUserController_Update_BoundaryValues(t *testing.T) {
-
-	tests := []struct {
-		name           string
-		requestBody    string
-		expectedStatus int
-		description    string
-	}{
-
-		{
-			name:           "最小用户名长度",
-			requestBody:    `{"username":"ab","email":"test@example.com","age":18}`,
-			expectedStatus: 400,
-			description:    "测试用户名最小长度验证",
-		},
-		{
-			name:           "最大用户名长度",
-			requestBody:    `{"username":"abcdefghijklmnopqrst","email":"test@example.com","age":18}`,
-			expectedStatus: 400,
-			description:    "测试用户名最大长度验证",
-		},
-		{
-			name:           "最小年龄",
-			requestBody:    `{"username":"test","email":"test@example.com","age":0}`,
-			expectedStatus: 200,
-			description:    "测试最小年龄值",
-		},
-		{
-			name:           "最大年龄",
-			requestBody:    `{"username":"test","email":"test@example.com","age":150}`,
-			expectedStatus: 200,
-			description:    "测试最大年龄值",
-		},
-		{
-			name:           "超出最大年龄",
-			requestBody:    `{"username":"test","email":"test@example.com","age":151}`,
-			expectedStatus: 400,
-			description:    "测试超出最大年龄限制",
-		},
-		{
-			name:           "无效邮箱格式",
-			requestBody:    `{"username":"test","email":"invalid-email","age":18}`,
-			expectedStatus: 400,
-			description:    "测试无效邮箱格式验证",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-
-			mockUseCase.On("Update", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 设置请求
-			e := echo.New()
-
-			req := httptest.NewRequest(http.MethodPut, "/user/1", bytes.NewBufferString(tt.requestBody))
-
-			rec := httptest.NewRecorder()
-			c := e.NewContext(req, rec)
-
-			// 执行测试
-
-			err := controller.Update(c)
-
-			// 验证结果
-			if tt.expectedStatus >= 400 {
-				assert.Error(t, err, tt.description)
-			} else {
-				assert.NoError(t, err, tt.description)
-			}
-
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
-	}
-
-}
-
-// TestUserController_Update_HTTPStatusCodes 测试更新用户HTTP状态码
-func TestUserController_Update_HTTPStatusCodes(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupMock      func(*MockUserUseCase)
-		expectedStatus int
-		description    string
-	}{
-		{
-			name: "成功状态码200",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("Update", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-			},
-			expectedStatus: 200,
-			description:    "测试成功响应状态码",
-		},
-		{
-			name: "业务逻辑错误状态码500",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("Update", mock.Anything, mock.Anything, mock.Anything).Return(nil, assert.AnError)
-
-			},
-			expectedStatus: 500,
-			description:    "测试业务逻辑错误状态码",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-			tt.setupMock(mockUseCase)
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 设置请求
-			e := echo.New()
-
-			req := httptest.NewRequest(http.MethodPut, "/user/1", bytes.NewBufferString(`{"username":"test","email":"test@example.com","age":18}`))
-
-			rec := httptest.NewRecorder()
-			c := e.NewContext(req, rec)
-
-			// 执行测试
-
-			err := controller.Update(c)
-
-			// 验证结果
-			if tt.expectedStatus >= 400 {
-				assert.Error(t, err, tt.description)
-			} else {
-				assert.NoError(t, err, tt.description)
-			}
-
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
-	}
-}
-
-// TestUserController_Update_ResponseFormat 测试更新用户响应格式
-func TestUserController_Update_ResponseFormat(t *testing.T) {
-
-	t.Run("响应格式验证", func(t *testing.T) {
-		// 创建mock
-		mockUseCase := new(MockUserUseCase)
-
-		mockUseCase.On("Update", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-
-		// 创建控制器
-		controller := &UserController{
-			user: mockUseCase,
-		}
-
-		// 设置请求
-		e := echo.New()
-
-		req := httptest.NewRequest(http.MethodPut, "/user/1", bytes.NewBufferString(`{"username":"test","email":"test@example.com","age":18}`))
-
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-		c := e.NewContext(req, rec)
-
-		// 执行测试
-
-		err := controller.Update(c)
-
-		// 验证结果
-		assert.NoError(t, err)
-
-		// 验证响应格式
-		var response resp.DataResponse
-		err = json.Unmarshal(rec.Body.Bytes(), &response)
-		assert.NoError(t, err)
-		assert.Equal(t, 200, response.Code)
-		assert.Equal(t, "success", response.Msg)
-
-		// 验证mock调用
-		mockUseCase.AssertExpectations(t)
-	})
-
-}
-
-func TestUserController_Delete(t *testing.T) {
-	tests := []struct {
-		name             string
-		setupMock        func(*MockUserUseCase)
-		setupRequest     func() (*http.Request, echo.Context)
-		expectedStatus   int
-		expectedError    bool
-		validateResponse func(t *testing.T, status int, body string)
-	}{
-		{
-			name: "成功场景",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("Delete", mock.Anything, mock.Anything).Return(nil)
-
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				req := httptest.NewRequest(http.MethodDelete, "/user", nil)
-
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				c.SetPath("/user/:id")
-				c.SetParamNames("id")
-				c.SetParamValues("1")
-
-				return req, c
-			},
-			expectedStatus: http.StatusOK,
-			expectedError:  false,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusOK, status)
-				var response resp.DataResponse
-				err := json.Unmarshal([]byte(body), &response)
-				assert.NoError(t, err)
-				assert.Equal(t, 200, response.Code)
-				assert.Equal(t, "success", response.Msg)
-			},
-		},
-		{
-			name: "业务逻辑错误",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("Delete", mock.Anything, mock.Anything).Return(assert.AnError)
-
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				req := httptest.NewRequest(http.MethodDelete, "/user", nil)
-
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-
-				c.SetPath("/user/:id")
-				c.SetParamNames("id")
-				c.SetParamValues("1")
-
-				return req, c
-			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				// 错误响应验证
-			},
-		},
-
-		{
-			name: "无效路径参数",
-			setupMock: func(m *MockUserUseCase) {
-				// 无效参数不会调用biz层
-			},
-			setupRequest: func() (*http.Request, echo.Context) {
-				e := echo.New()
-
-				req := httptest.NewRequest(http.MethodDelete, "/user", nil)
-
-				req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-				rec := httptest.NewRecorder()
-				c := e.NewContext(req, rec)
-				c.SetPath("/user/:id")
-				c.SetParamNames("id")
-				c.SetParamValues("invalid")
-				return req, c
-			},
-			expectedStatus: http.StatusBadRequest,
-			expectedError:  true,
-			validateResponse: func(t *testing.T, status int, body string) {
-				assert.Equal(t, http.StatusBadRequest, status)
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-			tt.setupMock(mockUseCase)
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 设置请求
-			_, c := tt.setupRequest()
-
-			// 执行测试
-			err := controller.Delete(c)
-
-			// 验证结果
-			if tt.expectedError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			// 验证响应
-			if tt.validateResponse != nil {
-				status := c.Response().Status
-				body := ""
-				// 注意：在Echo中，响应体需要通过其他方式获取
-				// 这里简化处理，实际项目中可能需要更复杂的响应体获取逻辑
-				tt.validateResponse(t, status, body)
-			}
-
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
-	}
-}
-
-func TestUserController_Delete_PathParams(t *testing.T) {
-	tests := []struct {
-		name        string
-		pathParam   string
-		expectError bool
-		errorMsg    string
-	}{
-		{
-			name:        "有效ID",
-			pathParam:   "123",
-			expectError: false,
-		},
-		{
-			name:        "零ID",
-			pathParam:   "0",
-			expectError: true,
-			errorMsg:    "ID必须大于0",
-		},
-		{
-			name:        "负数ID",
-			pathParam:   "-1",
-			expectError: true,
-			errorMsg:    "ID必须大于0",
-		},
-		{
-			name:        "非数字ID",
-			pathParam:   "invalid",
-			expectError: true,
-			errorMsg:    "无效的ID格式",
-		},
-		{
-			name:        "空ID",
-			pathParam:   "",
-			expectError: true,
-			errorMsg:    "ID不能为空",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-			if !tt.expectError {
-
-				mockUseCase.On("Delete", mock.Anything, mock.Anything).Return(nil)
-
-			}
-
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
-
-			// 创建请求
-			e := echo.New()
-
-			req := httptest.NewRequest(http.MethodDelete, "/user", nil)
-
-			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-			rec := httptest.NewRecorder()
-			c := e.NewContext(req, rec)
-			c.SetPath("/user/:id")
-			c.SetParamNames("id")
-			c.SetParamValues(tt.pathParam)
-
-			// 执行测试
-			err := controller.Delete(c)
-
-			// 验证结果
-			if tt.expectError {
-				assert.Error(t, err)
-				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg)
+				if req.Email != "new@example.com" {
+					t.Fatalf("request = %+v, want updated email", req)
 				}
-			} else {
-				assert.NoError(t, err)
-			}
-
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
-	}
-}
-
-// TestUserController_Delete_BoundaryValues 测试删除用户边界值
-func TestUserController_Delete_BoundaryValues(t *testing.T) {
-
-	t.Skip("此操作无需请求体测试")
-
-}
-
-// TestUserController_Delete_HTTPStatusCodes 测试删除用户HTTP状态码
-func TestUserController_Delete_HTTPStatusCodes(t *testing.T) {
-	tests := []struct {
-		name           string
-		setupMock      func(*MockUserUseCase)
-		expectedStatus int
-		description    string
-	}{
-		{
-			name: "成功状态码200",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("Delete", mock.Anything, mock.Anything).Return(nil)
-
+				return nil
 			},
-			expectedStatus: 200,
-			description:    "测试成功响应状态码",
-		},
-		{
-			name: "业务逻辑错误状态码500",
-			setupMock: func(m *MockUserUseCase) {
-
-				m.On("Delete", mock.Anything, mock.Anything).Return(assert.AnError)
-
-			},
-			expectedStatus: 500,
-			description:    "测试业务逻辑错误状态码",
 		},
 	}
+	ctx, rec := newServiceTestContext(http.MethodPut, "/users/42", `{"email":"new@example.com"}`)
+	setIDParam(ctx, "42")
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// 创建mock
-			mockUseCase := new(MockUserUseCase)
-			tt.setupMock(mockUseCase)
+	if err := controller.Update(ctx); err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
 
-			// 创建控制器
-			controller := &UserController{
-				user: mockUseCase,
-			}
+	body := decodeJSONBody(t, rec)
+	assertSuccessEnvelope(t, rec, body)
+}
 
-			// 设置请求
-			e := echo.New()
+func TestUserControllerDeleteParsesPathParamAndReturnsOperateSuccess(t *testing.T) {
+	controller := &UserController{
+		user: userUseCaseStub{
+			t: t,
+			delete: func(ctx context.Context, id int64) error {
+				if id != 42 {
+					t.Fatalf("id = %d, want 42", id)
+				}
+				return nil
+			},
+		},
+	}
+	ctx, rec := newServiceTestContext(http.MethodDelete, "/users/42", "")
+	setIDParam(ctx, "42")
 
-			req := httptest.NewRequest(http.MethodDelete, "/user/1", nil)
+	if err := controller.Delete(ctx); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
 
-			rec := httptest.NewRecorder()
-			c := e.NewContext(req, rec)
+	body := decodeJSONBody(t, rec)
+	assertSuccessEnvelope(t, rec, body)
+}
 
-			// 执行测试
+func TestUserControllerRegisterRouterUsesEchoPathParams(t *testing.T) {
+	controller := &UserController{
+		user: userUseCaseStub{
+			t: t,
+			delete: func(ctx context.Context, id int64) error {
+				if id != 42 {
+					t.Fatalf("id = %d, want 42", id)
+				}
+				return nil
+			},
+		},
+	}
+	e := newServiceTestEcho()
+	controller.RegisterRouter(e.Group("/api"))
 
-			err := controller.Delete(c)
+	req := httptest.NewRequest(http.MethodDelete, "/api/users/42", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
 
-			// 验证结果
-			if tt.expectedStatus >= 400 {
-				assert.Error(t, err, tt.description)
-			} else {
-				assert.NoError(t, err, tt.description)
-			}
+	body := decodeJSONBody(t, rec)
+	assertSuccessEnvelope(t, rec, body)
+}
 
-			// 验证mock调用
-			mockUseCase.AssertExpectations(t)
-		})
+func TestUserControllerReturnsUseCaseError(t *testing.T) {
+	wantErr := errors.New("usecase failed")
+	controller := &UserController{
+		user: userUseCaseStub{
+			t: t,
+			create: func(ctx context.Context, req param.UserCreateRequest) error {
+				return wantErr
+			},
+		},
+	}
+	ctx, _ := newServiceTestContext(
+		http.MethodPost,
+		"/users",
+		`{"username":"lintao","email":"lintao@example.com","age":18}`,
+	)
+
+	err := controller.Create(ctx)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("Create() error = %v, want %v", err, wantErr)
 	}
 }
 
-// TestUserController_Delete_ResponseFormat 测试删除用户响应格式
-func TestUserController_Delete_ResponseFormat(t *testing.T) {
+func newServiceTestContext(method, target, body string) (echo.Context, *httptest.ResponseRecorder) {
+	e := newServiceTestEcho()
+	var reader *strings.Reader
+	if body == "" {
+		reader = strings.NewReader("")
+	} else {
+		reader = strings.NewReader(body)
+	}
+	req := httptest.NewRequest(method, target, reader)
+	if body != "" {
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	}
+	rec := httptest.NewRecorder()
+	return e.NewContext(req, rec), rec
+}
 
-	t.Skip("此操作无需响应格式测试")
+func newServiceTestEcho() *echo.Echo {
+	e := echo.New()
+	e.Validator = &middlewares.Validator{Validator: validator.New()}
+	return e
+}
 
+func setIDParam(ctx echo.Context, id string) {
+	ctx.SetParamNames("id")
+	ctx.SetParamValues(id)
+}
+
+func decodeJSONBody(t *testing.T, rec *httptest.ResponseRecorder) map[string]interface{} {
+	t.Helper()
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("response body is not valid JSON: %v", err)
+	}
+	return body
+}
+
+func assertSuccessEnvelope(t *testing.T, rec *httptest.ResponseRecorder, body map[string]interface{}) {
+	t.Helper()
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if body["code"] != float64(0) {
+		t.Fatalf("code = %v, want 0", body["code"])
+	}
+	if body["msg"] != "success" {
+		t.Fatalf("msg = %v, want success", body["msg"])
+	}
+	if _, ok := body["data"]; !ok {
+		t.Fatal("response missing data field")
+	}
+}
+
+func assertCoder(t *testing.T, err error, wantCode int) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("error = nil, want code %d", wantCode)
+	}
+	coder := merrors.ParseCoder(err)
+	if coder == nil {
+		t.Fatalf("error = %v has no coder, want code %d", err, wantCode)
+	}
+	if coder.Code() != wantCode {
+		t.Fatalf("code = %d, want %d", coder.Code(), wantCode)
+	}
 }

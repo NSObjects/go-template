@@ -13,7 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-func MongoClient(cfg configs.Mongodb) *mongo.Database {
+func MongoClient(cfg configs.Mongodb) (*mongo.Database, error) {
 
 	uri := "mongodb://"
 	if cfg.Password != "" && cfg.User != "" {
@@ -23,7 +23,7 @@ func MongoClient(cfg configs.Mongodb) *mongo.Database {
 
 	client, err := mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return client.Database(cfg.DataBase)
+	return client.Database(cfg.DataBase), nil
 }

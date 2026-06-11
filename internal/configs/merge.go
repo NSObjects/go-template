@@ -1,6 +1,7 @@
 package configs
 
-// Merge 将 src 非零值覆盖到 dst（浅合并，适合配置）
+// Merge 将 src 非零值覆盖到 dst（浅合并，适合配置）。
+// bool 字段遵循现有“true 才覆盖”语义，不能表达显式关闭。
 func Merge(dst, src Config) Config {
 	// System
 	if src.System.Port != "" {
@@ -63,6 +64,9 @@ func Merge(dst, src Config) Config {
 		dst.Log.Loki.Timeout = src.Log.Loki.Timeout
 	}
 	// Mysql
+	if src.Mysql.Enabled {
+		dst.Mysql.Enabled = true
+	}
 	if src.Mysql.Host != "" {
 		dst.Mysql.Host = src.Mysql.Host
 	}
@@ -88,6 +92,9 @@ func Merge(dst, src Config) Config {
 		dst.Mysql.MaxIdleConns = src.Mysql.MaxIdleConns
 	}
 	// Redis
+	if src.Redis.Enabled {
+		dst.Redis.Enabled = true
+	}
 	if src.Redis.Host != "" {
 		dst.Redis.Host = src.Redis.Host
 	}
@@ -101,6 +108,9 @@ func Merge(dst, src Config) Config {
 		dst.Redis.Database = src.Redis.Database
 	}
 	// Mongo
+	if src.Mongodb.Enabled {
+		dst.Mongodb.Enabled = true
+	}
 	if src.Mongodb.Host != "" {
 		dst.Mongodb.Host = src.Mongodb.Host
 	}
@@ -117,6 +127,9 @@ func Merge(dst, src Config) Config {
 		dst.Mongodb.DataBase = src.Mongodb.DataBase
 	}
 	// Kafka
+	if src.Kafka.Enabled {
+		dst.Kafka.Enabled = true
+	}
 	if len(src.Kafka.Brokers) > 0 {
 		dst.Kafka.Brokers = src.Kafka.Brokers
 	}

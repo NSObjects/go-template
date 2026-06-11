@@ -10,7 +10,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,7 +24,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/marmotedu/errors"
-	"go.uber.org/fx"
 )
 
 // EchoServer Echo HTTP服务器
@@ -42,29 +40,19 @@ func (s *EchoServer) Server() *echo.Echo {
 	return s.server
 }
 
-// Params 依赖注入参数
-type Params struct {
-	fx.In
-
-	Routes   []service.RegisterRouter `group:"routes"`
-	Enforcer *casbin.Enforcer
-	Cfg      configs.Config
-	Store    *configs.Store
-}
-
 // NewEchoServer 创建Echo服务器实例
-func NewEchoServer(p Params) *EchoServer {
+func NewEchoServer(routes []service.RegisterRouter, enforcer *casbin.Enforcer, cfg configs.Config, store *configs.Store) *EchoServer {
 	s := &EchoServer{
 		server:  echo.New(),
-		config:  FromAppConfig(p.Cfg),
-		routers: p.Routes,
-		cfg:     p.Cfg,
-		store:   p.Store,
+		config:  FromAppConfig(cfg),
+		routers: routes,
+		cfg:     cfg,
+		store:   store,
 	}
 
 	// 配置服务器
 	s.setupServer()
-	s.loadMiddleware(p.Enforcer)
+	s.loadMiddleware(enforcer)
 	s.registerRouter()
 
 	return s
@@ -111,12 +99,9 @@ func (s *EchoServer) createMiddlewareConfig() *middlewares.MiddlewareConfig {
 		false, // 禁用JWT
 	)
 
-	// 调试日志
-	fmt.Printf("DEBUG: JWT Config - Enabled: %v, SkipPaths: %v\n", jwtConfig.Enabled, jwtConfig.SkipPaths)
-
 	// 创建Casbin配置
 	casbinConfig := middlewares.CreateCasbinConfig(
-		false, // 默认禁用Casbin
+		false, // 默认禁用Casbin，后续作为独立模板能力处理
 		[]string{
 			"/api/health",
 			"/api/info",

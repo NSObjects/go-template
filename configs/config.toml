@@ -6,6 +6,8 @@ level = 1
 env = "dev"
 
 [mysql]
+# 数据库只是模板能力，默认不连接；需要时显式改为 true。
+enabled = false
 # 容器运行时host修改为 数据库服务名称 mysql
 # links:
 #      - mysql
@@ -21,10 +23,18 @@ conn_max_lifetime = "1h"
 conn_max_idle_time = "30m"
 
 [mongodb]
+enabled = false
 host = ""
 port = "27017"
 user = ""
 password = ""
+
+[redis]
+enabled = false
+host = "127.0.0.1"
+port = "6379"
+password = ""
+database = 0
 
 [log]
 # 日志级别: debug, info, warn, error
@@ -72,7 +82,7 @@ model = ""
 model_file = ""
 
 [kafka]
+enabled = false
 brokers = []
 client_id = "echo-admin"
 topic = "demo"
-

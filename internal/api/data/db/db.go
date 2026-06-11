@@ -9,13 +9,15 @@ package db
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/IBM/sarama"
 	"github.com/NSObjects/go-template/internal/api/data/query"
 	"github.com/NSObjects/go-template/internal/configs"
 	"github.com/redis/go-redis/v9"
+	"github.com/samber/do/v2"
 	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.uber.org/fx"
+	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 	"gorm.io/gorm"
 )
 
@@ -34,32 +36,44 @@ type DataManager struct {
 	Config *configs.Config
 }
 
-// NewDataManager 创建统一的数据管理器，直接初始化所有组件
-func NewDataManager(lc fx.Lifecycle, cfg configs.Config) *DataManager {
+// NewDataManager 创建统一的数据管理器，仅初始化配置显式启用的组件
+func NewDataManager(cfg configs.Config) (*DataManager, error) {
 	dm := &DataManager{
 		Config: &cfg,
 	}
 
+	if err := validateEnabledComponents(cfg); err != nil {
+		return nil, err
+	}
+
 	// 初始化MySQL
-	if cfg.Mysql.Host != "" {
-		dm.Mysql = NewMysql(cfg.Mysql)
+	if cfg.Mysql.Enabled {
+		mysqlDB, err := NewMysql(cfg.Mysql)
+		if err != nil {
+			return nil, fmt.Errorf("initialize mysql: %w", err)
+		}
+		dm.Mysql = mysqlDB
 	}
 
 	// 初始化MongoDB
-	if cfg.Mongodb.Host != "" {
-		dm.Mongodb = MongoClient(cfg.Mongodb)
+	if cfg.Mongodb.Enabled {
+		mongoDB, err := MongoClient(cfg.Mongodb)
+		if err != nil {
+			return nil, fmt.Errorf("initialize mongodb: %w", err)
+		}
+		dm.Mongodb = mongoDB
 	}
 
 	// 初始化Redis
-	if cfg.Redis.Host != "" {
+	if cfg.Redis.Enabled {
 		dm.Redis = NewRedis(cfg.Redis)
 	}
 
 	// 初始化Kafka
-	if len(cfg.Kafka.Brokers) > 0 {
+	if cfg.Kafka.Enabled {
 		producer, err := NewKafkaProducer(cfg.Kafka)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("initialize kafka: %w", err)
 		}
 		dm.Kafka = producer
 	}
@@ -69,21 +83,37 @@ func NewDataManager(lc fx.Lifecycle, cfg configs.Config) *DataManager {
 		dm.Query = query.Use(dm.Mysql)
 	}
 
-	// 注册生命周期钩子
-	lc.Append(fx.Hook{
-		OnStart: func(ctx context.Context) error {
-			return dm.start(ctx)
-		},
-		OnStop: func(ctx context.Context) error {
-			return dm.Stop(ctx)
-		},
-	})
-
-	return dm
+	return dm, nil
 }
 
-// start 启动所有组件
-func (dm *DataManager) start(ctx context.Context) error {
+func validateEnabledComponents(cfg configs.Config) error {
+	if cfg.Mysql.Enabled {
+		if isBlank(cfg.Mysql.Host) || isBlank(cfg.Mysql.Port) || isBlank(cfg.Mysql.User) || isBlank(cfg.Mysql.Database) {
+			return fmt.Errorf("mysql enabled but host, port, user, or database is empty")
+		}
+	}
+	if cfg.Redis.Enabled {
+		if isBlank(cfg.Redis.Host) || isBlank(cfg.Redis.Port) {
+			return fmt.Errorf("redis enabled but host or port is empty")
+		}
+	}
+	if cfg.Mongodb.Enabled {
+		if isBlank(cfg.Mongodb.Host) || isBlank(cfg.Mongodb.Port) || isBlank(cfg.Mongodb.DataBase) {
+			return fmt.Errorf("mongodb enabled but host, port, or database is empty")
+		}
+	}
+	if cfg.Kafka.Enabled && len(cfg.Kafka.Brokers) == 0 {
+		return fmt.Errorf("kafka enabled but brokers is empty")
+	}
+	return nil
+}
+
+func isBlank(value string) bool {
+	return strings.TrimSpace(value) == ""
+}
+
+// Start 启动并验证所有已启用组件。
+func (dm *DataManager) Start(ctx context.Context) error {
 	// 检查MySQL连接
 	if dm.Mysql != nil {
 		if sqlDB, err := dm.Mysql.DB(); err == nil {
@@ -106,11 +136,18 @@ func (dm *DataManager) start(ctx context.Context) error {
 		// 忽略错误以避免启动硬失败，也可改为严格校验
 	}
 
+	// 检查MongoDB连接
+	if dm.Mongodb != nil {
+		if err := dm.Mongodb.Client().Ping(ctx, readpref.Primary()); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
-// Stop 停止所有组件
-func (dm *DataManager) Stop(ctx context.Context) error {
+// Shutdown 停止所有组件。
+func (dm *DataManager) Shutdown(ctx context.Context) error {
 	// 关闭MySQL连接
 	if dm.Mysql != nil {
 		if sqlDB, err := dm.Mysql.DB(); err == nil {
@@ -128,7 +165,10 @@ func (dm *DataManager) Stop(ctx context.Context) error {
 		_ = dm.Kafka.Close()
 	}
 
-	// MongoDB连接由客户端管理
+	if dm.Mongodb != nil {
+		_ = dm.Mongodb.Client().Disconnect(ctx)
+	}
+
 	return nil
 }
 
@@ -157,7 +197,7 @@ func (dm *DataManager) Health(ctx context.Context) map[string]error {
 
 	// MongoDB状态
 	if dm.Mongodb != nil {
-		health["mongodb"] = nil // MongoDB状态检查比较复杂，这里简化处理
+		health["mongodb"] = dm.Mongodb.Client().Ping(ctx, readpref.Primary())
 	}
 
 	return health
@@ -230,8 +270,27 @@ func NewQuery(dm *DataManager) *query.Query {
 	return dm.Query
 }
 
-var Model = fx.Options(
-	fx.Provide(NewDataManager),
-	fx.Provide(NewDB),
-	fx.Provide(NewQuery),
-)
+// Register 注册数据库相关依赖。
+func Register(i do.Injector) {
+	do.Provide(i, func(i do.Injector) (*DataManager, error) {
+		cfg, err := do.Invoke[configs.Config](i)
+		if err != nil {
+			return nil, err
+		}
+		return NewDataManager(cfg)
+	})
+	do.Provide(i, func(i do.Injector) (*gorm.DB, error) {
+		dm, err := do.Invoke[*DataManager](i)
+		if err != nil {
+			return nil, err
+		}
+		return NewDB(dm), nil
+	})
+	do.Provide(i, func(i do.Injector) (*query.Query, error) {
+		dm, err := do.Invoke[*DataManager](i)
+		if err != nil {
+			return nil, err
+		}
+		return NewQuery(dm), nil
+	})
+}

@@ -3,20 +3,22 @@ package service
 import (
 	"net/http/httptest"
 
+	"github.com/NSObjects/go-template/internal/api/biz"
 	"github.com/NSObjects/go-template/internal/code"
 	"github.com/labstack/echo/v4"
 	"github.com/marmotedu/errors"
-	"go.uber.org/fx"
+	"github.com/samber/do/v2"
 )
 
-var Model = fx.Options(fx.Provide(AsRoute(NewUserController)))
-
-func AsRoute(f any) any {
-	return fx.Annotate(
-		f,
-		fx.As(new(RegisterRouter)),
-		fx.ResultTags(`group:"routes"`),
-	)
+// Register 注册服务层依赖。
+func Register(i do.Injector) {
+	do.Provide[[]RegisterRouter](i, func(i do.Injector) ([]RegisterRouter, error) {
+		user, err := do.Invoke[biz.UserUseCase](i)
+		if err != nil {
+			return nil, err
+		}
+		return []RegisterRouter{NewUserController(user)}, nil
+	})
 }
 
 func BindAndValidate(ctx echo.Context, obj any) error {

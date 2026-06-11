@@ -7,8 +7,6 @@
 package db
 
 import (
-	"context"
-
 	"github.com/NSObjects/go-template/internal/configs"
 	redis "github.com/redis/go-redis/v9"
 )
@@ -19,9 +17,5 @@ func NewRedis(cfg configs.RedisConfig) *redis.Client {
 		Password: cfg.Password, // no password set
 		DB:       cfg.Database, // use default DB
 	})
-	err := rdb.Ping(context.Background()).Err()
-	if err != nil {
-		panic(err)
-	}
 	return rdb
 }

@@ -26,15 +26,7 @@ func (m *MockRegisterRouter) RegisterRouter(s *echo.Group, middlewareFunc ...ech
 }
 
 func TestEchoServer_Server(t *testing.T) {
-	// 创建模拟参数
-	params := Params{
-		Routes:   []service.RegisterRouter{},
-		Enforcer: nil,
-		Cfg:      configs.Config{},
-		Store:    &configs.Store{},
-	}
-
-	server := NewEchoServer(params)
+	server := NewEchoServer([]service.RegisterRouter{}, nil, configs.Config{}, &configs.Store{})
 
 	assert.NotNil(t, server)
 	assert.NotNil(t, server.Server())
@@ -175,14 +167,7 @@ func TestEchoServer_NewEchoServer(t *testing.T) {
 	// 注意：这里需要根据实际的Store实现来设置配置
 	// store.Set(cfg)
 
-	params := Params{
-		Routes:   []service.RegisterRouter{},
-		Enforcer: nil,
-		Cfg:      cfg,
-		Store:    store,
-	}
-
-	server := NewEchoServer(params)
+	server := NewEchoServer([]service.RegisterRouter{}, nil, cfg, store)
 
 	assert.NotNil(t, server)
 	assert.NotNil(t, server.server)

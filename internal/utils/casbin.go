@@ -4,7 +4,6 @@ import (
 	"github.com/NSObjects/go-template/internal/configs"
 	"github.com/casbin/casbin/v3"
 	gormadapter "github.com/casbin/gorm-adapter/v3"
-	"go.uber.org/fx"
 	"gorm.io/gorm"
 )
 
@@ -30,8 +29,3 @@ func NewCasbinEnforcer(db *gorm.DB, cfg configs.Config) (*casbin.Enforcer, error
 
 	return enforcer, nil
 }
-
-// CasbinModule Casbin模块
-var CasbinModule = fx.Module("casbin",
-	fx.Provide(NewCasbinEnforcer),
-)

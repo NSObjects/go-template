@@ -47,11 +47,11 @@ type UserCreateRequest struct {
 // Age 年龄
 
 type UserUpdateRequest struct {
-	Username string `param:"username" query:"username" form:"username" json:"username" xml:"username" validate:"min=3,max=20"`
+	Username string `param:"username" query:"username" form:"username" json:"username" xml:"username" validate:"omitempty,min=3,max=20"`
 
-	Email string `param:"email" query:"email" form:"email" json:"email" xml:"email" validate:"email"`
+	Email string `param:"email" query:"email" form:"email" json:"email" xml:"email" validate:"omitempty,email"`
 
-	Age int `param:"age" query:"age" form:"age" json:"age" xml:"age" validate:"min=0,max=150"`
+	Age int `param:"age" query:"age" form:"age" json:"age" xml:"age" validate:"omitempty,min=0,max=150"`
 }
 
 // UserListItem
