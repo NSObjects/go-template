@@ -5,14 +5,14 @@ import "testing"
 func TestDecodeConfigPreservesCapabilityProviderKeys(t *testing.T) {
 	cfg, err := decodeConfig([]byte(`
 [capabilities.providers]
-"user.storage" = "mysql"
+"database.gorm" = "mysql"
 `), "toml")
 	if err != nil {
 		t.Fatalf("decodeConfig() error = %v", err)
 	}
 
-	if got := cfg.Capabilities.Providers["user.storage"]; got != "mysql" {
-		t.Fatalf(`Capabilities.Providers["user.storage"] = %q, want mysql`, got)
+	if got := cfg.Capabilities.Providers["database.gorm"]; got != "mysql" {
+		t.Fatalf(`Capabilities.Providers["database.gorm"] = %q, want mysql`, got)
 	}
 }
 
@@ -33,12 +33,12 @@ port = ":9322"
 }
 
 func TestDecodeConfigWithEnvAppliesCapabilityProviderOverride(t *testing.T) {
-	t.Setenv("ECHOADMIN_CAPABILITIES_PROVIDERS_USER_STORAGE", "mysql")
+	t.Setenv("ECHOADMIN_CAPABILITIES_PROVIDERS_DATABASE_GORM", "mysql")
 	t.Setenv("ECHOADMIN_MYSQL_ENABLED", "true")
 
 	cfg, err := decodeConfigWithEnv([]byte(`
 [capabilities.providers]
-"user.storage" = "memory"
+"database.gorm" = "memory"
 [mysql]
 enabled = false
 `), "toml", true)
@@ -46,8 +46,8 @@ enabled = false
 		t.Fatalf("decodeConfigWithEnv() error = %v", err)
 	}
 
-	if got := cfg.Capabilities.Providers["user.storage"]; got != "mysql" {
-		t.Fatalf(`Capabilities.Providers["user.storage"] = %q, want mysql env override`, got)
+	if got := cfg.Capabilities.Providers["database.gorm"]; got != "mysql" {
+		t.Fatalf(`Capabilities.Providers["database.gorm"] = %q, want mysql env override`, got)
 	}
 	if !cfg.Mysql.Enabled {
 		t.Fatal("Mysql.Enabled = false, want env override true")

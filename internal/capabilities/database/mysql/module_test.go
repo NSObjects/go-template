@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/NSObjects/go-template/internal/configs"
-	user "github.com/NSObjects/go-template/internal/modules/user"
 	"github.com/NSObjects/go-template/internal/platform/module"
+	"gorm.io/gorm"
 )
 
-func TestModuleReportsUserStorageProviderStatus(t *testing.T) {
+func TestModuleReportsDatabaseProviderStatus(t *testing.T) {
 	tests := []struct {
 		name string
 		cfg  configs.MysqlConfig
@@ -28,13 +28,7 @@ func TestModuleReportsUserStorageProviderStatus(t *testing.T) {
 		},
 		{
 			name: "enabled valid config can satisfy selected mysql provider",
-			cfg: configs.MysqlConfig{
-				Enabled:  true,
-				Host:     "127.0.0.1",
-				Port:     "3306",
-				User:     "root",
-				Database: "app",
-			},
+			cfg:  validMysqlConfig(),
 			want: module.CapabilityEnabled,
 		},
 	}
@@ -54,8 +48,8 @@ func TestModuleReportsUserStorageProviderStatus(t *testing.T) {
 				t.Fatalf("len(descriptor.Provides) = %d, want 1", len(descriptor.Provides))
 			}
 			capability := descriptor.Provides[0]
-			if capability.Name != user.StorageCapability {
-				t.Fatalf("capability.Name = %q, want %q", capability.Name, user.StorageCapability)
+			if capability.Name != Capability {
+				t.Fatalf("capability.Name = %q, want %q", capability.Name, Capability)
 			}
 			if capability.Provider != ProviderName {
 				t.Fatalf("capability.Provider = %q, want %q", capability.Provider, ProviderName)
@@ -66,8 +60,8 @@ func TestModuleReportsUserStorageProviderStatus(t *testing.T) {
 			if capability.Default {
 				t.Fatal("capability.Default = true, want false")
 			}
-			if _, ok := capability.Value.(user.Repository); !ok {
-				t.Fatalf("capability.Value = %T, want user.Repository", capability.Value)
+			if _, ok := capability.Value.(DBProvider); !ok {
+				t.Fatalf("capability.Value = %T, want DBProvider", capability.Value)
 			}
 		})
 	}
@@ -82,32 +76,28 @@ func TestModuleDefaultCanBeEnabled(t *testing.T) {
 	}
 }
 
-func TestModuleExposesUserRepository(t *testing.T) {
-	var _ user.Repository = New(configs.MysqlConfig{}).Repository()
-}
-
-func TestModuleExposesStableUserRepository(t *testing.T) {
+func TestModuleExposesStableDBProvider(t *testing.T) {
 	mod := New(configs.MysqlConfig{})
-	repository := mod.Repository()
+	provider := mod.Provider()
 
-	if mod.Repository() != repository {
-		t.Fatal("Repository() returned a different instance, want stable repository owned by module")
+	if mod.Provider() != provider {
+		t.Fatal("Provider() returned a different instance, want stable provider owned by module")
 	}
-	if mod.Descriptor().Provides[0].Value != repository {
-		t.Fatal("Descriptor() capability value is not the module-owned repository")
+	if mod.Descriptor().Provides[0].Value != provider {
+		t.Fatal("Descriptor() capability value is not the module-owned provider")
 	}
 }
 
-func TestModuleStartInitializesRepositoryRuntimeOnce(t *testing.T) {
+func TestModuleStartInitializesDatabaseRuntimeOnce(t *testing.T) {
 	mod := New(validMysqlConfig())
-	repository := &fakeUserRepository{}
+	db := &gorm.DB{}
 	var factoryCalls int
-	mod.repository.runtimeFactory = func(_ context.Context, cfg configs.MysqlConfig) (*storageRuntime, error) {
+	mod.provider.runtimeFactory = func(_ context.Context, cfg configs.MysqlConfig) (*runtime, error) {
 		factoryCalls++
 		if cfg != validMysqlConfig() {
 			t.Fatalf("runtime factory cfg = %+v, want valid mysql config", cfg)
 		}
-		return &storageRuntime{repository: repository}, nil
+		return &runtime{db: db}, nil
 	}
 
 	if err := mod.Start(context.Background()); err != nil {
@@ -116,24 +106,24 @@ func TestModuleStartInitializesRepositoryRuntimeOnce(t *testing.T) {
 	if err := mod.Start(context.Background()); err != nil {
 		t.Fatalf("second Start() error = %v", err)
 	}
-	if _, _, err := mod.Repository().ListUsers(context.Background(), user.ListUsersRequest{}); err != nil {
-		t.Fatalf("Repository().ListUsers() error = %v", err)
+	gotDB, err := mod.Provider().DB(context.Background())
+	if err != nil {
+		t.Fatalf("Provider().DB() error = %v", err)
 	}
-
+	if gotDB != db {
+		t.Fatal("Provider().DB() returned a different database")
+	}
 	if factoryCalls != 1 {
 		t.Fatalf("runtime factory calls = %d, want 1", factoryCalls)
 	}
-	if repository.listUsersCalls != 1 {
-		t.Fatalf("fake repository ListUsers calls = %d, want 1", repository.listUsersCalls)
-	}
 }
 
-func TestModuleStopReleasesRepositoryRuntime(t *testing.T) {
+func TestModuleStopReleasesDatabaseRuntime(t *testing.T) {
 	mod := New(validMysqlConfig())
 	var shutdownCalls int
-	mod.repository.runtimeFactory = func(context.Context, configs.MysqlConfig) (*storageRuntime, error) {
-		return &storageRuntime{
-			repository: &fakeUserRepository{},
+	mod.provider.runtimeFactory = func(context.Context, configs.MysqlConfig) (*runtime, error) {
+		return &runtime{
+			db: &gorm.DB{},
 			shutdown: func(context.Context) error {
 				shutdownCalls++
 				return nil
@@ -150,7 +140,6 @@ func TestModuleStopReleasesRepositoryRuntime(t *testing.T) {
 	if err := mod.Stop(context.Background()); err != nil {
 		t.Fatalf("second Stop() error = %v", err)
 	}
-
 	if shutdownCalls != 1 {
 		t.Fatalf("shutdown calls = %d, want 1", shutdownCalls)
 	}
@@ -160,12 +149,12 @@ func TestModuleStartCanRetryAfterRuntimeFailure(t *testing.T) {
 	mod := New(validMysqlConfig())
 	startErr := errors.New("mysql unavailable")
 	var factoryCalls int
-	mod.repository.runtimeFactory = func(context.Context, configs.MysqlConfig) (*storageRuntime, error) {
+	mod.provider.runtimeFactory = func(context.Context, configs.MysqlConfig) (*runtime, error) {
 		factoryCalls++
 		if factoryCalls == 1 {
 			return nil, startErr
 		}
-		return &storageRuntime{repository: &fakeUserRepository{}}, nil
+		return &runtime{db: &gorm.DB{}}, nil
 	}
 
 	if err := mod.Start(context.Background()); !errors.Is(err, startErr) {
@@ -174,7 +163,6 @@ func TestModuleStartCanRetryAfterRuntimeFailure(t *testing.T) {
 	if err := mod.Start(context.Background()); err != nil {
 		t.Fatalf("second Start() error = %v, want retry success", err)
 	}
-
 	if factoryCalls != 2 {
 		t.Fatalf("runtime factory calls = %d, want 2", factoryCalls)
 	}
@@ -208,29 +196,4 @@ func validMysqlConfig() configs.MysqlConfig {
 		User:     "root",
 		Database: "app",
 	}
-}
-
-type fakeUserRepository struct {
-	listUsersCalls int
-}
-
-func (r *fakeUserRepository) ListUsers(context.Context, user.ListUsersRequest) ([]user.ListItem, int64, error) {
-	r.listUsersCalls++
-	return nil, 0, nil
-}
-
-func (r *fakeUserRepository) Create(context.Context, user.CreateRequest) error {
-	return nil
-}
-
-func (r *fakeUserRepository) GetByID(context.Context, int64) (user.Data, error) {
-	return user.Data{}, nil
-}
-
-func (r *fakeUserRepository) Update(context.Context, int64, user.UpdateRequest) error {
-	return nil
-}
-
-func (r *fakeUserRepository) Delete(context.Context, int64) error {
-	return nil
 }

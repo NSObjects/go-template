@@ -5,8 +5,7 @@ import (
 )
 
 const (
-	ModuleName        = "user"
-	StorageCapability = "user.storage"
+	ModuleName = "user"
 )
 
 // Module declares the user business module for application assembly.
@@ -22,11 +21,8 @@ func New(useCase UseCase) Module {
 // Descriptor returns the user module's assembly-time requirements and entry points.
 func (m Module) Descriptor() module.Descriptor {
 	return module.Descriptor{
-		Name: ModuleName,
-		Kind: module.BusinessModule,
-		Requires: []module.CapabilityRef{
-			{Name: StorageCapability},
-		},
+		Name:        ModuleName,
+		Kind:        module.BusinessModule,
 		EntryPoints: HTTPEntryPoints(ModuleName, m.useCase),
 	}
 }

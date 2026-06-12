@@ -3,13 +3,14 @@ package app
 import (
 	"testing"
 
+	databasemysql "github.com/NSObjects/go-template/internal/capabilities/database/mysql"
 	"github.com/NSObjects/go-template/internal/configs"
 	user "github.com/NSObjects/go-template/internal/modules/user"
 	"github.com/NSObjects/go-template/internal/platform/app"
 	"github.com/NSObjects/go-template/internal/platform/module"
 )
 
-func TestModulesIncludesUserWithDefaultStorageProvider(t *testing.T) {
+func TestModulesIncludesUserWithDefaultMemoryRepository(t *testing.T) {
 	result, err := Modules(configs.Config{})
 	if err != nil {
 		t.Fatalf("Modules() error = %v", err)
@@ -22,12 +23,8 @@ func TestModulesIncludesUserWithDefaultStorageProvider(t *testing.T) {
 	if !report.HasActiveModule(user.ModuleName) {
 		t.Fatal("user module is not active")
 	}
-	requirement, ok := report.Requirement(user.ModuleName, user.StorageCapability)
-	if !ok {
-		t.Fatalf("report.Requirement(%q, %q) ok = false, want true", user.ModuleName, user.StorageCapability)
-	}
-	if !requirement.Satisfied || requirement.Provider != "memory" {
-		t.Fatalf("requirement = %+v, want satisfied by memory provider", requirement)
+	if report.HasActiveModule(databasemysql.ModuleName) {
+		t.Fatal("database module is active for default memory repository")
 	}
 	assembled, err := app.Assemble(app.Options{
 		Config:               configs.Config{},
@@ -60,7 +57,7 @@ func TestModulesDoNotIncludeUnusedGenericDatabaseCapabilities(t *testing.T) {
 	}
 }
 
-func TestModulesSelectsUserStorageProviderFromCapabilityConfig(t *testing.T) {
+func TestModulesSelectsUserGormRepositoryWithDatabaseCapability(t *testing.T) {
 	cfg := configs.Config{
 		Mysql: configs.MysqlConfig{
 			Enabled:  true,
@@ -71,7 +68,7 @@ func TestModulesSelectsUserStorageProviderFromCapabilityConfig(t *testing.T) {
 		},
 		Capabilities: configs.CapabilitiesConfig{
 			Providers: map[string]string{
-				user.StorageCapability: "mysql",
+				databasemysql.Capability: "mysql",
 			},
 		},
 	}
@@ -85,23 +82,17 @@ func TestModulesSelectsUserStorageProviderFromCapabilityConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("assembleAppReport() error = %v", err)
 	}
-	requirement, ok := report.Requirement(user.ModuleName, user.StorageCapability)
+	requirement, ok := report.Requirement("app-database", databasemysql.Capability)
 	if !ok {
-		t.Fatalf("report.Requirement(%q, %q) ok = false, want true", user.ModuleName, user.StorageCapability)
+		t.Fatalf("report.Requirement(%q, %q) ok = false, want true", "app-database", databasemysql.Capability)
 	}
 	if !requirement.Satisfied || requirement.Provider != "mysql" {
-		t.Fatalf("requirement = %+v, want satisfied by mysql provider", requirement)
+		t.Fatalf("requirement = %+v, want satisfied by mysql database provider", requirement)
 	}
 }
 
 func TestModulesResultCarriesResolvedCapabilitySelection(t *testing.T) {
-	cfg := configs.Config{
-		Capabilities: configs.CapabilitiesConfig{
-			Providers: map[string]string{
-				user.StorageCapability: "memory",
-			},
-		},
-	}
+	cfg := configs.Config{}
 
 	result, err := Modules(cfg)
 	if err != nil {
@@ -112,7 +103,7 @@ func TestModulesResultCarriesResolvedCapabilitySelection(t *testing.T) {
 		Config: configs.Config{
 			Capabilities: configs.CapabilitiesConfig{
 				Providers: map[string]string{
-					user.StorageCapability: "mysql",
+					databasemysql.Capability: "mysql",
 				},
 			},
 		},
@@ -123,12 +114,36 @@ func TestModulesResultCarriesResolvedCapabilitySelection(t *testing.T) {
 		t.Fatalf("app.Assemble() error = %v", err)
 	}
 
-	requirement, ok := assembled.Report().Requirement(user.ModuleName, user.StorageCapability)
-	if !ok {
-		t.Fatalf("Report().Requirement(%q, %q) ok = false, want true", user.ModuleName, user.StorageCapability)
+	if assembled.Report().HasActiveModule(databasemysql.ModuleName) {
+		t.Fatal("database module became active despite composition root selecting memory repository")
 	}
-	if requirement.Provider != "memory" {
-		t.Fatalf("requirement.Provider = %q, want composition root selection memory", requirement.Provider)
+}
+
+func TestModulesResultCarriesSelectedDatabaseProvider(t *testing.T) {
+	cfg := configs.Config{
+		Mysql: configs.MysqlConfig{
+			Enabled:  true,
+			Host:     "127.0.0.1",
+			Port:     "3306",
+			User:     "root",
+			Database: "app",
+		},
+		Capabilities: configs.CapabilitiesConfig{
+			Providers: map[string]string{
+				databasemysql.Capability: "mysql",
+			},
+		},
+	}
+
+	result, err := Modules(cfg)
+	if err != nil {
+		t.Fatalf("Modules() error = %v", err)
+	}
+	if len(result.CapabilitySelections) != 1 {
+		t.Fatalf("len(CapabilitySelections) = %d, want 1", len(result.CapabilitySelections))
+	}
+	if result.CapabilitySelections[0] != (module.CapabilitySelection{Capability: databasemysql.Capability, Provider: "mysql"}) {
+		t.Fatalf("CapabilitySelections[0] = %+v, want database.gorm/mysql", result.CapabilitySelections[0])
 	}
 }
 

@@ -1,4 +1,4 @@
-package mysql
+package gorm
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestRepositoryReturnsDatabaseErrorWhenQueryIsMissing(t *testing.T) {
-	repo := newRepository(nil)
+	repo := New(nil)
 	ctx := context.Background()
 
 	tests := []struct {

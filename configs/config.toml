@@ -83,5 +83,4 @@ client_id = "echo-admin"
 topic = "demo"
 
 [capabilities.providers]
-# memory 为默认值；切到 mysql 时同时启用并配置 [mysql]。
-"user.storage" = "memory"
+# 默认不启用数据库能力；业务适配器需要 GORM 时配置 database.gorm = "mysql"，并同时启用和配置 [mysql]。

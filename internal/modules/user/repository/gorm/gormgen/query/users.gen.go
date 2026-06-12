@@ -19,7 +19,7 @@ import (
 
 	"gorm.io/plugin/dbresolver"
 
-	"github.com/NSObjects/go-template/internal/capabilities/userstorage/mysql/gormgen/model"
+	"github.com/NSObjects/go-template/internal/modules/user/repository/gorm/gormgen/model"
 
 	"time"
 )

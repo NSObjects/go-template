@@ -8,7 +8,7 @@ import (
 	"github.com/NSObjects/go-template/internal/platform/module"
 )
 
-func TestDescriptorDeclaresUserStorageAndHTTPRoutes(t *testing.T) {
+func TestDescriptorDeclaresHTTPRoutes(t *testing.T) {
 	descriptor := New(fakeUserUseCase{}).Descriptor()
 
 	if descriptor.Name != ModuleName {
@@ -17,14 +17,8 @@ func TestDescriptorDeclaresUserStorageAndHTTPRoutes(t *testing.T) {
 	if descriptor.Kind != module.BusinessModule {
 		t.Fatalf("descriptor.Kind = %q, want business", descriptor.Kind)
 	}
-	if len(descriptor.Requires) != 1 {
-		t.Fatalf("len(descriptor.Requires) = %d, want 1", len(descriptor.Requires))
-	}
-	if descriptor.Requires[0].Name != StorageCapability {
-		t.Fatalf("descriptor.Requires[0].Name = %q, want %q", descriptor.Requires[0].Name, StorageCapability)
-	}
-	if descriptor.Requires[0].Name == "mysql" || descriptor.Requires[0].Name == "mongodb" {
-		t.Fatalf("user module requires concrete storage provider %q", descriptor.Requires[0].Name)
+	if len(descriptor.Requires) != 0 {
+		t.Fatalf("len(descriptor.Requires) = %d, want 0 because repository is injected by app composition", len(descriptor.Requires))
 	}
 
 	wantRoutes := map[string]struct {

@@ -1,33 +1,39 @@
-package mysql
+package gorm
 
 import (
 	"context"
 	"errors"
 	"time"
 
+	databasemysql "github.com/NSObjects/go-template/internal/capabilities/database/mysql"
 	"github.com/NSObjects/go-template/internal/code"
 	user "github.com/NSObjects/go-template/internal/modules/user"
-	"github.com/NSObjects/go-template/internal/capabilities/userstorage/mysql/gormgen/model"
-	"github.com/NSObjects/go-template/internal/capabilities/userstorage/mysql/gormgen/query"
+	"github.com/NSObjects/go-template/internal/modules/user/repository/gorm/gormgen/model"
+	"github.com/NSObjects/go-template/internal/modules/user/repository/gorm/gormgen/query"
 )
 
 type gormRepository struct {
-	q *query.Query
+	db databasemysql.DBProvider
 }
 
-func newRepository(q *query.Query) user.Repository {
-	return gormRepository{q: q}
+// New creates a user repository backed by the selected GORM database provider.
+func New(db databasemysql.DBProvider) user.Repository {
+	return gormRepository{db: db}
 }
 
-func (r gormRepository) query() (*query.Query, error) {
-	if r.q == nil {
-		return nil, errors.New("mysql is disabled")
+func (r gormRepository) query(ctx context.Context) (*query.Query, error) {
+	if r.db == nil {
+		return nil, errors.New("database provider is nil")
 	}
-	return r.q, nil
+	db, err := r.db.DB(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return query.Use(db), nil
 }
 
 func (r gormRepository) ListUsers(ctx context.Context, req user.ListUsersRequest) ([]user.ListItem, int64, error) {
-	q, err := r.query()
+	q, err := r.query(ctx)
 	if err != nil {
 		return nil, 0, code.WrapDatabaseError(err, "查询User列表失败")
 	}
@@ -56,7 +62,7 @@ func (r gormRepository) ListUsers(ctx context.Context, req user.ListUsersRequest
 }
 
 func (r gormRepository) Create(ctx context.Context, req user.CreateRequest) error {
-	q, err := r.query()
+	q, err := r.query(ctx)
 	if err != nil {
 		return code.WrapDatabaseError(err, "创建User失败")
 	}
@@ -76,7 +82,7 @@ func (r gormRepository) Create(ctx context.Context, req user.CreateRequest) erro
 }
 
 func (r gormRepository) GetByID(ctx context.Context, id int64) (user.Data, error) {
-	q, err := r.query()
+	q, err := r.query(ctx)
 	if err != nil {
 		return user.Data{}, code.WrapDatabaseError(err, "查询User详情失败")
 	}
@@ -96,7 +102,7 @@ func (r gormRepository) GetByID(ctx context.Context, id int64) (user.Data, error
 }
 
 func (r gormRepository) Update(ctx context.Context, id int64, req user.UpdateRequest) error {
-	q, err := r.query()
+	q, err := r.query(ctx)
 	if err != nil {
 		return code.WrapDatabaseError(err, "更新User失败")
 	}
@@ -113,7 +119,7 @@ func (r gormRepository) Update(ctx context.Context, id int64, req user.UpdateReq
 }
 
 func (r gormRepository) Delete(ctx context.Context, id int64) error {
-	q, err := r.query()
+	q, err := r.query(ctx)
 	if err != nil {
 		return code.WrapDatabaseError(err, "删除User失败")
 	}

@@ -18,7 +18,7 @@ func TestAppStartupFailsWhenAssemblyFails(t *testing.T) {
 				Name: "orders",
 				Kind: module.BusinessModule,
 				Requires: []module.CapabilityRef{
-					{Name: "mysql"},
+					{Name: "s3"},
 				},
 				EntryPoints: []module.EntryPoint{
 					{Owner: "orders", Type: module.EntryPointHTTP, Name: "list orders", Value: noopRoute("orders")},
@@ -34,8 +34,8 @@ func TestAppStartupFailsWhenAssemblyFails(t *testing.T) {
 	if !errors.As(err, &missing) {
 		t.Fatalf("Assemble() error = %T, want MissingCapabilityError", err)
 	}
-	if missing.Module != "orders" || missing.Capability != "mysql" {
-		t.Fatalf("MissingCapabilityError = %+v, want orders/mysql", missing)
+	if missing.Module != "orders" || missing.Capability != "s3" {
+		t.Fatalf("MissingCapabilityError = %+v, want orders/s3", missing)
 	}
 }
 
@@ -84,17 +84,17 @@ func TestManualBusinessModuleAssemblesWithoutGenerator(t *testing.T) {
 				Name: "orders",
 				Kind: module.BusinessModule,
 				Requires: []module.CapabilityRef{
-					{Name: "mysql"},
+					{Name: "s3"},
 				},
 				EntryPoints: []module.EntryPoint{
 					{Owner: "orders", Type: module.EntryPointHTTP, Name: "list orders", Value: noopRoute("orders")},
 				},
 			}},
 			staticModule{descriptor: module.Descriptor{
-				Name: "mysql",
+				Name: "s3",
 				Kind: module.CapabilityModule,
 				Provides: []module.Capability{
-					{Name: "mysql", Status: module.CapabilityEnabled},
+					{Name: "s3", Status: module.CapabilityEnabled},
 				},
 			}},
 		},
@@ -115,44 +115,44 @@ func TestAppAssemblyAppliesCapabilitySelections(t *testing.T) {
 	app, err := Assemble(Options{
 		Modules: []module.Module{
 			staticModule{descriptor: module.Descriptor{
-				Name: "user",
+				Name: "documents",
 				Kind: module.BusinessModule,
 				Requires: []module.CapabilityRef{
-					{Name: "user.storage"},
+					{Name: "document.store"},
 				},
 				EntryPoints: []module.EntryPoint{
-					{Owner: "user", Type: module.EntryPointHTTP, Name: "list users", Value: noopRoute("user")},
+					{Owner: "documents", Type: module.EntryPointHTTP, Name: "list documents", Value: noopRoute("documents")},
 				},
 			}},
 			staticModule{descriptor: module.Descriptor{
-				Name: "user-storage-memory",
+				Name: "document-store-memory",
 				Kind: module.CapabilityModule,
 				Provides: []module.Capability{
-					{Name: "user.storage", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
+					{Name: "document.store", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
 				},
 			}},
 			staticModule{descriptor: module.Descriptor{
-				Name: "user-storage-mysql",
+				Name: "document-store-s3",
 				Kind: module.CapabilityModule,
 				Provides: []module.Capability{
-					{Name: "user.storage", Provider: "mysql", Status: module.CapabilityEnabled},
+					{Name: "document.store", Provider: "s3", Status: module.CapabilityEnabled},
 				},
 			}},
 		},
 		CapabilitySelections: []module.CapabilitySelection{
-			{Capability: "user.storage", Provider: "mysql"},
+			{Capability: "document.store", Provider: "s3"},
 		},
 	})
 	if err != nil {
 		t.Fatalf("Assemble() error = %v", err)
 	}
 
-	requirement, ok := app.Report().Requirement("user", "user.storage")
+	requirement, ok := app.Report().Requirement("documents", "document.store")
 	if !ok {
-		t.Fatal(`Report().Requirement("user", "user.storage") ok = false, want true`)
+		t.Fatal(`Report().Requirement("documents", "document.store") ok = false, want true`)
 	}
-	if !requirement.Satisfied || requirement.Provider != "mysql" {
-		t.Fatalf("requirement = %+v, want satisfied by provider mysql", requirement)
+	if !requirement.Satisfied || requirement.Provider != "s3" {
+		t.Fatalf("requirement = %+v, want satisfied by provider s3", requirement)
 	}
 }
 
@@ -161,30 +161,30 @@ func TestAppAssemblyAppliesConfiguredCapabilitySelections(t *testing.T) {
 		Config: configs.Config{
 			Capabilities: configs.CapabilitiesConfig{
 				Providers: map[string]string{
-					"user.storage": "mysql",
+					"document.store": "s3",
 				},
 			},
 		},
-		Modules: userStorageModulesForTest(),
+		Modules: documentStoreModulesForTest(),
 	})
 	if err != nil {
 		t.Fatalf("Assemble() error = %v", err)
 	}
 
-	requirement, ok := app.Report().Requirement("user", "user.storage")
+	requirement, ok := app.Report().Requirement("documents", "document.store")
 	if !ok {
-		t.Fatal(`Report().Requirement("user", "user.storage") ok = false, want true`)
+		t.Fatal(`Report().Requirement("documents", "document.store") ok = false, want true`)
 	}
-	if !requirement.Satisfied || requirement.Provider != "mysql" {
-		t.Fatalf("requirement = %+v, want satisfied by configured provider mysql", requirement)
+	if !requirement.Satisfied || requirement.Provider != "s3" {
+		t.Fatalf("requirement = %+v, want satisfied by configured provider s3", requirement)
 	}
 }
 
 func TestAppAssemblyRejectsUnavailableCapabilitySelection(t *testing.T) {
 	_, err := Assemble(Options{
-		Modules: userStorageMemoryOnlyModulesForTest(),
+		Modules: documentStoreMemoryOnlyModulesForTest(),
 		CapabilitySelections: []module.CapabilitySelection{
-			{Capability: "user.storage", Provider: "unknown"},
+			{Capability: "document.store", Provider: "unknown"},
 		},
 	})
 	if err == nil {
@@ -195,8 +195,8 @@ func TestAppAssemblyRejectsUnavailableCapabilitySelection(t *testing.T) {
 	if !errors.As(err, &unavailable) {
 		t.Fatalf("Assemble() error = %T, want UnavailableCapabilityProviderError", err)
 	}
-	if unavailable.Module != "user" || unavailable.Capability != "user.storage" || unavailable.Provider != "unknown" {
-		t.Fatalf("UnavailableCapabilityProviderError = %+v, want user/user.storage/unknown", unavailable)
+	if unavailable.Module != "documents" || unavailable.Capability != "document.store" || unavailable.Provider != "unknown" {
+		t.Fatalf("UnavailableCapabilityProviderError = %+v, want documents/document.store/unknown", unavailable)
 	}
 }
 
@@ -204,26 +204,26 @@ func TestAppAssemblyReportsProviderSelectionBeforeCapabilityLifecycle(t *testing
 	_, err := Assemble(Options{
 		Modules: []module.Module{
 			staticModule{descriptor: module.Descriptor{
-				Name: "user",
+				Name: "documents",
 				Kind: module.BusinessModule,
 				Requires: []module.CapabilityRef{
-					{Name: "user.storage"},
+					{Name: "document.store"},
 				},
 			}},
 			lifecycleModule{
 				staticModule: staticModule{descriptor: module.Descriptor{
-					Name: "user-storage-mysql",
+					Name: "document-store-s3",
 					Kind: module.CapabilityModule,
 					Provides: []module.Capability{
-						{Name: "user.storage", Provider: "mysql", Status: module.CapabilityUnavailable},
+						{Name: "document.store", Provider: "s3", Status: module.CapabilityUnavailable},
 					},
 				}},
-				validateErr: errors.New("mysql config invalid"),
-				startErr:    errors.New("mysql connection refused"),
+				validateErr: errors.New("s3 config invalid"),
+				startErr:    errors.New("s3 connection refused"),
 			},
 		},
 		CapabilitySelections: []module.CapabilitySelection{
-			{Capability: "user.storage", Provider: "mysql"},
+			{Capability: "document.store", Provider: "s3"},
 		},
 	})
 	if err == nil {
@@ -234,8 +234,8 @@ func TestAppAssemblyReportsProviderSelectionBeforeCapabilityLifecycle(t *testing
 	if !errors.As(err, &unavailable) {
 		t.Fatalf("Assemble() error = %T, want UnavailableCapabilityProviderError", err)
 	}
-	if unavailable.Module != "user" || unavailable.Capability != "user.storage" || unavailable.Provider != "mysql" {
-		t.Fatalf("UnavailableCapabilityProviderError = %+v, want user/user.storage/mysql", unavailable)
+	if unavailable.Module != "documents" || unavailable.Capability != "document.store" || unavailable.Provider != "s3" {
+		t.Fatalf("UnavailableCapabilityProviderError = %+v, want documents/document.store/s3", unavailable)
 	}
 }
 
@@ -243,32 +243,32 @@ func TestAppAssemblySkipsLifecycleForUnselectedCapabilityProvider(t *testing.T) 
 	_, err := Assemble(Options{
 		Modules: []module.Module{
 			staticModule{descriptor: module.Descriptor{
-				Name: "user",
+				Name: "documents",
 				Kind: module.BusinessModule,
 				Requires: []module.CapabilityRef{
-					{Name: "user.storage"},
+					{Name: "document.store"},
 				},
 				EntryPoints: []module.EntryPoint{
-					{Owner: "user", Type: module.EntryPointHTTP, Name: "list users", Value: noopRoute("user")},
+					{Owner: "documents", Type: module.EntryPointHTTP, Name: "list documents", Value: noopRoute("documents")},
 				},
 			}},
 			staticModule{descriptor: module.Descriptor{
-				Name: "user-storage-memory",
+				Name: "document-store-memory",
 				Kind: module.CapabilityModule,
 				Provides: []module.Capability{
-					{Name: "user.storage", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
+					{Name: "document.store", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
 				},
 			}},
 			lifecycleModule{
 				staticModule: staticModule{descriptor: module.Descriptor{
-					Name: "user-storage-mysql",
+					Name: "document-store-s3",
 					Kind: module.CapabilityModule,
 					Provides: []module.Capability{
-						{Name: "user.storage", Provider: "mysql", Status: module.CapabilityEnabled},
+						{Name: "document.store", Provider: "s3", Status: module.CapabilityEnabled},
 					},
 				}},
-				validateErr: errors.New("unselected mysql validate should not run"),
-				startErr:    errors.New("unselected mysql start should not run"),
+				validateErr: errors.New("unselected s3 validate should not run"),
+				startErr:    errors.New("unselected s3 start should not run"),
 			},
 		},
 	})
@@ -278,39 +278,39 @@ func TestAppAssemblySkipsLifecycleForUnselectedCapabilityProvider(t *testing.T) 
 }
 
 func TestAppAssemblyRunsLifecycleForSelectedCapabilityProvider(t *testing.T) {
-	validateErr := errors.New("selected mysql validate failed")
+	validateErr := errors.New("selected s3 validate failed")
 	_, err := Assemble(Options{
 		Modules: []module.Module{
 			staticModule{descriptor: module.Descriptor{
-				Name: "user",
+				Name: "documents",
 				Kind: module.BusinessModule,
 				Requires: []module.CapabilityRef{
-					{Name: "user.storage"},
+					{Name: "document.store"},
 				},
 				EntryPoints: []module.EntryPoint{
-					{Owner: "user", Type: module.EntryPointHTTP, Name: "list users", Value: noopRoute("user")},
+					{Owner: "documents", Type: module.EntryPointHTTP, Name: "list documents", Value: noopRoute("documents")},
 				},
 			}},
 			staticModule{descriptor: module.Descriptor{
-				Name: "user-storage-memory",
+				Name: "document-store-memory",
 				Kind: module.CapabilityModule,
 				Provides: []module.Capability{
-					{Name: "user.storage", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
+					{Name: "document.store", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
 				},
 			}},
 			lifecycleModule{
 				staticModule: staticModule{descriptor: module.Descriptor{
-					Name: "user-storage-mysql",
+					Name: "document-store-s3",
 					Kind: module.CapabilityModule,
 					Provides: []module.Capability{
-						{Name: "user.storage", Provider: "mysql", Status: module.CapabilityEnabled},
+						{Name: "document.store", Provider: "s3", Status: module.CapabilityEnabled},
 					},
 				}},
 				validateErr: validateErr,
 			},
 		},
 		CapabilitySelections: []module.CapabilitySelection{
-			{Capability: "user.storage", Provider: "mysql"},
+			{Capability: "document.store", Provider: "s3"},
 		},
 	})
 	if !errors.Is(err, validateErr) {
@@ -327,7 +327,7 @@ func TestAppAssemblyRunsSharedCapabilityProviderLifecycleOnce(t *testing.T) {
 				Name: "orders",
 				Kind: module.BusinessModule,
 				Requires: []module.CapabilityRef{
-					{Name: "mysql"},
+					{Name: "s3"},
 				},
 				EntryPoints: []module.EntryPoint{
 					{Owner: "orders", Type: module.EntryPointHTTP, Name: "list orders", Value: noopRoute("orders")},
@@ -337,18 +337,18 @@ func TestAppAssemblyRunsSharedCapabilityProviderLifecycleOnce(t *testing.T) {
 				Name: "users",
 				Kind: module.BusinessModule,
 				Requires: []module.CapabilityRef{
-					{Name: "mysql"},
+					{Name: "s3"},
 				},
 				EntryPoints: []module.EntryPoint{
-					{Owner: "users", Type: module.EntryPointHTTP, Name: "list users", Value: noopRoute("users")},
+					{Owner: "users", Type: module.EntryPointHTTP, Name: "list documents", Value: noopRoute("users")},
 				},
 			}},
 			lifecycleModule{
 				staticModule: staticModule{descriptor: module.Descriptor{
-					Name: "mysql",
+					Name: "s3",
 					Kind: module.CapabilityModule,
 					Provides: []module.Capability{
-						{Name: "mysql", Status: module.CapabilityEnabled},
+						{Name: "s3", Status: module.CapabilityEnabled},
 					},
 				}},
 				validateCalls: &validateCalls,
@@ -375,7 +375,7 @@ func TestAppStopReleasesStartedCapabilityProvidersInReverseOrder(t *testing.T) {
 				Name: "orders",
 				Kind: module.BusinessModule,
 				Requires: []module.CapabilityRef{
-					{Name: "mysql"},
+					{Name: "s3"},
 					{Name: "redis"},
 				},
 				EntryPoints: []module.EntryPoint{
@@ -384,13 +384,13 @@ func TestAppStopReleasesStartedCapabilityProvidersInReverseOrder(t *testing.T) {
 			}},
 			lifecycleModule{
 				staticModule: staticModule{descriptor: module.Descriptor{
-					Name: "mysql",
+					Name: "s3",
 					Kind: module.CapabilityModule,
 					Provides: []module.Capability{
-						{Name: "mysql", Status: module.CapabilityEnabled},
+						{Name: "s3", Status: module.CapabilityEnabled},
 					},
 				}},
-				stopName:  "mysql",
+				stopName:  "s3",
 				stopOrder: &stops,
 			},
 			lifecycleModule{
@@ -414,8 +414,8 @@ func TestAppStopReleasesStartedCapabilityProvidersInReverseOrder(t *testing.T) {
 		t.Fatalf("Stop() error = %v", err)
 	}
 
-	if len(stops) != 2 || stops[0] != "redis" || stops[1] != "mysql" {
-		t.Fatalf("stop order = %v, want [redis mysql]", stops)
+	if len(stops) != 2 || stops[0] != "redis" || stops[1] != "s3" {
+		t.Fatalf("stop order = %v, want [redis s3]", stops)
 	}
 }
 
@@ -427,7 +427,7 @@ func TestAppStopIsIdempotent(t *testing.T) {
 				Name: "orders",
 				Kind: module.BusinessModule,
 				Requires: []module.CapabilityRef{
-					{Name: "mysql"},
+					{Name: "s3"},
 				},
 				EntryPoints: []module.EntryPoint{
 					{Owner: "orders", Type: module.EntryPointHTTP, Name: "list orders", Value: noopRoute("orders")},
@@ -435,13 +435,13 @@ func TestAppStopIsIdempotent(t *testing.T) {
 			}},
 			lifecycleModule{
 				staticModule: staticModule{descriptor: module.Descriptor{
-					Name: "mysql",
+					Name: "s3",
 					Kind: module.CapabilityModule,
 					Provides: []module.Capability{
-						{Name: "mysql", Status: module.CapabilityEnabled},
+						{Name: "s3", Status: module.CapabilityEnabled},
 					},
 				}},
-				stopName:  "mysql",
+				stopName:  "s3",
 				stopOrder: &stops,
 			},
 		},
@@ -457,8 +457,8 @@ func TestAppStopIsIdempotent(t *testing.T) {
 		t.Fatalf("second Stop() error = %v", err)
 	}
 
-	if len(stops) != 1 || stops[0] != "mysql" {
-		t.Fatalf("stop order after repeated Stop = %v, want [mysql]", stops)
+	if len(stops) != 1 || stops[0] != "s3" {
+		t.Fatalf("stop order after repeated Stop = %v, want [s3]", stops)
 	}
 }
 
@@ -471,7 +471,7 @@ func TestAppAssemblyStopsStartedProvidersWhenLaterStartFails(t *testing.T) {
 				Name: "orders",
 				Kind: module.BusinessModule,
 				Requires: []module.CapabilityRef{
-					{Name: "mysql"},
+					{Name: "s3"},
 					{Name: "redis"},
 				},
 				EntryPoints: []module.EntryPoint{
@@ -480,13 +480,13 @@ func TestAppAssemblyStopsStartedProvidersWhenLaterStartFails(t *testing.T) {
 			}},
 			lifecycleModule{
 				staticModule: staticModule{descriptor: module.Descriptor{
-					Name: "mysql",
+					Name: "s3",
 					Kind: module.CapabilityModule,
 					Provides: []module.Capability{
-						{Name: "mysql", Status: module.CapabilityEnabled},
+						{Name: "s3", Status: module.CapabilityEnabled},
 					},
 				}},
-				stopName:  "mysql",
+				stopName:  "s3",
 				stopOrder: &stops,
 			},
 			lifecycleModule{
@@ -506,8 +506,8 @@ func TestAppAssemblyStopsStartedProvidersWhenLaterStartFails(t *testing.T) {
 		t.Fatalf("Assemble() error = %v, want redis start error", err)
 	}
 
-	if len(stops) != 1 || stops[0] != "mysql" {
-		t.Fatalf("stop order after failed startup = %v, want [mysql]", stops)
+	if len(stops) != 1 || stops[0] != "s3" {
+		t.Fatalf("stop order after failed startup = %v, want [s3]", stops)
 	}
 }
 
@@ -517,8 +517,8 @@ func TestAssemblyIgnoresLegacyGeneratedFiles(t *testing.T) {
 		t.Fatalf("Assemble() error = %v", err)
 	}
 
-	if app.Report().HasActiveModule("user") {
-		t.Fatal("legacy user module is active without explicit module inclusion")
+	if app.Report().HasActiveModule("documents") {
+		t.Fatal("legacy documents module is active without explicit module inclusion")
 	}
 	if len(app.Routes()) != 0 {
 		t.Fatalf("len(app.Routes()) = %d, want 0", len(app.Routes()))
@@ -529,10 +529,10 @@ func TestUserModuleFailsWhenHTTPAdapterUnavailable(t *testing.T) {
 	_, err := Assemble(Options{
 		Modules: []module.Module{
 			staticModule{descriptor: module.Descriptor{
-				Name: "user",
+				Name: "documents",
 				Kind: module.BusinessModule,
 				EntryPoints: []module.EntryPoint{
-					{Owner: "user", Type: module.EntryPointHTTP, Name: "list users", Value: noopRoute("user")},
+					{Owner: "documents", Type: module.EntryPointHTTP, Name: "list documents", Value: noopRoute("documents")},
 				},
 			}},
 		},
@@ -546,8 +546,8 @@ func TestUserModuleFailsWhenHTTPAdapterUnavailable(t *testing.T) {
 	if !errors.As(err, &unsupported) {
 		t.Fatalf("Assemble() error = %T, want UnsupportedEntryPointError", err)
 	}
-	if unsupported.Module != "user" || unsupported.EntryPointType != module.EntryPointHTTP {
-		t.Fatalf("UnsupportedEntryPointError = %+v, want user/http", unsupported)
+	if unsupported.Module != "documents" || unsupported.EntryPointType != module.EntryPointHTTP {
+		t.Fatalf("UnsupportedEntryPointError = %+v, want documents/http", unsupported)
 	}
 }
 
@@ -559,37 +559,37 @@ func (m staticModule) Descriptor() module.Descriptor {
 	return m.descriptor
 }
 
-func userStorageModulesForTest() []module.Module {
+func documentStoreModulesForTest() []module.Module {
 	return []module.Module{
 		staticModule{descriptor: module.Descriptor{
-			Name: "user",
+			Name: "documents",
 			Kind: module.BusinessModule,
 			Requires: []module.CapabilityRef{
-				{Name: "user.storage"},
+				{Name: "document.store"},
 			},
 			EntryPoints: []module.EntryPoint{
-				{Owner: "user", Type: module.EntryPointHTTP, Name: "list users", Value: noopRoute("user")},
+				{Owner: "documents", Type: module.EntryPointHTTP, Name: "list documents", Value: noopRoute("documents")},
 			},
 		}},
 		staticModule{descriptor: module.Descriptor{
-			Name: "user-storage-memory",
+			Name: "document-store-memory",
 			Kind: module.CapabilityModule,
 			Provides: []module.Capability{
-				{Name: "user.storage", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
+				{Name: "document.store", Provider: "memory", Status: module.CapabilityEnabled, Default: true},
 			},
 		}},
 		staticModule{descriptor: module.Descriptor{
-			Name: "user-storage-mysql",
+			Name: "document-store-s3",
 			Kind: module.CapabilityModule,
 			Provides: []module.Capability{
-				{Name: "user.storage", Provider: "mysql", Status: module.CapabilityEnabled},
+				{Name: "document.store", Provider: "s3", Status: module.CapabilityEnabled},
 			},
 		}},
 	}
 }
 
-func userStorageMemoryOnlyModulesForTest() []module.Module {
-	return userStorageModulesForTest()[:2]
+func documentStoreMemoryOnlyModulesForTest() []module.Module {
+	return documentStoreModulesForTest()[:2]
 }
 
 type lifecycleModule struct {

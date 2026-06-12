@@ -10,7 +10,7 @@ import (
 func TestFileSourceLoadsCapabilityProviderSelections(t *testing.T) {
 	path := writeTempConfig(t, `
 [capabilities.providers]
-"user.storage" = "mysql"
+"database.gorm" = "mysql"
 `)
 
 	cfg, err := FileSource{Path: path}.Load(context.Background())
@@ -18,9 +18,9 @@ func TestFileSourceLoadsCapabilityProviderSelections(t *testing.T) {
 		t.Fatalf("FileSource.Load() error = %v", err)
 	}
 
-	got := cfg.Capabilities.Providers["user.storage"]
+	got := cfg.Capabilities.Providers["database.gorm"]
 	if got != "mysql" {
-		t.Fatalf(`Capabilities.Providers["user.storage"] = %q, want mysql`, got)
+		t.Fatalf(`Capabilities.Providers["database.gorm"] = %q, want mysql`, got)
 	}
 }
 

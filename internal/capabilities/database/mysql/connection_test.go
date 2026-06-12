@@ -17,7 +17,7 @@ func TestOpenMysqlConnectionDoesNotRegisterTemplateCreateCallback(t *testing.T) 
 	}
 
 	if db.Callback().Create().Get("role:menu_after_create") != nil {
-		t.Fatal("template create callback is registered, want no template callback on user mysql storage")
+		t.Fatal("template create callback is registered, want no template callback on mysql database capability")
 	}
 }
 
