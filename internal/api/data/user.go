@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/NSObjects/go-template/internal/api/biz"
-	"github.com/NSObjects/go-template/internal/api/data/db"
 	"github.com/NSObjects/go-template/internal/api/data/model"
 	"github.com/NSObjects/go-template/internal/api/data/query"
 	"github.com/NSObjects/go-template/internal/api/service/param"
@@ -14,18 +13,18 @@ import (
 )
 
 type userRepository struct {
-	d *db.DataManager
+	q *query.Query
 }
 
-func NewUserRepository(d *db.DataManager) biz.UserRepository {
-	return userRepository{d: d}
+func NewUserRepository(q *query.Query) biz.UserRepository {
+	return userRepository{q: q}
 }
 
 func (u userRepository) query() (*query.Query, error) {
-	if u.d == nil || u.d.Query == nil {
+	if u.q == nil {
 		return nil, errors.New("mysql is disabled")
 	}
-	return u.d.Query, nil
+	return u.q, nil
 }
 
 func (u userRepository) ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error) {

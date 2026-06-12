@@ -10,6 +10,7 @@ import (
 	"github.com/NSObjects/go-template/internal/api/biz"
 	"github.com/NSObjects/go-template/internal/api/data"
 	"github.com/NSObjects/go-template/internal/api/data/db"
+	"github.com/NSObjects/go-template/internal/api/data/query"
 	"github.com/NSObjects/go-template/internal/api/service/param"
 	"github.com/NSObjects/go-template/internal/code"
 	"github.com/NSObjects/go-template/internal/configs"
@@ -26,12 +27,19 @@ var ErrInvalidConfig = errors.New("invalid user mysql storage config")
 
 // Module exposes MySQL as an optional user.storage provider.
 type Module struct {
-	cfg configs.MysqlConfig
+	cfg        configs.MysqlConfig
+	repository *repository
 }
 
 // New creates a MySQL user storage provider module from configuration.
-func New(cfg configs.MysqlConfig) Module {
-	return Module{cfg: cfg}
+func New(cfg configs.MysqlConfig) *Module {
+	return &Module{
+		cfg: cfg,
+		repository: &repository{
+			cfg:            cfg,
+			runtimeFactory: newStorageRuntime,
+		},
+	}
 }
 
 // Descriptor reports whether MySQL can satisfy user.storage.
@@ -51,7 +59,7 @@ func (m Module) Descriptor() module.Descriptor {
 				Name:     user.StorageCapability,
 				Provider: ProviderName,
 				Status:   status,
-				Value:    m.Repository(),
+				Value:    m.repository,
 			},
 		},
 	}
@@ -59,7 +67,7 @@ func (m Module) Descriptor() module.Descriptor {
 
 // Repository returns a lazy MySQL-backed user repository.
 func (m Module) Repository() biz.UserRepository {
-	return &repository{cfg: m.cfg}
+	return m.repository
 }
 
 // Validate returns a startup-blocking error when selected MySQL storage config is unusable.
@@ -81,22 +89,32 @@ func (m Module) Start(ctx context.Context) error {
 	if err := m.Validate(); err != nil {
 		return err
 	}
-	dataManager, err := db.NewDataManager(configs.Config{Mysql: m.cfg})
-	if err != nil {
-		return code.WrapDatabaseError(err, "initialize user mysql storage")
-	}
-	defer dataManager.Shutdown(context.Background())
-	if err := dataManager.Start(ctx); err != nil {
+	if err := m.repository.Start(ctx); err != nil {
 		return code.WrapDatabaseError(err, "start user mysql storage")
 	}
 	return nil
 }
 
+// Stop releases the selected MySQL storage runtime.
+func (m Module) Stop(ctx context.Context) error {
+	if m.repository == nil {
+		return nil
+	}
+	return m.repository.Stop(ctx)
+}
+
 type repository struct {
-	cfg  configs.MysqlConfig
-	once sync.Once
-	repo biz.UserRepository
-	err  error
+	cfg            configs.MysqlConfig
+	runtimeFactory storageRuntimeFactory
+	mu             sync.Mutex
+	runtime        *storageRuntime
+}
+
+type storageRuntimeFactory func(context.Context, configs.MysqlConfig) (*storageRuntime, error)
+
+type storageRuntime struct {
+	repository biz.UserRepository
+	shutdown   func(context.Context) error
 }
 
 func (r *repository) ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error) {
@@ -140,15 +158,69 @@ func (r *repository) Delete(ctx context.Context, id int64) error {
 }
 
 func (r *repository) load() (biz.UserRepository, error) {
-	r.once.Do(func() {
-		dataManager, err := db.NewDataManager(configs.Config{Mysql: r.cfg})
-		if err != nil {
-			r.err = code.WrapDatabaseError(err, "initialize user mysql repository")
-			return
-		}
-		r.repo = data.NewUserRepository(dataManager)
-	})
-	return r.repo, r.err
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.runtime != nil {
+		return r.repository()
+	}
+	return nil, code.WrapDatabaseError(errors.New("user mysql storage is not started"), "initialize user mysql repository")
+}
+
+func (r *repository) Start(ctx context.Context) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.runtime != nil {
+		return nil
+	}
+	runtime, err := r.runtimeFactory(ctx, r.cfg)
+	if err != nil {
+		return err
+	}
+	r.runtime = runtime
+	return nil
+}
+
+func (r *repository) Stop(ctx context.Context) error {
+	r.mu.Lock()
+	runtime := r.runtime
+	if runtime == nil {
+		r.mu.Unlock()
+		return nil
+	}
+	r.runtime = nil
+	r.mu.Unlock()
+
+	if runtime.shutdown == nil {
+		return nil
+	}
+	return runtime.shutdown(ctx)
+}
+
+func (r *repository) repository() (biz.UserRepository, error) {
+	return r.runtime.repository, nil
+}
+
+func newStorageRuntime(ctx context.Context, cfg configs.MysqlConfig) (*storageRuntime, error) {
+	mysqlDB, err := db.NewMysql(cfg)
+	if err != nil {
+		return nil, err
+	}
+	sqlDB, err := mysqlDB.DB()
+	if err != nil {
+		return nil, err
+	}
+	if err := sqlDB.PingContext(ctx); err != nil {
+		_ = sqlDB.Close()
+		return nil, err
+	}
+	return &storageRuntime{
+		repository: data.NewUserRepository(query.Use(mysqlDB)),
+		shutdown: func(context.Context) error {
+			return sqlDB.Close()
+		},
+	}, nil
 }
 
 func hasRequiredConfig(cfg configs.MysqlConfig) bool {

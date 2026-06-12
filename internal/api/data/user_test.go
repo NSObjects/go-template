@@ -4,13 +4,12 @@ import (
 	"context"
 	"testing"
 
-	"github.com/NSObjects/go-template/internal/api/data/db"
 	"github.com/NSObjects/go-template/internal/api/service/param"
 	"github.com/NSObjects/go-template/internal/code"
 )
 
 func TestUserRepositoryReturnsDatabaseErrorWhenMysqlDisabled(t *testing.T) {
-	repo := NewUserRepository(&db.DataManager{})
+	repo := NewUserRepository(nil)
 	ctx := context.Background()
 
 	tests := []struct {

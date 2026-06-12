@@ -367,6 +367,150 @@ func TestAppAssemblyRunsSharedCapabilityProviderLifecycleOnce(t *testing.T) {
 	}
 }
 
+func TestAppStopReleasesStartedCapabilityProvidersInReverseOrder(t *testing.T) {
+	var stops []string
+	app, err := Assemble(Options{
+		Modules: []module.Module{
+			staticModule{descriptor: module.Descriptor{
+				Name: "orders",
+				Kind: module.BusinessModule,
+				Requires: []module.CapabilityRef{
+					{Name: "mysql"},
+					{Name: "redis"},
+				},
+				EntryPoints: []module.EntryPoint{
+					{Owner: "orders", Type: module.EntryPointHTTP, Name: "list orders", Value: noopRoute("orders")},
+				},
+			}},
+			lifecycleModule{
+				staticModule: staticModule{descriptor: module.Descriptor{
+					Name: "mysql",
+					Kind: module.CapabilityModule,
+					Provides: []module.Capability{
+						{Name: "mysql", Status: module.CapabilityEnabled},
+					},
+				}},
+				stopName:  "mysql",
+				stopOrder: &stops,
+			},
+			lifecycleModule{
+				staticModule: staticModule{descriptor: module.Descriptor{
+					Name: "redis",
+					Kind: module.CapabilityModule,
+					Provides: []module.Capability{
+						{Name: "redis", Status: module.CapabilityEnabled},
+					},
+				}},
+				stopName:  "redis",
+				stopOrder: &stops,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Assemble() error = %v", err)
+	}
+
+	if err := app.Stop(context.Background()); err != nil {
+		t.Fatalf("Stop() error = %v", err)
+	}
+
+	if len(stops) != 2 || stops[0] != "redis" || stops[1] != "mysql" {
+		t.Fatalf("stop order = %v, want [redis mysql]", stops)
+	}
+}
+
+func TestAppStopIsIdempotent(t *testing.T) {
+	var stops []string
+	app, err := Assemble(Options{
+		Modules: []module.Module{
+			staticModule{descriptor: module.Descriptor{
+				Name: "orders",
+				Kind: module.BusinessModule,
+				Requires: []module.CapabilityRef{
+					{Name: "mysql"},
+				},
+				EntryPoints: []module.EntryPoint{
+					{Owner: "orders", Type: module.EntryPointHTTP, Name: "list orders", Value: noopRoute("orders")},
+				},
+			}},
+			lifecycleModule{
+				staticModule: staticModule{descriptor: module.Descriptor{
+					Name: "mysql",
+					Kind: module.CapabilityModule,
+					Provides: []module.Capability{
+						{Name: "mysql", Status: module.CapabilityEnabled},
+					},
+				}},
+				stopName:  "mysql",
+				stopOrder: &stops,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Assemble() error = %v", err)
+	}
+
+	if err := app.Stop(context.Background()); err != nil {
+		t.Fatalf("Stop() error = %v", err)
+	}
+	if err := app.Stop(context.Background()); err != nil {
+		t.Fatalf("second Stop() error = %v", err)
+	}
+
+	if len(stops) != 1 || stops[0] != "mysql" {
+		t.Fatalf("stop order after repeated Stop = %v, want [mysql]", stops)
+	}
+}
+
+func TestAppAssemblyStopsStartedProvidersWhenLaterStartFails(t *testing.T) {
+	var stops []string
+	startErr := errors.New("redis start failed")
+	_, err := Assemble(Options{
+		Modules: []module.Module{
+			staticModule{descriptor: module.Descriptor{
+				Name: "orders",
+				Kind: module.BusinessModule,
+				Requires: []module.CapabilityRef{
+					{Name: "mysql"},
+					{Name: "redis"},
+				},
+				EntryPoints: []module.EntryPoint{
+					{Owner: "orders", Type: module.EntryPointHTTP, Name: "list orders", Value: noopRoute("orders")},
+				},
+			}},
+			lifecycleModule{
+				staticModule: staticModule{descriptor: module.Descriptor{
+					Name: "mysql",
+					Kind: module.CapabilityModule,
+					Provides: []module.Capability{
+						{Name: "mysql", Status: module.CapabilityEnabled},
+					},
+				}},
+				stopName:  "mysql",
+				stopOrder: &stops,
+			},
+			lifecycleModule{
+				staticModule: staticModule{descriptor: module.Descriptor{
+					Name: "redis",
+					Kind: module.CapabilityModule,
+					Provides: []module.Capability{
+						{Name: "redis", Status: module.CapabilityEnabled},
+					},
+				}},
+				startErr: startErr,
+				stopName: "redis",
+			},
+		},
+	})
+	if !errors.Is(err, startErr) {
+		t.Fatalf("Assemble() error = %v, want redis start error", err)
+	}
+
+	if len(stops) != 1 || stops[0] != "mysql" {
+		t.Fatalf("stop order after failed startup = %v, want [mysql]", stops)
+	}
+}
+
 func TestAssemblyIgnoresLegacyGeneratedFiles(t *testing.T) {
 	app, err := Assemble(Options{Config: configs.Config{}})
 	if err != nil {
@@ -454,6 +598,8 @@ type lifecycleModule struct {
 	startErr      error
 	validateCalls *int
 	startCalls    *int
+	stopName      string
+	stopOrder     *[]string
 }
 
 func (m lifecycleModule) Validate() error {
@@ -468,6 +614,13 @@ func (m lifecycleModule) Start(_ context.Context) error {
 		*m.startCalls++
 	}
 	return m.startErr
+}
+
+func (m lifecycleModule) Stop(_ context.Context) error {
+	if m.stopOrder != nil {
+		*m.stopOrder = append(*m.stopOrder, m.stopName)
+	}
+	return nil
 }
 
 func noopRoute(owner string) platformhttp.Route {

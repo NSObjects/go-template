@@ -3,22 +3,9 @@ package service
 import (
 	"net/http/httptest"
 
-	"github.com/NSObjects/go-template/internal/api/biz"
 	"github.com/NSObjects/go-template/internal/code"
 	"github.com/labstack/echo/v4"
-	"github.com/samber/do/v2"
 )
-
-// Register 注册服务层依赖。
-func Register(i do.Injector) {
-	do.Provide[[]RegisterRouter](i, func(i do.Injector) ([]RegisterRouter, error) {
-		user, err := do.Invoke[biz.UserUseCase](i)
-		if err != nil {
-			return nil, err
-		}
-		return []RegisterRouter{NewUserController(user)}, nil
-	})
-}
 
 func BindAndValidate(ctx echo.Context, obj any) error {
 	if err := ctx.Bind(obj); err != nil {

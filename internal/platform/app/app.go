@@ -4,6 +4,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/NSObjects/go-template/internal/configs"
 	applog "github.com/NSObjects/go-template/internal/log"
@@ -26,6 +27,13 @@ type CapabilityStarter interface {
 	Start(context.Context) error
 }
 
+// CapabilityStopper is implemented by started capability modules that own
+// resources which must be released during shutdown.
+type CapabilityStopper interface {
+	module.Module
+	Stop(context.Context) error
+}
+
 // Options contains the inputs needed to assemble an application.
 type Options struct {
 	Config               configs.Config
@@ -37,12 +45,14 @@ type Options struct {
 
 // App is the assembled runtime surface.
 type App struct {
-	cfg    configs.Config
-	store  *configs.Store
-	logger applog.Logger
-	report module.Report
-	routes []http.Route
-	server *server.EchoServer
+	cfg                      configs.Config
+	store                    *configs.Store
+	logger                   applog.Logger
+	report                   module.Report
+	routes                   []http.Route
+	startedCapabilityMu      sync.Mutex
+	startedCapabilityModules []module.Module
+	server                   *server.EchoServer
 }
 
 // Assemble validates modules and prepares runtime adapters.
@@ -81,14 +91,17 @@ func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
 			return nil, err
 		}
 	}
+	startedModules := make([]module.Module, 0, len(selectedModules))
 	for _, mod := range selectedModules {
 		starter, ok := mod.(CapabilityStarter)
 		if !ok {
 			continue
 		}
 		if err := starter.Start(ctx); err != nil {
+			_ = stopCapabilityModules(context.Background(), startedModules)
 			return nil, err
 		}
+		startedModules = append(startedModules, mod)
 	}
 
 	store := options.Store
@@ -98,12 +111,27 @@ func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
 	logger := applog.NewLogger(options.Config)
 
 	return &App{
-		cfg:    options.Config,
-		store:  store,
-		logger: logger,
-		report: report,
-		routes: routes,
+		cfg:                      options.Config,
+		store:                    store,
+		logger:                   logger,
+		report:                   report,
+		routes:                   routes,
+		startedCapabilityModules: startedModules,
 	}, nil
+}
+
+func stopCapabilityModules(ctx context.Context, modules []module.Module) error {
+	var stopErr error
+	for i := len(modules) - 1; i >= 0; i-- {
+		stopper, ok := modules[i].(CapabilityStopper)
+		if !ok {
+			continue
+		}
+		if err := stopper.Stop(ctx); err != nil && stopErr == nil {
+			stopErr = err
+		}
+	}
+	return stopErr
 }
 
 func selectedCapabilityModules(modules []module.Module, indexes []int) []module.Module {
@@ -163,8 +191,21 @@ func (a *App) Server() *server.EchoServer {
 	return a.server
 }
 
+// Stop releases resources owned by started capability modules.
+func (a *App) Stop(ctx context.Context) error {
+	a.startedCapabilityMu.Lock()
+	startedModules := a.startedCapabilityModules
+	a.startedCapabilityModules = nil
+	a.startedCapabilityMu.Unlock()
+
+	return stopCapabilityModules(ctx, startedModules)
+}
+
 // Run starts the assembled server.
-func (a *App) Run(_ context.Context) error {
+func (a *App) Run(ctx context.Context) error {
+	defer func() {
+		_ = a.Stop(ctx)
+	}()
 	a.Server().Run(a.cfg.System.Port)
 	return nil
 }

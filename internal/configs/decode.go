@@ -2,6 +2,7 @@ package configs
 
 import (
 	"bytes"
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -26,7 +27,19 @@ func decodeConfigWithEnv(data []byte, format string, useEnv bool) (Config, error
 	if err := v.Unmarshal(&cfg); err != nil {
 		return Config{}, err
 	}
+	if useEnv {
+		applyCapabilityEnvOverrides(&cfg)
+	}
 	return cfg, nil
+}
+
+func applyCapabilityEnvOverrides(cfg *Config) {
+	if provider := strings.TrimSpace(os.Getenv("ECHOADMIN_USER_STORAGE_PROVIDER")); provider != "" {
+		if cfg.Capabilities.Providers == nil {
+			cfg.Capabilities.Providers = make(map[string]string, 1)
+		}
+		cfg.Capabilities.Providers["user.storage"] = provider
+	}
 }
 
 func configType(format string) string {
