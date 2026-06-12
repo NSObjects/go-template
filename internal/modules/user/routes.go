@@ -3,15 +3,13 @@ package user
 import (
 	"net/http"
 
-	"github.com/NSObjects/go-template/internal/api/biz"
-	"github.com/NSObjects/go-template/internal/api/service"
 	platformhttp "github.com/NSObjects/go-template/internal/platform/http"
 	"github.com/NSObjects/go-template/internal/platform/module"
 )
 
 // HTTPEntryPoints declares the user HTTP routes as module entry points.
-func HTTPEntryPoints(owner string, useCase biz.UserUseCase) []module.EntryPoint {
-	controller := service.NewUserController(useCase)
+func HTTPEntryPoints(owner string, useCase UseCase) []module.EntryPoint {
+	controller := newController(useCase)
 	routes := []platformhttp.Route{
 		{
 			Owner:   owner,

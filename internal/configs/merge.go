@@ -201,5 +201,8 @@ func Merge(dst, src Config) Config {
 	if src.Consul.Format != "" {
 		dst.Consul.Format = src.Consul.Format
 	}
-	return dst
+	if src.User.Storage.Provider != "" {
+		dst.User.Storage.Provider = src.User.Storage.Provider
+	}
+	return Normalize(dst)
 }

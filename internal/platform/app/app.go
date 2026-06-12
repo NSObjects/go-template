@@ -62,6 +62,7 @@ func Assemble(options Options) (*App, error) {
 
 // AssembleWithContext validates modules and prepares runtime adapters.
 func AssembleWithContext(ctx context.Context, options Options) (*App, error) {
+	options.Config = configs.Normalize(options.Config)
 	adapters := options.EntryPointAdapters
 	if len(adapters) == 0 {
 		adapters = []string{http.EntryPointType}

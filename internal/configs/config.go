@@ -64,12 +64,23 @@ type Config struct {
 	Kafka        KafkaConfig        `mapstructure:"kafka"`
 	Etcd         EtcdClientConfig   `mapstructure:"etcd"`
 	Consul       ConsulClientConfig `mapstructure:"consul"`
+	User         UserConfig         `mapstructure:"user"`
 	Capabilities CapabilitiesConfig `mapstructure:"capabilities"`
 }
 
 // CapabilitiesConfig contains platform-level capability provider selections.
 type CapabilitiesConfig struct {
 	Providers map[string]string `mapstructure:"providers"`
+}
+
+// UserConfig contains business-facing configuration for the user module.
+type UserConfig struct {
+	Storage UserStorageConfig `mapstructure:"storage"`
+}
+
+// UserStorageConfig selects the storage provider for the user module.
+type UserStorageConfig struct {
+	Provider string `mapstructure:"provider"`
 }
 
 type SystemConfig struct {

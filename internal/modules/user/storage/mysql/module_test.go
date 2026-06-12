@@ -5,8 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/NSObjects/go-template/internal/api/biz"
-	"github.com/NSObjects/go-template/internal/api/service/param"
 	"github.com/NSObjects/go-template/internal/configs"
 	user "github.com/NSObjects/go-template/internal/modules/user"
 	"github.com/NSObjects/go-template/internal/platform/module"
@@ -68,15 +66,24 @@ func TestModuleReportsUserStorageProviderStatus(t *testing.T) {
 			if capability.Default {
 				t.Fatal("capability.Default = true, want false")
 			}
-			if _, ok := capability.Value.(biz.UserRepository); !ok {
-				t.Fatalf("capability.Value = %T, want biz.UserRepository", capability.Value)
+			if _, ok := capability.Value.(user.Repository); !ok {
+				t.Fatalf("capability.Value = %T, want user.Repository", capability.Value)
 			}
 		})
 	}
 }
 
+func TestModuleDefaultCanBeEnabled(t *testing.T) {
+	mod := New(validMysqlConfig(), WithDefault(true))
+	capability := mod.Descriptor().Provides[0]
+
+	if !capability.Default {
+		t.Fatal("capability.Default = false, want true")
+	}
+}
+
 func TestModuleExposesUserRepository(t *testing.T) {
-	var _ biz.UserRepository = New(configs.MysqlConfig{}).Repository()
+	var _ user.Repository = New(configs.MysqlConfig{}).Repository()
 }
 
 func TestModuleExposesStableUserRepository(t *testing.T) {
@@ -109,7 +116,7 @@ func TestModuleStartInitializesRepositoryRuntimeOnce(t *testing.T) {
 	if err := mod.Start(context.Background()); err != nil {
 		t.Fatalf("second Start() error = %v", err)
 	}
-	if _, _, err := mod.Repository().ListUsers(context.Background(), param.UserListUsersRequest{}); err != nil {
+	if _, _, err := mod.Repository().ListUsers(context.Background(), user.ListUsersRequest{}); err != nil {
 		t.Fatalf("Repository().ListUsers() error = %v", err)
 	}
 
@@ -207,20 +214,20 @@ type fakeUserRepository struct {
 	listUsersCalls int
 }
 
-func (r *fakeUserRepository) ListUsers(context.Context, param.UserListUsersRequest) ([]param.UserListItem, int64, error) {
+func (r *fakeUserRepository) ListUsers(context.Context, user.ListUsersRequest) ([]user.ListItem, int64, error) {
 	r.listUsersCalls++
 	return nil, 0, nil
 }
 
-func (r *fakeUserRepository) Create(context.Context, param.UserCreateRequest) error {
+func (r *fakeUserRepository) Create(context.Context, user.CreateRequest) error {
 	return nil
 }
 
-func (r *fakeUserRepository) GetByID(context.Context, int64) (param.UserData, error) {
-	return param.UserData{}, nil
+func (r *fakeUserRepository) GetByID(context.Context, int64) (user.Data, error) {
+	return user.Data{}, nil
 }
 
-func (r *fakeUserRepository) Update(context.Context, int64, param.UserUpdateRequest) error {
+func (r *fakeUserRepository) Update(context.Context, int64, user.UpdateRequest) error {
 	return nil
 }
 

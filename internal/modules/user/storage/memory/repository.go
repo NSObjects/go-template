@@ -7,26 +7,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/NSObjects/go-template/internal/api/biz"
-	"github.com/NSObjects/go-template/internal/api/service/param"
 	"github.com/NSObjects/go-template/internal/code"
+	user "github.com/NSObjects/go-template/internal/modules/user"
 )
 
 type Repository struct {
 	mu     sync.RWMutex
 	nextID int64
-	users  map[int64]param.UserData
+	users  map[int64]user.Data
 }
 
 // NewRepository creates an empty in-memory user repository.
 func NewRepository() *Repository {
 	return &Repository{
 		nextID: 1,
-		users:  make(map[int64]param.UserData),
+		users:  make(map[int64]user.Data),
 	}
 }
 
-func (r *Repository) ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error) {
+func (r *Repository) ListUsers(ctx context.Context, req user.ListUsersRequest) ([]user.ListItem, int64, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, 0, err
 	}
@@ -34,9 +33,9 @@ func (r *Repository) ListUsers(ctx context.Context, req param.UserListUsersReque
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	users := make([]param.UserData, 0, len(r.users))
-	for _, user := range r.users {
-		users = append(users, user)
+	users := make([]user.Data, 0, len(r.users))
+	for _, item := range r.users {
+		users = append(users, item)
 	}
 	sort.Slice(users, func(i, j int) bool {
 		return users[i].Id < users[j].Id
@@ -53,14 +52,14 @@ func (r *Repository) ListUsers(ctx context.Context, req param.UserListUsersReque
 		end = len(users)
 	}
 
-	list := make([]param.UserListItem, 0, end-offset)
-	for _, user := range users[offset:end] {
-		list = append(list, toListItem(user))
+	list := make([]user.ListItem, 0, end-offset)
+	for _, item := range users[offset:end] {
+		list = append(list, toListItem(item))
 	}
 	return list, total, nil
 }
 
-func (r *Repository) Create(ctx context.Context, req param.UserCreateRequest) error {
+func (r *Repository) Create(ctx context.Context, req user.CreateRequest) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -71,7 +70,7 @@ func (r *Repository) Create(ctx context.Context, req param.UserCreateRequest) er
 	now := time.Now()
 	id := r.nextID
 	r.nextID++
-	r.users[id] = param.UserData{
+	r.users[id] = user.Data{
 		Id:        id,
 		Username:  req.Username,
 		Email:     req.Email,
@@ -82,22 +81,22 @@ func (r *Repository) Create(ctx context.Context, req param.UserCreateRequest) er
 	return nil
 }
 
-func (r *Repository) GetByID(ctx context.Context, id int64) (param.UserData, error) {
+func (r *Repository) GetByID(ctx context.Context, id int64) (user.Data, error) {
 	if err := ctx.Err(); err != nil {
-		return param.UserData{}, err
+		return user.Data{}, err
 	}
 
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	user, ok := r.users[id]
+	item, ok := r.users[id]
 	if !ok {
-		return param.UserData{}, userNotFound()
+		return user.Data{}, userNotFound()
 	}
-	return user, nil
+	return item, nil
 }
 
-func (r *Repository) Update(ctx context.Context, id int64, req param.UserUpdateRequest) error {
+func (r *Repository) Update(ctx context.Context, id int64, req user.UpdateRequest) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -105,21 +104,21 @@ func (r *Repository) Update(ctx context.Context, id int64, req param.UserUpdateR
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	user, ok := r.users[id]
+	item, ok := r.users[id]
 	if !ok {
 		return userNotFound()
 	}
 	if req.Username != "" {
-		user.Username = req.Username
+		item.Username = req.Username
 	}
 	if req.Email != "" {
-		user.Email = req.Email
+		item.Email = req.Email
 	}
 	if req.Age != 0 {
-		user.Age = req.Age
+		item.Age = req.Age
 	}
-	user.UpdatedAt = time.Now()
-	r.users[id] = user
+	item.UpdatedAt = time.Now()
+	r.users[id] = item
 	return nil
 }
 
@@ -138,14 +137,14 @@ func (r *Repository) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-func toListItem(user param.UserData) param.UserListItem {
-	return param.UserListItem{
-		Id:        user.Id,
-		Username:  user.Username,
-		Email:     user.Email,
-		Age:       user.Age,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+func toListItem(data user.Data) user.ListItem {
+	return user.ListItem{
+		Id:        data.Id,
+		Username:  data.Username,
+		Email:     data.Email,
+		Age:       data.Age,
+		CreatedAt: data.CreatedAt,
+		UpdatedAt: data.UpdatedAt,
 	}
 }
 
@@ -153,4 +152,4 @@ func userNotFound() error {
 	return code.WrapNotFoundError(errors.New("user not found"), "user not found")
 }
 
-var _ biz.UserRepository = (*Repository)(nil)
+var _ user.Repository = (*Repository)(nil)

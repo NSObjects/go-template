@@ -1,7 +1,6 @@
 package user
 
 import (
-	"github.com/NSObjects/go-template/internal/api/biz"
 	"github.com/NSObjects/go-template/internal/platform/module"
 )
 
@@ -12,11 +11,11 @@ const (
 
 // Module declares the user business module for application assembly.
 type Module struct {
-	useCase biz.UserUseCase
+	useCase UseCase
 }
 
 // New creates a user business module backed by the provided use case.
-func New(useCase biz.UserUseCase) Module {
+func New(useCase UseCase) Module {
 	return Module{useCase: useCase}
 }
 

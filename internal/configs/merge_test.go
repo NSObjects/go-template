@@ -2,7 +2,7 @@ package configs
 
 import "testing"
 
-func TestMergeEnablesDatabaseTemplateCapabilities(t *testing.T) {
+func TestMergeEnablesConfiguredInfrastructureFlags(t *testing.T) {
 	dst := Config{}
 	src := Config{
 		Mysql:   MysqlConfig{Enabled: true},
@@ -27,7 +27,7 @@ func TestMergeEnablesDatabaseTemplateCapabilities(t *testing.T) {
 	}
 }
 
-func TestMergeDoesNotDisableAlreadyEnabledDatabaseCapabilities(t *testing.T) {
+func TestMergeDoesNotDisableAlreadyEnabledInfrastructureFlags(t *testing.T) {
 	dst := Config{
 		Mysql:   MysqlConfig{Enabled: true},
 		Redis:   RedisConfig{Enabled: true},
@@ -40,5 +40,22 @@ func TestMergeDoesNotDisableAlreadyEnabledDatabaseCapabilities(t *testing.T) {
 
 	if !got.Mysql.Enabled || !got.Redis.Enabled || !got.Mongodb.Enabled || !got.Kafka.Enabled {
 		t.Fatalf("Merge disabled a database capability: %#v", got)
+	}
+}
+
+func TestMergeNormalizesUserStorageProviderSelection(t *testing.T) {
+	got := Merge(Config{}, Config{
+		User: UserConfig{
+			Storage: UserStorageConfig{
+				Provider: "mysql",
+			},
+		},
+	})
+
+	if got.User.Storage.Provider != "mysql" {
+		t.Fatalf("User.Storage.Provider = %q, want mysql", got.User.Storage.Provider)
+	}
+	if got.Capabilities.Providers["user.storage"] != "mysql" {
+		t.Fatalf(`Capabilities.Providers["user.storage"] = %q, want mysql`, got.Capabilities.Providers["user.storage"])
 	}
 }

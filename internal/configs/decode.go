@@ -27,19 +27,38 @@ func decodeConfigWithEnv(data []byte, format string, useEnv bool) (Config, error
 	if err := v.Unmarshal(&cfg); err != nil {
 		return Config{}, err
 	}
+	cfg = Normalize(cfg)
 	if useEnv {
 		applyCapabilityEnvOverrides(&cfg)
+		cfg = Normalize(cfg)
 	}
 	return cfg, nil
 }
 
+// Normalize derives platform selections from business-facing configuration.
+func Normalize(cfg Config) Config {
+	normalizeCapabilityProviderSelections(&cfg)
+	return cfg
+}
+
+func normalizeCapabilityProviderSelections(cfg *Config) {
+	if provider := strings.TrimSpace(cfg.User.Storage.Provider); provider != "" {
+		setCapabilityProvider(cfg, "user.storage", provider)
+	}
+}
+
 func applyCapabilityEnvOverrides(cfg *Config) {
 	if provider := strings.TrimSpace(os.Getenv("ECHOADMIN_USER_STORAGE_PROVIDER")); provider != "" {
-		if cfg.Capabilities.Providers == nil {
-			cfg.Capabilities.Providers = make(map[string]string, 1)
-		}
-		cfg.Capabilities.Providers["user.storage"] = provider
+		cfg.User.Storage.Provider = provider
+		setCapabilityProvider(cfg, "user.storage", provider)
 	}
+}
+
+func setCapabilityProvider(cfg *Config, capability, provider string) {
+	if cfg.Capabilities.Providers == nil {
+		cfg.Capabilities.Providers = make(map[string]string, 1)
+	}
+	cfg.Capabilities.Providers[capability] = provider
 }
 
 func configType(format string) string {

@@ -53,3 +53,20 @@ enabled = false
 		t.Fatal("Mysql.Enabled = false, want env override true")
 	}
 }
+
+func TestDecodeConfigNormalizesUserStorageProviderSelection(t *testing.T) {
+	cfg, err := decodeConfig([]byte(`
+[user.storage]
+provider = "mysql"
+`), "toml")
+	if err != nil {
+		t.Fatalf("decodeConfig() error = %v", err)
+	}
+
+	if got := cfg.User.Storage.Provider; got != "mysql" {
+		t.Fatalf("User.Storage.Provider = %q, want mysql", got)
+	}
+	if got := cfg.Capabilities.Providers["user.storage"]; got != "mysql" {
+		t.Fatalf(`Capabilities.Providers["user.storage"] = %q, want mysql`, got)
+	}
+}

@@ -1,7 +1,6 @@
 package memory
 
 import (
-	"github.com/NSObjects/go-template/internal/api/biz"
 	user "github.com/NSObjects/go-template/internal/modules/user"
 	"github.com/NSObjects/go-template/internal/platform/module"
 )
@@ -13,12 +12,30 @@ const (
 
 // Module exposes the in-memory user storage provider.
 type Module struct {
-	repository biz.UserRepository
+	repository      user.Repository
+	defaultProvider bool
+}
+
+// Option customizes the memory user storage provider.
+type Option func(*Module)
+
+// WithDefault controls whether memory is the default user.storage provider.
+func WithDefault(defaultProvider bool) Option {
+	return func(m *Module) {
+		m.defaultProvider = defaultProvider
+	}
 }
 
 // New creates the default in-memory user storage provider module.
-func New() Module {
-	return Module{repository: NewRepository()}
+func New(options ...Option) Module {
+	m := Module{
+		repository:      NewRepository(),
+		defaultProvider: true,
+	}
+	for _, option := range options {
+		option(&m)
+	}
+	return m
 }
 
 // Descriptor reports memory as the enabled default provider for user.storage.
@@ -31,7 +48,7 @@ func (m Module) Descriptor() module.Descriptor {
 				Name:     user.StorageCapability,
 				Provider: ProviderName,
 				Status:   module.CapabilityEnabled,
-				Default:  true,
+				Default:  m.defaultProvider,
 				Value:    m.Repository(),
 			},
 		},
@@ -39,6 +56,6 @@ func (m Module) Descriptor() module.Descriptor {
 }
 
 // Repository returns the repository implementation used by the user module.
-func (m Module) Repository() biz.UserRepository {
+func (m Module) Repository() user.Repository {
 	return m.repository
 }

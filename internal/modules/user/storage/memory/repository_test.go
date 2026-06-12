@@ -4,18 +4,17 @@ import (
 	"context"
 	"testing"
 
-	"github.com/NSObjects/go-template/internal/api/biz"
-	"github.com/NSObjects/go-template/internal/api/service/param"
 	"github.com/NSObjects/go-template/internal/code"
+	user "github.com/NSObjects/go-template/internal/modules/user"
 )
 
 func TestRepositorySupportsUserLifecycle(t *testing.T) {
-	var _ biz.UserRepository = NewRepository()
+	var _ user.Repository = NewRepository()
 
 	repo := NewRepository()
 	ctx := context.Background()
 
-	if err := repo.Create(ctx, param.UserCreateRequest{
+	if err := repo.Create(ctx, user.CreateRequest{
 		Username: "lintao",
 		Email:    "lintao@example.com",
 		Age:      18,
@@ -23,7 +22,7 @@ func TestRepositorySupportsUserLifecycle(t *testing.T) {
 		t.Fatalf("Create() error = %v", err)
 	}
 
-	list, total, err := repo.ListUsers(ctx, param.UserListUsersRequest{})
+	list, total, err := repo.ListUsers(ctx, user.ListUsersRequest{})
 	if err != nil {
 		t.Fatalf("ListUsers() error = %v", err)
 	}
@@ -46,7 +45,7 @@ func TestRepositorySupportsUserLifecycle(t *testing.T) {
 		t.Fatalf("GetByID() = %+v, want created user", got)
 	}
 
-	if err := repo.Update(ctx, created.Id, param.UserUpdateRequest{
+	if err := repo.Update(ctx, created.Id, user.UpdateRequest{
 		Email: "new@example.com",
 		Age:   19,
 	}); err != nil {
@@ -66,7 +65,7 @@ func TestRepositorySupportsUserLifecycle(t *testing.T) {
 	if err := repo.Delete(ctx, created.Id); err != nil {
 		t.Fatalf("Delete() error = %v", err)
 	}
-	list, total, err = repo.ListUsers(ctx, param.UserListUsersRequest{})
+	list, total, err = repo.ListUsers(ctx, user.ListUsersRequest{})
 	if err != nil {
 		t.Fatalf("ListUsers() after delete error = %v", err)
 	}
@@ -81,7 +80,7 @@ func TestRepositoryReturnsNotFoundForMissingUser(t *testing.T) {
 	_, err := repo.GetByID(context.Background(), 404)
 	assertNotFound(t, err)
 
-	err = repo.Update(context.Background(), 404, param.UserUpdateRequest{Email: "missing@example.com"})
+	err = repo.Update(context.Background(), 404, user.UpdateRequest{Email: "missing@example.com"})
 	assertNotFound(t, err)
 
 	err = repo.Delete(context.Background(), 404)

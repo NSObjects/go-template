@@ -82,4 +82,8 @@ brokers = []
 client_id = "echo-admin"
 topic = "demo"
 
+[user.storage]
+# memory 为默认值；切到 mysql 时同时启用并配置 [mysql]。
+provider = "memory"
+
 [capabilities.providers]

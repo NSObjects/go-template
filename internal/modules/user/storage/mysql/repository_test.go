@@ -1,15 +1,15 @@
-package data
+package mysql
 
 import (
 	"context"
 	"testing"
 
-	"github.com/NSObjects/go-template/internal/api/service/param"
 	"github.com/NSObjects/go-template/internal/code"
+	user "github.com/NSObjects/go-template/internal/modules/user"
 )
 
-func TestUserRepositoryReturnsDatabaseErrorWhenMysqlDisabled(t *testing.T) {
-	repo := NewUserRepository(nil)
+func TestRepositoryReturnsDatabaseErrorWhenQueryIsMissing(t *testing.T) {
+	repo := newRepository(nil)
 	ctx := context.Background()
 
 	tests := []struct {
@@ -19,14 +19,14 @@ func TestUserRepositoryReturnsDatabaseErrorWhenMysqlDisabled(t *testing.T) {
 		{
 			name: "list users",
 			run: func() error {
-				_, _, err := repo.ListUsers(ctx, param.UserListUsersRequest{})
+				_, _, err := repo.ListUsers(ctx, user.ListUsersRequest{})
 				return err
 			},
 		},
 		{
 			name: "create user",
 			run: func() error {
-				return repo.Create(ctx, param.UserCreateRequest{})
+				return repo.Create(ctx, user.CreateRequest{})
 			},
 		},
 		{
@@ -39,7 +39,7 @@ func TestUserRepositoryReturnsDatabaseErrorWhenMysqlDisabled(t *testing.T) {
 		{
 			name: "update user",
 			run: func() error {
-				return repo.Update(ctx, 1, param.UserUpdateRequest{})
+				return repo.Update(ctx, 1, user.UpdateRequest{})
 			},
 		},
 		{

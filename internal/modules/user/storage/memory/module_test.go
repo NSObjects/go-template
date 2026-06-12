@@ -3,7 +3,6 @@ package memory
 import (
 	"testing"
 
-	"github.com/NSObjects/go-template/internal/api/biz"
 	user "github.com/NSObjects/go-template/internal/modules/user"
 	"github.com/NSObjects/go-template/internal/platform/module"
 )
@@ -35,10 +34,19 @@ func TestModuleProvidesDefaultUserStorageCapability(t *testing.T) {
 	if !capability.Default {
 		t.Fatal("capability.Default = false, want true")
 	}
-	if _, ok := capability.Value.(biz.UserRepository); !ok {
-		t.Fatalf("capability.Value = %T, want biz.UserRepository", capability.Value)
+	if _, ok := capability.Value.(user.Repository); !ok {
+		t.Fatalf("capability.Value = %T, want user.Repository", capability.Value)
 	}
 	if mod.Repository() == nil {
 		t.Fatal("Repository() = nil, want default repository")
+	}
+}
+
+func TestModuleDefaultCanBeDisabled(t *testing.T) {
+	mod := New(WithDefault(false))
+	capability := mod.Descriptor().Provides[0]
+
+	if capability.Default {
+		t.Fatal("capability.Default = true, want false")
 	}
 }

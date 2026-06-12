@@ -41,6 +41,58 @@ func TestModulesIncludesUserWithDefaultStorageProvider(t *testing.T) {
 	}
 }
 
+func TestModulesDoNotIncludeUnusedGenericDatabaseCapabilities(t *testing.T) {
+	result, err := Modules(configs.Config{})
+	if err != nil {
+		t.Fatalf("Modules() error = %v", err)
+	}
+
+	report, err := module.Assemble(result.Modules, module.WithEntryPointAdapters(module.EntryPointHTTP))
+	if err != nil {
+		t.Fatalf("module.Assemble() error = %v", err)
+	}
+
+	for _, name := range []string{"mysql", "redis", "mongodb", "kafka"} {
+		if report.HasActiveModule(name) {
+			t.Fatalf("%s capability module is active without a business requirement", name)
+		}
+	}
+}
+
+func TestModulesSelectsUserStorageProviderFromUserConfig(t *testing.T) {
+	cfg := configs.Config{
+		Mysql: configs.MysqlConfig{
+			Enabled:  true,
+			Host:     "127.0.0.1",
+			Port:     "3306",
+			User:     "root",
+			Database: "app",
+		},
+		User: configs.UserConfig{
+			Storage: configs.UserStorageConfig{
+				Provider: "mysql",
+			},
+		},
+	}
+
+	result, err := Modules(cfg)
+	if err != nil {
+		t.Fatalf("Modules() error = %v", err)
+	}
+
+	report, err := module.Assemble(result.Modules, module.WithEntryPointAdapters(module.EntryPointHTTP))
+	if err != nil {
+		t.Fatalf("module.Assemble() error = %v", err)
+	}
+	requirement, ok := report.Requirement(user.ModuleName, user.StorageCapability)
+	if !ok {
+		t.Fatalf("report.Requirement(%q, %q) ok = false, want true", user.ModuleName, user.StorageCapability)
+	}
+	if !requirement.Satisfied || requirement.Provider != "mysql" {
+		t.Fatalf("requirement = %+v, want satisfied by mysql provider", requirement)
+	}
+}
+
 func TestExplicitAppModulesActivateUserNotLegacyFiles(t *testing.T) {
 	result, err := Modules(configs.Config{})
 	if err != nil {

@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/NSObjects/go-template/internal/api/biz"
 	platformhttp "github.com/NSObjects/go-template/internal/platform/http"
 	"github.com/NSObjects/go-template/internal/platform/module"
 )
@@ -66,8 +65,8 @@ func TestDescriptorDeclaresUserStorageAndHTTPRoutes(t *testing.T) {
 	}
 }
 
-var _ biz.UserUseCase = fakeUserUseCase{}
+var _ UseCase = fakeUserUseCase{}
 
 type fakeUserUseCase struct {
-	biz.UserUseCase
+	UseCase
 }

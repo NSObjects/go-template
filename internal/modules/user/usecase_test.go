@@ -1,23 +1,22 @@
-package biz
+package user
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	"github.com/NSObjects/go-template/internal/api/service/param"
 	"github.com/NSObjects/go-template/internal/code"
 )
 
-func TestUserHandlerDelegatesToRepository(t *testing.T) {
+func TestUseCaseDelegatesToRepository(t *testing.T) {
 	ctx := context.Background()
-	repo := &fakeUserRepository{
-		list: []param.UserListItem{{Id: 1, Username: "alice", Email: "alice@example.com", Age: 20}},
-		data: param.UserData{Id: 1, Username: "alice", Email: "alice@example.com", Age: 20},
+	repo := &fakeRepository{
+		list: []ListItem{{Id: 1, Username: "alice", Email: "alice@example.com", Age: 20}},
+		data: Data{Id: 1, Username: "alice", Email: "alice@example.com", Age: 20},
 	}
-	handler := NewUserHandler(repo)
+	useCase := NewUseCase(repo)
 
-	list, total, err := handler.ListUsers(ctx, param.UserListUsersRequest{APIQuery: param.APIQuery{Page: 1, Count: 10}})
+	list, total, err := useCase.ListUsers(ctx, ListUsersRequest{Query: Query{Page: 1, Count: 10}})
 	if err != nil {
 		t.Fatalf("ListUsers() error = %v", err)
 	}
@@ -25,11 +24,11 @@ func TestUserHandlerDelegatesToRepository(t *testing.T) {
 		t.Fatalf("ListUsers() = (%#v, %d), want one user with total 1", list, total)
 	}
 
-	if err := handler.Create(ctx, param.UserCreateRequest{Username: "alice", Email: "alice@example.com", Age: 20}); err != nil {
+	if err := useCase.Create(ctx, CreateRequest{Username: "alice", Email: "alice@example.com", Age: 20}); err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
 
-	data, err := handler.GetByID(ctx, 1)
+	data, err := useCase.GetByID(ctx, 1)
 	if err != nil {
 		t.Fatalf("GetByID() error = %v", err)
 	}
@@ -37,10 +36,10 @@ func TestUserHandlerDelegatesToRepository(t *testing.T) {
 		t.Fatalf("GetByID() id = %d, want 1", data.Id)
 	}
 
-	if err := handler.Update(ctx, 1, param.UserUpdateRequest{Username: "alice"}); err != nil {
+	if err := useCase.Update(ctx, 1, UpdateRequest{Username: "alice"}); err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
-	if err := handler.Delete(ctx, 1); err != nil {
+	if err := useCase.Delete(ctx, 1); err != nil {
 		t.Fatalf("Delete() error = %v", err)
 	}
 
@@ -55,11 +54,11 @@ func TestUserHandlerDelegatesToRepository(t *testing.T) {
 	}
 }
 
-func TestUserHandlerPassesThroughRepositoryErrors(t *testing.T) {
+func TestUseCasePassesThroughRepositoryErrors(t *testing.T) {
 	repoErr := code.WrapNotFoundError(errors.New("repository failed"), "user not found")
-	handler := NewUserHandler(&fakeUserRepository{err: repoErr})
+	useCase := NewUseCase(&fakeRepository{err: repoErr})
 
-	_, _, err := handler.ListUsers(context.Background(), param.UserListUsersRequest{})
+	_, _, err := useCase.ListUsers(context.Background(), ListUsersRequest{})
 	if err == nil {
 		t.Fatal("ListUsers() error = nil, want repository error")
 	}
@@ -75,14 +74,14 @@ func TestUserHandlerPassesThroughRepositoryErrors(t *testing.T) {
 	}
 }
 
-type fakeUserRepository struct {
-	list  []param.UserListItem
-	data  param.UserData
+type fakeRepository struct {
+	list  []ListItem
+	data  Data
 	err   error
 	calls []string
 }
 
-func (f *fakeUserRepository) ListUsers(ctx context.Context, req param.UserListUsersRequest) ([]param.UserListItem, int64, error) {
+func (f *fakeRepository) ListUsers(context.Context, ListUsersRequest) ([]ListItem, int64, error) {
 	f.calls = append(f.calls, "ListUsers")
 	if f.err != nil {
 		return nil, 0, f.err
@@ -90,25 +89,25 @@ func (f *fakeUserRepository) ListUsers(ctx context.Context, req param.UserListUs
 	return f.list, int64(len(f.list)), nil
 }
 
-func (f *fakeUserRepository) Create(ctx context.Context, req param.UserCreateRequest) error {
+func (f *fakeRepository) Create(context.Context, CreateRequest) error {
 	f.calls = append(f.calls, "Create")
 	return f.err
 }
 
-func (f *fakeUserRepository) GetByID(ctx context.Context, id int64) (param.UserData, error) {
+func (f *fakeRepository) GetByID(context.Context, int64) (Data, error) {
 	f.calls = append(f.calls, "GetByID")
 	if f.err != nil {
-		return param.UserData{}, f.err
+		return Data{}, f.err
 	}
 	return f.data, nil
 }
 
-func (f *fakeUserRepository) Update(ctx context.Context, id int64, req param.UserUpdateRequest) error {
+func (f *fakeRepository) Update(context.Context, int64, UpdateRequest) error {
 	f.calls = append(f.calls, "Update")
 	return f.err
 }
 
-func (f *fakeUserRepository) Delete(ctx context.Context, id int64) error {
+func (f *fakeRepository) Delete(context.Context, int64) error {
 	f.calls = append(f.calls, "Delete")
 	return f.err
 }
