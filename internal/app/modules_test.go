@@ -30,8 +30,9 @@ func TestModulesIncludesUserWithDefaultStorageProvider(t *testing.T) {
 		t.Fatalf("requirement = %+v, want satisfied by memory provider", requirement)
 	}
 	assembled, err := app.Assemble(app.Options{
-		Config:  configs.Config{},
-		Modules: result.Modules,
+		Config:               configs.Config{},
+		Modules:              result.Modules,
+		CapabilitySelections: result.CapabilitySelections,
 	})
 	if err != nil {
 		t.Fatalf("app.Assemble() error = %v", err)
@@ -59,7 +60,7 @@ func TestModulesDoNotIncludeUnusedGenericDatabaseCapabilities(t *testing.T) {
 	}
 }
 
-func TestModulesSelectsUserStorageProviderFromUserConfig(t *testing.T) {
+func TestModulesSelectsUserStorageProviderFromCapabilityConfig(t *testing.T) {
 	cfg := configs.Config{
 		Mysql: configs.MysqlConfig{
 			Enabled:  true,
@@ -68,9 +69,9 @@ func TestModulesSelectsUserStorageProviderFromUserConfig(t *testing.T) {
 			User:     "root",
 			Database: "app",
 		},
-		User: configs.UserConfig{
-			Storage: configs.UserStorageConfig{
-				Provider: "mysql",
+		Capabilities: configs.CapabilitiesConfig{
+			Providers: map[string]string{
+				user.StorageCapability: "mysql",
 			},
 		},
 	}
@@ -80,9 +81,9 @@ func TestModulesSelectsUserStorageProviderFromUserConfig(t *testing.T) {
 		t.Fatalf("Modules() error = %v", err)
 	}
 
-	report, err := module.Assemble(result.Modules, module.WithEntryPointAdapters(module.EntryPointHTTP))
+	report, err := assembleAppReport(t, result)
 	if err != nil {
-		t.Fatalf("module.Assemble() error = %v", err)
+		t.Fatalf("assembleAppReport() error = %v", err)
 	}
 	requirement, ok := report.Requirement(user.ModuleName, user.StorageCapability)
 	if !ok {
@@ -90,6 +91,44 @@ func TestModulesSelectsUserStorageProviderFromUserConfig(t *testing.T) {
 	}
 	if !requirement.Satisfied || requirement.Provider != "mysql" {
 		t.Fatalf("requirement = %+v, want satisfied by mysql provider", requirement)
+	}
+}
+
+func TestModulesResultCarriesResolvedCapabilitySelection(t *testing.T) {
+	cfg := configs.Config{
+		Capabilities: configs.CapabilitiesConfig{
+			Providers: map[string]string{
+				user.StorageCapability: "memory",
+			},
+		},
+	}
+
+	result, err := Modules(cfg)
+	if err != nil {
+		t.Fatalf("Modules() error = %v", err)
+	}
+
+	assembled, err := app.Assemble(app.Options{
+		Config: configs.Config{
+			Capabilities: configs.CapabilitiesConfig{
+				Providers: map[string]string{
+					user.StorageCapability: "mysql",
+				},
+			},
+		},
+		Modules:              result.Modules,
+		CapabilitySelections: result.CapabilitySelections,
+	})
+	if err != nil {
+		t.Fatalf("app.Assemble() error = %v", err)
+	}
+
+	requirement, ok := assembled.Report().Requirement(user.ModuleName, user.StorageCapability)
+	if !ok {
+		t.Fatalf("Report().Requirement(%q, %q) ok = false, want true", user.ModuleName, user.StorageCapability)
+	}
+	if requirement.Provider != "memory" {
+		t.Fatalf("requirement.Provider = %q, want composition root selection memory", requirement.Provider)
 	}
 }
 
@@ -116,4 +155,14 @@ func TestExplicitAppModulesActivateUserNotLegacyFiles(t *testing.T) {
 	if len(customReport.EntryPoints) != 0 {
 		t.Fatalf("len(customReport.EntryPoints) = %d, want 0", len(customReport.EntryPoints))
 	}
+}
+
+func assembleAppReport(t *testing.T, result ModulesResult) (module.Report, error) {
+	t.Helper()
+
+	return module.Assemble(
+		result.Modules,
+		module.WithEntryPointAdapters(module.EntryPointHTTP),
+		module.WithCapabilitySelections(result.CapabilitySelections...),
+	)
 }

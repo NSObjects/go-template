@@ -18,6 +18,12 @@ type capabilityProvider struct {
 	provider   string
 }
 
+// ResolvedCapability is the runtime value and provider selected for a requirement.
+type ResolvedCapability[T any] struct {
+	Value    T
+	Provider string
+}
+
 // Assembly contains the observable report plus runtime assembly metadata.
 type Assembly struct {
 	report                          Report
@@ -217,6 +223,21 @@ func ResolveCapabilityValueFromModules[T any](
 	capabilityName string,
 	options ...Option,
 ) (T, error) {
+	resolved, err := ResolveCapabilityFromModules[T](providers, moduleName, capabilityName, options...)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	return resolved.Value, nil
+}
+
+// ResolveCapabilityFromModules returns the runtime value and provider selected for one module requirement.
+func ResolveCapabilityFromModules[T any](
+	providers []Module,
+	moduleName string,
+	capabilityName string,
+	options ...Option,
+) (ResolvedCapability[T], error) {
 	modules := make([]Module, 0, len(providers)+1)
 	modules = append(modules, staticDescriptorModule{descriptor: Descriptor{
 		Name: moduleName,
@@ -229,20 +250,22 @@ func ResolveCapabilityValueFromModules[T any](
 
 	result, err := assemble(modules, options...)
 	if err != nil {
-		var zero T
-		return zero, err
+		return ResolvedCapability[T]{}, err
 	}
 	value, ok := resolveCapabilityValue[T](result, moduleName, capabilityName)
 	if !ok {
-		var zero T
 		requirement, _ := result.Report().Requirement(moduleName, capabilityName)
-		return zero, &MissingCapabilityValueError{
+		return ResolvedCapability[T]{}, &MissingCapabilityValueError{
 			Module:     moduleName,
 			Capability: capabilityName,
 			Provider:   requirement.Provider,
 		}
 	}
-	return value, nil
+	requirement, _ := result.Report().Requirement(moduleName, capabilityName)
+	return ResolvedCapability[T]{
+		Value:    value,
+		Provider: requirement.Provider,
+	}, nil
 }
 
 func resolveCapabilityValue[T any](result assemblyResult, moduleName, capabilityName string) (T, bool) {

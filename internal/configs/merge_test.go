@@ -42,20 +42,3 @@ func TestMergeDoesNotDisableAlreadyEnabledInfrastructureFlags(t *testing.T) {
 		t.Fatalf("Merge disabled a database capability: %#v", got)
 	}
 }
-
-func TestMergeNormalizesUserStorageProviderSelection(t *testing.T) {
-	got := Merge(Config{}, Config{
-		User: UserConfig{
-			Storage: UserStorageConfig{
-				Provider: "mysql",
-			},
-		},
-	})
-
-	if got.User.Storage.Provider != "mysql" {
-		t.Fatalf("User.Storage.Provider = %q, want mysql", got.User.Storage.Provider)
-	}
-	if got.Capabilities.Providers["user.storage"] != "mysql" {
-		t.Fatalf(`Capabilities.Providers["user.storage"] = %q, want mysql`, got.Capabilities.Providers["user.storage"])
-	}
-}

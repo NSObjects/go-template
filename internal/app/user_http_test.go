@@ -1,4 +1,4 @@
-package user_test
+package app
 
 import (
 	"encoding/json"
@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	included "github.com/NSObjects/go-template/internal/app"
 	"github.com/NSObjects/go-template/internal/code"
 	"github.com/NSObjects/go-template/internal/configs"
 	platformapp "github.com/NSObjects/go-template/internal/platform/app"
@@ -15,13 +14,14 @@ import (
 
 func TestExistingUserRouteReachableThroughModuleFirstPath(t *testing.T) {
 	cfg := configs.Config{}
-	modules, err := included.Modules(cfg)
+	modules, err := Modules(cfg)
 	if err != nil {
 		t.Fatalf("Modules() error = %v", err)
 	}
 	app, err := platformapp.Assemble(platformapp.Options{
-		Config:  cfg,
-		Modules: modules.Modules,
+		Config:               cfg,
+		Modules:              modules.Modules,
+		CapabilitySelections: modules.CapabilitySelections,
 	})
 	if err != nil {
 		t.Fatalf("platform app Assemble() error = %v", err)
@@ -52,13 +52,14 @@ func TestExistingUserRouteReachableThroughModuleFirstPath(t *testing.T) {
 
 func TestInvalidUserInputUsesPlatformErrorEnvelope(t *testing.T) {
 	cfg := configs.Config{}
-	modules, err := included.Modules(cfg)
+	modules, err := Modules(cfg)
 	if err != nil {
 		t.Fatalf("Modules() error = %v", err)
 	}
 	app, err := platformapp.Assemble(platformapp.Options{
-		Config:  cfg,
-		Modules: modules.Modules,
+		Config:               cfg,
+		Modules:              modules.Modules,
+		CapabilitySelections: modules.CapabilitySelections,
 	})
 	if err != nil {
 		t.Fatalf("platform app Assemble() error = %v", err)

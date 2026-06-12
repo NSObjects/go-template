@@ -7,10 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/NSObjects/go-template/internal/api/data/query"
 	"github.com/NSObjects/go-template/internal/code"
 	"github.com/NSObjects/go-template/internal/configs"
 	user "github.com/NSObjects/go-template/internal/modules/user"
+	"github.com/NSObjects/go-template/internal/capabilities/userstorage/mysql/gormgen/query"
 	"github.com/NSObjects/go-template/internal/platform/module"
 )
 

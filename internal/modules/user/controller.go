@@ -1,11 +1,8 @@
 package user
 
 import (
-	"strconv"
-
-	"github.com/NSObjects/go-template/internal/code"
+	platformhttp "github.com/NSObjects/go-template/internal/platform/http"
 	"github.com/NSObjects/go-template/internal/resp"
-	"github.com/NSObjects/go-template/internal/utils"
 	"github.com/labstack/echo/v4"
 )
 
@@ -19,11 +16,11 @@ func newController(useCase UseCase) *controller {
 
 func (c *controller) ListUsers(ctx echo.Context) error {
 	var req ListUsersRequest
-	if err := bindAndValidate(ctx, &req); err != nil {
+	if err := platformhttp.BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
 
-	list, total, err := c.user.ListUsers(utils.BuildContext(ctx), req)
+	list, total, err := c.user.ListUsers(platformhttp.RequestContext(ctx), req)
 	if err != nil {
 		return err
 	}
@@ -32,23 +29,23 @@ func (c *controller) ListUsers(ctx echo.Context) error {
 
 func (c *controller) Create(ctx echo.Context) error {
 	var req CreateRequest
-	if err := bindAndValidate(ctx, &req); err != nil {
+	if err := platformhttp.BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
 
-	if err := c.user.Create(utils.BuildContext(ctx), req); err != nil {
+	if err := c.user.Create(platformhttp.RequestContext(ctx), req); err != nil {
 		return err
 	}
 	return resp.OperateSuccess(ctx)
 }
 
 func (c *controller) GetByID(ctx echo.Context) error {
-	id, err := parseID(ctx)
+	id, err := platformhttp.PathInt64(ctx, "id")
 	if err != nil {
 		return err
 	}
 
-	result, err := c.user.GetByID(utils.BuildContext(ctx), id)
+	result, err := c.user.GetByID(platformhttp.RequestContext(ctx), id)
 	if err != nil {
 		return err
 	}
@@ -56,48 +53,30 @@ func (c *controller) GetByID(ctx echo.Context) error {
 }
 
 func (c *controller) Update(ctx echo.Context) error {
-	id, err := parseID(ctx)
+	id, err := platformhttp.PathInt64(ctx, "id")
 	if err != nil {
 		return err
 	}
 
 	var req UpdateRequest
-	if err := bindAndValidate(ctx, &req); err != nil {
+	if err := platformhttp.BindAndValidate(ctx, &req); err != nil {
 		return err
 	}
 
-	if err := c.user.Update(utils.BuildContext(ctx), id, req); err != nil {
+	if err := c.user.Update(platformhttp.RequestContext(ctx), id, req); err != nil {
 		return err
 	}
 	return resp.OperateSuccess(ctx)
 }
 
 func (c *controller) Delete(ctx echo.Context) error {
-	id, err := parseID(ctx)
+	id, err := platformhttp.PathInt64(ctx, "id")
 	if err != nil {
 		return err
 	}
 
-	if err := c.user.Delete(utils.BuildContext(ctx), id); err != nil {
+	if err := c.user.Delete(platformhttp.RequestContext(ctx), id); err != nil {
 		return err
 	}
 	return resp.OperateSuccess(ctx)
-}
-
-func bindAndValidate(ctx echo.Context, obj any) error {
-	if err := ctx.Bind(obj); err != nil {
-		return code.WrapError(err, code.ErrBind, "bind request failed")
-	}
-	if err := ctx.Validate(obj); err != nil {
-		return code.WrapError(err, code.ErrValidation, "validation failed")
-	}
-	return nil
-}
-
-func parseID(ctx echo.Context) (int64, error) {
-	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
-	if err != nil {
-		return 0, code.WrapBadRequestError(err, "invalid user id")
-	}
-	return id, nil
 }

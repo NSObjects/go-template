@@ -32,8 +32,8 @@ port = ":9322"
 	}
 }
 
-func TestDecodeConfigWithEnvAppliesUserStorageProviderOverride(t *testing.T) {
-	t.Setenv("ECHOADMIN_USER_STORAGE_PROVIDER", "mysql")
+func TestDecodeConfigWithEnvAppliesCapabilityProviderOverride(t *testing.T) {
+	t.Setenv("ECHOADMIN_CAPABILITIES_PROVIDERS_USER_STORAGE", "mysql")
 	t.Setenv("ECHOADMIN_MYSQL_ENABLED", "true")
 
 	cfg, err := decodeConfigWithEnv([]byte(`
@@ -51,22 +51,5 @@ enabled = false
 	}
 	if !cfg.Mysql.Enabled {
 		t.Fatal("Mysql.Enabled = false, want env override true")
-	}
-}
-
-func TestDecodeConfigNormalizesUserStorageProviderSelection(t *testing.T) {
-	cfg, err := decodeConfig([]byte(`
-[user.storage]
-provider = "mysql"
-`), "toml")
-	if err != nil {
-		t.Fatalf("decodeConfig() error = %v", err)
-	}
-
-	if got := cfg.User.Storage.Provider; got != "mysql" {
-		t.Fatalf("User.Storage.Provider = %q, want mysql", got)
-	}
-	if got := cfg.Capabilities.Providers["user.storage"]; got != "mysql" {
-		t.Fatalf(`Capabilities.Providers["user.storage"] = %q, want mysql`, got)
 	}
 }

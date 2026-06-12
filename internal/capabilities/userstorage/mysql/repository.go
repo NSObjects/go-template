@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/NSObjects/go-template/internal/api/data/model"
-	"github.com/NSObjects/go-template/internal/api/data/query"
 	"github.com/NSObjects/go-template/internal/code"
 	user "github.com/NSObjects/go-template/internal/modules/user"
+	"github.com/NSObjects/go-template/internal/capabilities/userstorage/mysql/gormgen/model"
+	"github.com/NSObjects/go-template/internal/capabilities/userstorage/mysql/gormgen/query"
 )
 
 type gormRepository struct {
