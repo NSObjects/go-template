@@ -1,11 +1,7 @@
-/*
- * Created by lintao on 2023/7/18 下午3:56
- * Copyright © 2020-2023 LINTAO. All rights reserved.
- *
- */
-
+// Package configs loads and validates static application configuration.
 package configs
 
+// Level identifies the runtime logging and debug mode.
 type Level int8
 
 const (
@@ -16,20 +12,31 @@ const (
 	OnlineLevel
 )
 
+const (
+	// DefaultPort is the HTTP port used when config omits system.port.
+	DefaultPort = ":9322"
+
+	// DefaultEnv is the runtime environment name used when config omits
+	// system.env.
+	DefaultEnv = "dev"
+)
+
+// Config is the complete application configuration loaded at startup.
 type Config struct {
 	System SystemConfig `mapstructure:"system"`
 	JWT    JWTConfig    `mapstructure:"jwt"`
 }
 
+// SystemConfig controls process-level runtime settings.
 type SystemConfig struct {
 	Port  string `mapstructure:"port"`
 	Level Level  `mapstructure:"level"`
 	Env   string `mapstructure:"env"`
 }
 
+// JWTConfig controls optional server-level JWT verification.
 type JWTConfig struct {
 	Enabled   bool     `mapstructure:"enabled"`
 	Secret    string   `mapstructure:"secret"`
-	Expire    int      `mapstructure:"expire"`
 	SkipPaths []string `mapstructure:"skip_paths"`
 }

@@ -1,6 +1,6 @@
 # =============================================================================
 # Go Template Project Makefile
-# 提供业务开发常用的构建、运行、测试和数据库模型生成命令
+# 提供业务开发常用的构建、运行、测试和检查命令
 # =============================================================================
 
 # 默认目标
@@ -22,7 +22,7 @@ LINT_SKIP_DIRS := vendor
 # 基础命令
 # =============================================================================
 
-.PHONY: build run tidy push
+.PHONY: build run tidy
 
 # 构建应用
 build:
@@ -52,21 +52,11 @@ tidy:
 	@go mod tidy
 	@echo "$(GREEN)[SUCCESS]$(NC) Dependencies tidied"
 
-# 提交代码
-push:
-	@if [ -z "$(m)" ]; then \
-		echo "$(RED)[ERROR]$(NC) Usage: make push m=\"commit_message\""; \
-		exit 1; \
-	fi
-	@echo "$(BLUE)[INFO]$(NC) Preparing to push..."
-	@go mod download && go mod vendor && git add . && git commit -m '$(m)' && git push
-	@echo "$(GREEN)[SUCCESS]$(NC) Code committed with message: $(m)"
-
 # =============================================================================
 # 代码质量工具
 # =============================================================================
 
-.PHONY: fmt vet lint test test-verbose test-coverage clean
+.PHONY: fmt vet lint lint-strict lint-fast lint-fix lint-dir lint-report install-lint test test-verbose test-coverage clean clean-all
 
 # 格式化代码
 fmt:
@@ -84,25 +74,25 @@ vet:
 # 代码检查（使用golangci-lint）
 lint:
 	@echo "$(BLUE)[INFO]$(NC) Running linter..."
-	@golangci-lint run --skip-dirs=$(LINT_SKIP_DIRS) --skip-files='.*\.gen\.go$$' || true
+	@golangci-lint run
 	@echo "$(GREEN)[SUCCESS]$(NC) Linting completed"
 
 # 严格代码检查（失败时退出）
 lint-strict:
 	@echo "$(BLUE)[INFO]$(NC) Running strict linter..."
-	@golangci-lint run --skip-dirs=$(LINT_SKIP_DIRS) --skip-files='.*\.gen\.go$$'
+	@golangci-lint run
 	@echo "$(GREEN)[SUCCESS]$(NC) Strict linting completed"
 
 # 快速代码检查（只运行快速linter）
 lint-fast:
 	@echo "$(BLUE)[INFO]$(NC) Running fast linter..."
-	@golangci-lint run --fast-only --skip-dirs=$(LINT_SKIP_DIRS) --skip-files='.*\.gen\.go$$'
+	@golangci-lint run --fast-only
 	@echo "$(GREEN)[SUCCESS]$(NC) Fast linting completed"
 
 # 修复可自动修复的问题
 lint-fix:
 	@echo "$(BLUE)[INFO]$(NC) Running linter with auto-fix..."
-	@golangci-lint run --fix --skip-dirs=$(LINT_SKIP_DIRS) --skip-files='.*\.gen\.go$$'
+	@golangci-lint run --fix
 	@echo "$(GREEN)[SUCCESS]$(NC) Linting with auto-fix completed"
 
 # 检查特定目录
@@ -112,19 +102,19 @@ lint-dir:
 		exit 1; \
 	fi
 	@echo "$(BLUE)[INFO]$(NC) Running linter on directory: $(DIR)"
-	@golangci-lint run --skip-dirs=$(LINT_SKIP_DIRS) --skip-files='.*\.gen\.go$$' $(DIR)
+	@golangci-lint run $(DIR)
 	@echo "$(GREEN)[SUCCESS]$(NC) Directory linting completed"
 
 # 生成lint报告
 lint-report:
 	@echo "$(BLUE)[INFO]$(NC) Generating lint report..."
-	@golangci-lint run --output.checkstyle.path=golangci-report.xml --skip-dirs=$(LINT_SKIP_DIRS) --skip-files='.*\.gen\.go$$' || true
+	@golangci-lint run --output.checkstyle.path=golangci-report.xml
 	@echo "$(GREEN)[SUCCESS]$(NC) Lint report generated: golangci-report.xml"
 
 # 安装golangci-lint
 install-lint:
 	@echo "$(BLUE)[INFO]$(NC) Installing golangci-lint..."
-	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v2.4.0
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v2.11.4
 	@echo "$(GREEN)[SUCCESS]$(NC) golangci-lint installed"
 
 # 运行测试
@@ -199,19 +189,21 @@ docker-build:
 # 运行Docker容器
 docker-run:
 	@echo "$(BLUE)[INFO]$(NC) Starting Docker container..."
-	@docker-compose up -d
+	@docker compose up -d
 	@echo "$(GREEN)[SUCCESS]$(NC) Docker container started"
 
 # 停止Docker容器
 docker-stop:
 	@echo "$(BLUE)[INFO]$(NC) Stopping Docker container..."
-	@docker-compose down
+	@docker compose down
 	@echo "$(GREEN)[SUCCESS]$(NC) Docker container stopped"
 
 # 清理Docker资源
 docker-clean: docker-stop
 	@echo "$(BLUE)[INFO]$(NC) Cleaning Docker resources..."
-	@docker system prune -f
+	@if docker image inspect go-template:latest >/dev/null 2>&1; then \
+		docker image rm go-template:latest; \
+	fi
 	@echo "$(GREEN)[SUCCESS]$(NC) Docker resources cleaned"
 
 .PHONY: security-scan
@@ -256,7 +248,6 @@ help:
 	@echo "  $(GREEN)run-dev$(NC)            - 运行应用程序（开发模式）"
 	@echo "  $(GREEN)run-test$(NC)           - 运行应用程序（测试模式）"
 	@echo "  $(GREEN)tidy$(NC)               - 整理Go模块依赖"
-	@echo "  $(GREEN)push$(NC)               - 提交代码 (需要设置 m=commit_message)"
 	@echo ""
 	@echo "$(YELLOW)代码质量:$(NC)"
 	@echo "  $(GREEN)fmt$(NC)                - 格式化代码"
@@ -290,10 +281,8 @@ help:
 	@echo ""
 	@echo "$(YELLOW)环境变量:$(NC)"
 	@echo "  $(GREEN)DIR$(NC)                - 目录路径 (用于lint-dir)"
-	@echo "  $(GREEN)m$(NC)                  - 提交消息 (用于push)"
 	@echo ""
 	@echo "$(YELLOW)示例用法:$(NC)"
 	@echo "  make lint-dir DIR=./internal/server"
 	@echo "  make lint-fix"
-	@echo "  make push m=\"feat: add user module\""
 	@echo "  make dev-full"

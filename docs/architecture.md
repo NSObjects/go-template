@@ -32,13 +32,10 @@ cmd/
 internal/
   boot/
     app.go
-    resources.go
-    routes.go
 
   server/
     server.go
-    routes.go
-    middleware/
+    middlewares/
     httpresp/
 
   configs/
@@ -62,7 +59,7 @@ internal/report/
   mysql/
 ```
 
-Add `domain/` when the module has real business concepts or invariants. Add `memory/`, `queue/`, `client/`, or other concrete adapters only when those details exist.
+Add `domain/` when the module has real business concepts or invariants. Add `memory/`, `queue/`, `client/`, or other concrete adapters only when those details exist. Split `internal/boot` into helper files such as `routes.go` or `resources.go` only after real route or resource wiring makes `app.go` hard to read.
 
 ## Dependency Direction
 
@@ -99,6 +96,8 @@ Forbidden imports:
 
 - `domain` must not import Echo, GORM, Redis, configs, server, http response helpers, or global loggers.
 - `usecase` must not import Echo, GORM, Redis, configs, server, or concrete adapter packages.
+- `http` adapters must not import persistence adapters, domain packages, driver details, or configs.
+- `mysql` adapters must not import HTTP adapters, server packages, or configs.
 - `server` must not import business modules.
 - `configs` must not import business modules.
 - `boot` may import everything needed for wiring.
@@ -109,7 +108,10 @@ Forbidden imports:
 
 ```go
 cfg, err := configs.Load(configPath)
-srv := server.New(cfg)
+srv, err := server.New(cfg)
+if err != nil {
+	return err
+}
 
 db := mysqlinfra.Open(databaseConfig)
 orders := ordermysql.NewStore(db)
@@ -309,7 +311,7 @@ The MySQL adapter implements it. Other modules should not depend on that transac
 3. Define outbound interfaces only for external behavior the usecase needs.
 4. Implement an HTTP handler.
 5. Implement a MySQL or memory adapter if persistence is needed.
-6. Wire the concrete pieces in `internal/boot/routes.go`.
+6. Wire the concrete pieces in `internal/boot/app.go`, or in a boot helper file once real wiring pressure exists.
 7. Add usecase tests first, then adapter tests for HTTP or DB behavior.
 
 ### Add a new external system
@@ -417,6 +419,24 @@ internal/*/usecase must not import:
   internal/code
   internal/*/http
   internal/*/mysql
+
+internal/*/http must not import:
+  gorm.io
+  github.com/redis/go-redis
+  internal/configs
+  internal/log
+  internal/code
+  internal/*/domain
+  internal/*/mysql
+
+internal/*/mysql must not import:
+  github.com/labstack/echo
+  internal/configs
+  internal/log
+  internal/server
+  internal/server/httpresp
+  internal/code
+  internal/*/http
 
 internal/server and internal/configs must not import:
   internal/<business>

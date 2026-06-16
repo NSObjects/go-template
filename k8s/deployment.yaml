@@ -66,11 +66,10 @@ data:
   config.toml: |
     [system]
     port = ":9322"
-    level = 1
+    level = 2
     env = "prod"
 
     [jwt]
     enabled = false
     secret = ""
-    expire = 3600
-    skip_paths = ["/api/health","/api/info","/api/auth/login"]
+    skip_paths = ["/api/health","/api/info"]

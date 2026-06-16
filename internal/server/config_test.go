@@ -1,8 +1,3 @@
-/*
- * Server Configuration Tests
- * 服务器配置测试用例
- */
-
 package server
 
 import (
@@ -13,11 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDefaultServerConfig(t *testing.T) {
-	config := DefaultServerConfig()
+func TestDefaultConfig(t *testing.T) {
+	config := DefaultConfig()
 
 	assert.NotNil(t, config)
-	assert.Equal(t, ":8080", config.Port)
+	assert.Equal(t, ":9322", config.Port)
 	assert.Equal(t, 30*time.Second, config.ReadTimeout)
 	assert.Equal(t, 30*time.Second, config.WriteTimeout)
 	assert.Equal(t, 120*time.Second, config.IdleTimeout)
@@ -30,17 +25,17 @@ func TestFromAppConfig(t *testing.T) {
 	tests := []struct {
 		name     string
 		config   configs.Config
-		expected *ServerConfig
+		expected *Config
 	}{
 		{
 			name: "debug mode",
 			config: configs.Config{
 				System: configs.SystemConfig{
 					Port:  ":9090",
-					Level: 1, // debug
+					Level: configs.DebugLevel,
 				},
 			},
-			expected: &ServerConfig{
+			expected: &Config{
 				Port:            ":9090",
 				ReadTimeout:     30 * time.Second,
 				WriteTimeout:    30 * time.Second,
@@ -54,12 +49,12 @@ func TestFromAppConfig(t *testing.T) {
 			name: "production mode",
 			config: configs.Config{
 				System: configs.SystemConfig{
-					Port:  ":8080",
-					Level: 2, // online
+					Port:  ":9322",
+					Level: configs.OnlineLevel,
 				},
 			},
-			expected: &ServerConfig{
-				Port:            ":8080",
+			expected: &Config{
+				Port:            ":9322",
 				ReadTimeout:     30 * time.Second,
 				WriteTimeout:    30 * time.Second,
 				IdleTimeout:     120 * time.Second,
@@ -86,7 +81,7 @@ func TestFromAppConfig(t *testing.T) {
 }
 
 func TestServerConfigFields(t *testing.T) {
-	config := &ServerConfig{
+	config := &Config{
 		Port:            ":3000",
 		ReadTimeout:     15 * time.Second,
 		WriteTimeout:    15 * time.Second,

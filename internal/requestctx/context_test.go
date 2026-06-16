@@ -76,16 +76,17 @@ func TestWithTraceInfoSupportsGetters(t *testing.T) {
 }
 
 func TestGettersHandleNilContext(t *testing.T) {
-	if got := GetTraceID(nil); got != "" {
+	var ctx context.Context
+	if got := GetTraceID(ctx); got != "" {
 		t.Fatalf("GetTraceID(nil) = %q, want empty", got)
 	}
-	if got := GetRequestID(nil); got != "" {
+	if got := GetRequestID(ctx); got != "" {
 		t.Fatalf("GetRequestID(nil) = %q, want empty", got)
 	}
-	if got := GetUserID(nil); got != "" {
+	if got := GetUserID(ctx); got != "" {
 		t.Fatalf("GetUserID(nil) = %q, want empty", got)
 	}
-	if got := GetStartTime(nil); !got.IsZero() {
+	if got := GetStartTime(ctx); !got.IsZero() {
 		t.Fatalf("GetStartTime(nil) = %v, want zero", got)
 	}
 }

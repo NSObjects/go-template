@@ -1,40 +1,16 @@
-/*
- * Created by lintao on 2023/7/18 下午3:56
- * Copyright © 2020-2023 LINTAO. All rights reserved.
- *
- */
-
+// Package httpresp renders framework-specific HTTP error responses.
 package httpresp
 
 import (
 	"errors"
 	"net/http"
-	"reflect"
 	"time"
 
 	"github.com/NSObjects/go-template/internal/apperr"
+	"github.com/NSObjects/go-template/internal/requestctx"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
-
-const successCode = 0
-
-type ListResponse struct {
-	Code int      `json:"code"`
-	Msg  string   `json:"msg"`
-	Data ListData `json:"data"`
-}
-
-type ListData struct {
-	Total int64       `json:"total"`
-	List  interface{} `json:"list" `
-}
-
-type DataResponse struct {
-	Code int         `json:"code"`
-	Msg  string      `json:"msg"`
-	Data interface{} `json:"data"`
-}
 
 // ErrorResponse is the standard JSON error response for HTTP adapters.
 type ErrorResponse struct {
@@ -47,7 +23,7 @@ type ErrorResponse struct {
 // APIError renders a project error as a JSON HTTP response.
 func APIError(c echo.Context, err error) error {
 	if err == nil {
-		return errors.New("error can't be nil")
+		return errors.New("error cannot be nil")
 	}
 
 	info := apperr.NewInfo(err)
@@ -81,60 +57,13 @@ func Status(kind apperr.Kind) int {
 	}
 }
 
-func OperateSuccess(c echo.Context) error {
-	rjson := DataResponse{
-		Code: successCode,
-		Msg:  "success",
-		Data: map[string]interface{}{},
-	}
-
-	return c.JSON(http.StatusOK, rjson)
-}
-
-func ListDataResponse(c echo.Context, arr interface{}, total int64) error {
-	if isNilList(arr) {
-		arr = make([]interface{}, 0)
-	}
-
-	r := ListResponse{
-		Code: successCode,
-		Msg:  "success",
-		Data: ListData{
-			List:  arr,
-			Total: total,
-		},
-	}
-
-	return c.JSONPretty(http.StatusOK, r, "  ")
-}
-
-func isNilList(arr interface{}) bool {
-	if arr == nil {
-		return true
-	}
-
-	value := reflect.ValueOf(arr)
-	switch value.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
-		return value.IsNil()
-	default:
-		return false
-	}
-}
-
-func OneDataResponse(c echo.Context, data interface{}) error {
-	r := DataResponse{
-		Code: successCode,
-		Msg:  "success",
-		Data: data,
-	}
-
-	return c.JSON(http.StatusOK, r)
-}
-
 // RequestID returns the request ID used in HTTP error responses.
 func RequestID(c echo.Context) string {
 	if requestID := c.Request().Header.Get("X-Request-ID"); requestID != "" {
+		return requestID
+	}
+
+	if requestID := requestctx.GetRequestID(c.Request().Context()); requestID != "" {
 		return requestID
 	}
 

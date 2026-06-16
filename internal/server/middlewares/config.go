@@ -1,96 +1,127 @@
-/*
- * Middleware Configuration
- * 中间件配置管理
- *
- * Created by lintao on 2024/1/4
- * Copyright © 2020-2024 LINTAO. All rights reserved.
- */
-
+// Package middlewares contains server-owned Echo middleware adapters.
 package middlewares
 
 import (
+	"errors"
+	"time"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-// MiddlewareConfig 中间件配置
+// MiddlewareConfig controls server-owned HTTP middleware.
 type MiddlewareConfig struct {
-	// 是否启用错误恢复
 	EnableRecovery bool
-	// 是否启用请求日志
+
+	EnableRequestContext bool
+
 	EnableLogger bool
-	// 是否启用压缩
+
 	EnableGzip bool
-	// 是否启用CORS
+
 	EnableCORS bool
-	// 是否启用JWT
+
+	CORS middleware.CORSConfig
+
 	EnableJWT bool
-	// 日志格式
-	LoggerFormat string
-	// JWT配置
+
 	JWT *JWTConfig
 }
 
-// DefaultMiddlewareConfig 默认中间件配置
+// DefaultMiddlewareConfig returns the HTTP middleware defaults.
 func DefaultMiddlewareConfig() *MiddlewareConfig {
 	return &MiddlewareConfig{
-		EnableRecovery: true,
-		EnableLogger:   true,
-		EnableGzip:     true,
-		EnableCORS:     false,
-		EnableJWT:      false,
-		LoggerFormat:   "method=${method}, uri=${uri}, status=${status}, latency=${latency_human}\n",
-		JWT:            DefaultJWTConfig(),
+		EnableRecovery:       true,
+		EnableRequestContext: true,
+		EnableLogger:         true,
+		EnableGzip:           true,
+		EnableCORS:           false,
+		EnableJWT:            false,
+		JWT:                  DefaultJWTConfig(),
 	}
 }
 
-// ApplyMiddlewares 应用中间件
-func ApplyMiddlewares(e *echo.Echo, config *MiddlewareConfig) {
+// ApplyMiddlewares installs server-owned middleware.
+func ApplyMiddlewares(e *echo.Echo, config *MiddlewareConfig) error {
 	if config == nil {
 		config = DefaultMiddlewareConfig()
 	}
 
-	// 错误恢复中间件
 	if config.EnableRecovery {
 		e.Use(ErrorRecovery())
 	}
 
-	// 请求日志中间件
-	if config.EnableLogger {
-		e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-			Format: config.LoggerFormat,
-		}))
+	if config.EnableRequestContext {
+		e.Use(RequestContext())
 	}
 
-	// 压缩中间件
+	if config.EnableLogger {
+		e.Use(requestLogger())
+	}
+
 	if config.EnableGzip {
 		e.Use(middleware.Gzip())
 	}
 
-	// CORS 中间件。默认不启用，避免模板在业务接入前隐式开放跨域。
 	if config.EnableCORS {
-		e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-			AllowOrigins: []string{"*"},
-			AllowHeaders: []string{
-				echo.HeaderOrigin,
-				echo.HeaderContentType,
-				echo.HeaderAccept,
-				echo.HeaderAuthorization,
-			},
-			AllowMethods: []string{
-				echo.GET,
-				echo.HEAD,
-				echo.PUT,
-				echo.PATCH,
-				echo.POST,
-				echo.DELETE,
-				echo.OPTIONS,
-			},
-		}))
+		corsConfig, err := normalizedCORSConfig(config.CORS)
+		if err != nil {
+			return err
+		}
+		e.Use(middleware.CORSWithConfig(corsConfig))
 	}
 
-	// JWT中间件
 	if config.EnableJWT && config.JWT != nil {
-		e.Use(JWT(config.JWT))
+		jwtMiddleware, err := JWT(config.JWT)
+		if err != nil {
+			return err
+		}
+		e.Use(jwtMiddleware)
 	}
+	return nil
+}
+
+func requestLogger() echo.MiddlewareFunc {
+	return middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogMethod:  true,
+		LogURI:     true,
+		LogStatus:  true,
+		LogLatency: true,
+		LogValuesFunc: func(c echo.Context, values middleware.RequestLoggerValues) error {
+			c.Logger().Printf(
+				"method=%s, uri=%s, status=%d, latency=%s\n",
+				values.Method,
+				values.URI,
+				values.Status,
+				values.Latency.Round(time.Microsecond),
+			)
+			return nil
+		},
+	})
+}
+
+func normalizedCORSConfig(config middleware.CORSConfig) (middleware.CORSConfig, error) {
+	if len(config.AllowOrigins) == 0 {
+		return middleware.CORSConfig{}, errors.New("cors allowed origins are required when cors is enabled")
+	}
+	if len(config.AllowHeaders) == 0 {
+		config.AllowHeaders = []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAccept,
+			echo.HeaderAuthorization,
+		}
+	}
+	if len(config.AllowMethods) == 0 {
+		config.AllowMethods = []string{
+			echo.GET,
+			echo.HEAD,
+			echo.PUT,
+			echo.PATCH,
+			echo.POST,
+			echo.DELETE,
+			echo.OPTIONS,
+		}
+	}
+	return config, nil
 }

@@ -5,6 +5,7 @@ package apperr
 // depending on HTTP.
 type Kind string
 
+// Application error kinds.
 const (
 	KindOK           Kind = "ok"
 	KindBadRequest   Kind = "bad_request"
@@ -19,6 +20,7 @@ const (
 // Category identifies the operational area associated with an error.
 type Category string
 
+// Application error categories.
 const (
 	CategorySystem     Category = "system"
 	CategoryDatabase   Category = "database"

@@ -7,17 +7,15 @@ import (
 )
 
 func TestConfigDefaults(t *testing.T) {
-	// 测试默认配置结构
-	cfg := Config{}
+	cfg := Normalize(Config{})
 
-	// 测试系统配置默认值
-	assert.Equal(t, "", cfg.System.Port)
-	assert.Equal(t, "", cfg.System.Env)
+	assert.Equal(t, DefaultPort, cfg.System.Port)
+	assert.Equal(t, DefaultEnv, cfg.System.Env)
+	assert.Equal(t, OnlineLevel, cfg.System.Level)
 
-	// 测试JWT配置默认值
 	assert.False(t, cfg.JWT.Enabled)
 	assert.Equal(t, "", cfg.JWT.Secret)
-	assert.Equal(t, 0, cfg.JWT.Expire)
+	assert.Equal(t, []string{"/api/health", "/api/info"}, cfg.JWT.SkipPaths)
 }
 
 func TestSystemConfig(t *testing.T) {
@@ -34,12 +32,20 @@ func TestJWTConfig(t *testing.T) {
 	cfg := JWTConfig{
 		Enabled:   true,
 		Secret:    "test-secret",
-		Expire:    3600,
-		SkipPaths: []string{"/api/health", "/api/login"},
+		SkipPaths: []string{"/api/health"},
 	}
 
 	assert.True(t, cfg.Enabled)
 	assert.Equal(t, "test-secret", cfg.Secret)
-	assert.Equal(t, 3600, cfg.Expire)
-	assert.Equal(t, []string{"/api/health", "/api/login"}, cfg.SkipPaths)
+	assert.Equal(t, []string{"/api/health"}, cfg.SkipPaths)
+}
+
+func TestValidateRejectsEnabledJWTWithoutSecret(t *testing.T) {
+	err := Validate(Config{
+		JWT: JWTConfig{
+			Enabled: true,
+		},
+	})
+
+	assert.Error(t, err)
 }

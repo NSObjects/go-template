@@ -2,11 +2,19 @@
 
 ## 概述
 
-Middlewares 包提供 API 模板的通用中间件能力，包括 JWT 认证、错误恢复、请求日志、压缩和可选 CORS。
+Middlewares 包提供 API 模板的通用中间件能力，包括请求元数据、JWT 验证、错误恢复、请求日志、压缩和可选 CORS。
 
 ## 中间件列表
 
-### 1. JWT 中间件 (`jwt.go`)
+### 1. 请求元数据中间件 (`request_context.go`)
+
+**功能**: 把 request id、trace id、span id 等请求元数据写入标准 `context.Context`。
+
+**边界约定**:
+- 该中间件只搬运请求元数据，不做认证授权。
+- usecase 层通过 `internal/requestctx` 读取元数据，不依赖 Echo context。
+
+### 2. JWT 中间件 (`jwt.go`)
 
 **功能**: JWT 令牌认证和验证
 
@@ -24,8 +32,9 @@ type JWTConfig struct {
 - 可配置签名密钥
 - 可启用或禁用
 - 统一错误处理
+- 不预设业务身份 claims；真实身份语义由业务 auth 模块决定
 
-### 2. 错误处理中间件 (`error.go`)
+### 3. 错误处理中间件 (`error.go`)
 
 **功能**: 统一的错误处理和恢复
 
@@ -42,35 +51,39 @@ type JWTConfig struct {
 - Usecase 层直接返回错误，Adapter 层包装外部系统错误，业务模块只包装业务语义错误或透传已编码错误。
 - 业务错误可以返回具体、安全的 `message`；内部错误对外始终返回安全文案，原始错误和诊断上下文只进入日志 `detail`。
 
-### 3. 中间件配置 (`config.go`)
+### 4. 中间件配置 (`config.go`)
 
 **功能**: 统一的中间件配置管理
 
 **配置**:
 ```go
 type MiddlewareConfig struct {
-    EnableRecovery bool
-    EnableLogger   bool
-    EnableGzip     bool
-    EnableCORS     bool
-    EnableJWT      bool
-    LoggerFormat   string
-    JWT            *JWTConfig
+    EnableRecovery       bool
+    EnableRequestContext bool
+    EnableLogger         bool
+    EnableGzip           bool
+    EnableCORS           bool
+    CORS                 middleware.CORSConfig
+    EnableJWT            bool
+    JWT                  *JWTConfig
 }
 ```
 
 **使用示例**:
 ```go
 config := &MiddlewareConfig{
-    EnableRecovery: true,
-    EnableLogger:   true,
-    EnableGzip:     true,
-    EnableCORS:     false,
-    EnableJWT:      true,
-    LoggerFormat:   "method=${method}, uri=${uri}, status=${status}\n",
+    EnableRecovery:       true,
+    EnableRequestContext: true,
+    EnableLogger:         true,
+    EnableGzip:           true,
+    EnableCORS:           true,
+    CORS: middleware.CORSConfig{
+        AllowOrigins: []string{"https://app.example.com"},
+    },
+    EnableJWT:    true,
     JWT: &JWTConfig{
-        SigningKey: []byte("your-secret"),
-        SkipPaths:  []string{"/api/health", "/api/login"},
+        SigningKey: []byte(secretFromConfig),
+        SkipPaths:  []string{"/api/health", "/api/info"},
         Enabled:    true,
     },
 }

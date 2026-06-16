@@ -8,5 +8,4 @@ env = "dev"
 [jwt]
 enabled = false
 secret = ""
-expire = 3600
 skip_paths = ["/api/health","/api/info"]

@@ -14,7 +14,10 @@
 ## API
 
 ```go
-srv := server.New(cfg)
+srv, err := server.New(cfg)
+if err != nil {
+	return err
+}
 orders := srv.API().Group("/orders")
 orderhttp.Register(orders, handler)
 

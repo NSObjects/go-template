@@ -1,3 +1,4 @@
+// Package cmd contains CLI entrypoints for the application.
 package cmd
 
 import (
@@ -7,6 +8,7 @@ import (
 	"github.com/NSObjects/go-template/internal/boot"
 )
 
+// Run starts the application and exits the process when startup fails.
 func Run(cfg string) {
 	if err := run(cfg); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "application startup failed:", err)

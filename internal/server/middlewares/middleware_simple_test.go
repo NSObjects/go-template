@@ -8,7 +8,9 @@ import (
 	"testing"
 
 	"github.com/NSObjects/go-template/internal/apperr"
+	"github.com/NSObjects/go-template/internal/requestctx"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,11 +19,11 @@ func TestDefaultMiddlewareConfig(t *testing.T) {
 
 	assert.NotNil(t, config)
 	assert.True(t, config.EnableRecovery)
+	assert.True(t, config.EnableRequestContext)
 	assert.True(t, config.EnableLogger)
 	assert.True(t, config.EnableGzip)
 	assert.False(t, config.EnableCORS)
 	assert.False(t, config.EnableJWT)
-	assert.NotEmpty(t, config.LoggerFormat)
 	assert.NotNil(t, config.JWT)
 }
 
@@ -70,12 +72,40 @@ func TestApplyMiddlewares(t *testing.T) {
 	e := echo.New()
 	config := DefaultMiddlewareConfig()
 
-	// 测试中间件应用不会panic
-	assert.NotPanics(t, func() {
-		ApplyMiddlewares(e, config)
+	assert.NoError(t, ApplyMiddlewares(e, config))
+	assert.NotNil(t, e)
+}
+
+func TestRequestContextMiddlewareStoresMetadata(t *testing.T) {
+	e := echo.New()
+	e.Use(RequestContext())
+	e.GET("/ping", func(c echo.Context) error {
+		info, ok := requestctx.FromContext(c.Request().Context())
+		if !ok {
+			t.Fatal("request context metadata missing")
+		}
+		if info.RequestID != "req-123" {
+			t.Fatalf("RequestID = %q, want req-123", info.RequestID)
+		}
+		if info.TraceID != "trace-123" {
+			t.Fatalf("TraceID = %q, want trace-123", info.TraceID)
+		}
+		if info.UserID != "user-123" {
+			t.Fatalf("UserID = %q, want user-123", info.UserID)
+		}
+		return c.NoContent(http.StatusNoContent)
 	})
 
-	assert.NotNil(t, e)
+	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+	req.Header.Set(headerRequestID, "req-123")
+	req.Header.Set(headerTraceID, "trace-123")
+	req.Header.Set(headerUserID, "user-123")
+	rec := httptest.NewRecorder()
+
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+	assert.Equal(t, "req-123", rec.Header().Get(headerRequestID))
 }
 
 func TestErrorRecovery(t *testing.T) {
@@ -84,7 +114,7 @@ func TestErrorRecovery(t *testing.T) {
 	e.HTTPErrorHandler = ErrorHandler
 
 	// 创建一个会panic的路由
-	e.GET("/panic", func(c echo.Context) error {
+	e.GET("/panic", func(_ echo.Context) error {
 		panic("test panic")
 	})
 
@@ -186,16 +216,27 @@ func TestJWTConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			middleware := JWT(tt.config)
-			assert.NotNil(t, middleware)
+			jwtMiddleware, err := JWT(tt.config)
+			assert.NoError(t, err)
+			assert.NotNil(t, jwtMiddleware)
 		})
 	}
 }
 
 func TestJWTRequiresSigningKeyWhenEnabled(t *testing.T) {
-	assert.Panics(t, func() {
-		JWT(&JWTConfig{Enabled: true})
-	})
+	jwtMiddleware, err := JWT(&JWTConfig{Enabled: true})
+	assert.Error(t, err)
+	assert.Nil(t, jwtMiddleware)
+}
+
+func TestApplyMiddlewaresRequiresCORSOriginsWhenEnabled(t *testing.T) {
+	e := echo.New()
+	config := DefaultMiddlewareConfig()
+	config.EnableCORS = true
+
+	err := ApplyMiddlewares(e, config)
+
+	assert.Error(t, err)
 }
 
 func TestMiddlewareConfig(t *testing.T) {
@@ -210,13 +251,16 @@ func TestMiddlewareConfig(t *testing.T) {
 		{
 			name: "custom config",
 			config: &MiddlewareConfig{
-				EnableRecovery: true,
-				EnableLogger:   true,
-				EnableGzip:     true,
-				EnableCORS:     true,
-				EnableJWT:      false,
-				LoggerFormat:   "custom format",
-				JWT:            DefaultJWTConfig(),
+				EnableRecovery:       true,
+				EnableRequestContext: true,
+				EnableLogger:         true,
+				EnableGzip:           true,
+				EnableCORS:           true,
+				CORS: middleware.CORSConfig{
+					AllowOrigins: []string{"https://example.com"},
+				},
+				EnableJWT: false,
+				JWT:       DefaultJWTConfig(),
 			},
 		},
 	}
@@ -224,7 +268,7 @@ func TestMiddlewareConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := echo.New()
-			ApplyMiddlewares(e, tt.config)
+			assert.NoError(t, ApplyMiddlewares(e, tt.config))
 			assert.NotNil(t, e)
 		})
 	}

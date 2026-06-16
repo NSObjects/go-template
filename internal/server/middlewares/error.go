@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -38,14 +39,17 @@ func normalizeError(err error) error {
 		return err
 	}
 
-	switch e := err.(type) {
-	case *echo.HTTPError:
-		return normalizeHTTPError(e)
-	case *ValidationError:
-		return apperr.NewValidation(e.Field, e.Message)
-	default:
-		return apperr.WrapInternal(err, "internal server error")
+	var httpErr *echo.HTTPError
+	if errors.As(err, &httpErr) {
+		return normalizeHTTPError(httpErr)
 	}
+
+	var validationErr *ValidationError
+	if errors.As(err, &validationErr) {
+		return apperr.NewValidation(validationErr.Field, validationErr.Message)
+	}
+
+	return apperr.WrapInternal(err, "internal server error")
 }
 
 func normalizeHTTPError(err *echo.HTTPError) error {

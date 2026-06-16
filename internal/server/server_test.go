@@ -1,8 +1,3 @@
-/*
- * Echo Server Tests
- * Echo服务器测试用例
- */
-
 package server
 
 import (
@@ -16,54 +11,53 @@ import (
 )
 
 func TestServerEcho(t *testing.T) {
-	server := New(configs.Config{})
+	server := mustNewServer(t, configs.Config{})
 
 	assert.NotNil(t, server)
 	assert.NotNil(t, server.Echo())
 	assert.IsType(t, &echo.Echo{}, server.Echo())
 }
 
-func TestServerSetupServer(t *testing.T) {
+func TestServerConfigureEcho(t *testing.T) {
+	e := echo.New()
 	server := &Server{
-		server: echo.New(),
-		config: DefaultServerConfig(),
+		echo:   e,
+		config: DefaultConfig(),
 	}
 
-	server.setupServer()
+	server.configureEcho()
 
-	// 验证服务器配置
-	assert.NotNil(t, server.server.Validator)
-	assert.NotNil(t, server.server.HTTPErrorHandler)
-	assert.Equal(t, server.config.HideBanner, server.server.HideBanner)
-	assert.Equal(t, server.config.Debug, server.server.Debug)
-	assert.Equal(t, server.config.ReadTimeout, server.server.Server.ReadTimeout)
-	assert.Equal(t, server.config.WriteTimeout, server.server.Server.WriteTimeout)
-	assert.Equal(t, server.config.IdleTimeout, server.server.Server.IdleTimeout)
+	assert.NotNil(t, server.echo.Validator)
+	assert.NotNil(t, server.echo.HTTPErrorHandler)
+	assert.Equal(t, server.config.HideBanner, server.echo.HideBanner)
+	assert.Equal(t, server.config.Debug, server.echo.Debug)
+	assert.Equal(t, server.config.ReadTimeout, server.echo.Server.ReadTimeout)
+	assert.Equal(t, server.config.WriteTimeout, server.echo.Server.WriteTimeout)
+	assert.Equal(t, server.config.IdleTimeout, server.echo.Server.IdleTimeout)
 }
 
-func TestServerCreateMiddlewareConfig(t *testing.T) {
+func TestServerMiddlewareConfig(t *testing.T) {
 	server := &Server{
-		server: echo.New(),
-		config: DefaultServerConfig(),
-		cfg:    configs.Config{},
+		config:    DefaultConfig(),
+		appConfig: configs.Config{},
 	}
 
-	config := server.createMiddlewareConfig()
+	config := server.middlewareConfig()
 
 	assert.NotNil(t, config)
 	assert.True(t, config.EnableRecovery)
+	assert.True(t, config.EnableRequestContext)
 	assert.True(t, config.EnableLogger)
 	assert.True(t, config.EnableGzip)
 	assert.False(t, config.EnableCORS)
-	assert.False(t, config.EnableJWT) // 默认情况下JWT应该被禁用
+	assert.False(t, config.EnableJWT)
 	assert.NotNil(t, config.JWT)
 }
 
-func TestServerCreateMiddlewareConfigEnablesJWTFromConfig(t *testing.T) {
+func TestServerMiddlewareConfigEnablesJWTFromConfig(t *testing.T) {
 	server := &Server{
-		server: echo.New(),
-		config: DefaultServerConfig(),
-		cfg: configs.Config{
+		config: DefaultConfig(),
+		appConfig: configs.Config{
 			JWT: configs.JWTConfig{
 				Enabled:   true,
 				Secret:    "test-secret",
@@ -72,7 +66,7 @@ func TestServerCreateMiddlewareConfigEnablesJWTFromConfig(t *testing.T) {
 		},
 	}
 
-	config := server.createMiddlewareConfig()
+	config := server.middlewareConfig()
 
 	assert.True(t, config.EnableJWT)
 	assert.NotNil(t, config.JWT)
@@ -82,32 +76,30 @@ func TestServerCreateMiddlewareConfigEnablesJWTFromConfig(t *testing.T) {
 }
 
 func TestServerRegisterSystemRoutes(t *testing.T) {
+	e := echo.New()
 	server := &Server{
-		server: echo.New(),
-		config: DefaultServerConfig(),
+		echo:   e,
+		api:    e.Group(apiPrefix),
+		config: DefaultConfig(),
 	}
 
-	// 创建测试路由组
-	apiGroup := server.server.Group("/api")
-	server.registerSystemRoutes(apiGroup)
+	server.registerSystemRoutes()
 
-	// 验证路由已注册
-	routes := server.server.Routes()
+	routes := server.echo.Routes()
 	assert.NotEmpty(t, routes)
 
-	// 验证至少包含系统路由
 	hasHealthRoute := false
 	hasInfoRoute := false
 	hasRoutesRoute := false
 
 	for _, route := range routes {
-		if route.Path == "/api/health" && route.Method == "GET" {
+		if route.Path == "/api/health" && route.Method == echo.GET {
 			hasHealthRoute = true
 		}
-		if route.Path == "/api/routes" && route.Method == "GET" {
+		if route.Path == "/api/routes" && route.Method == echo.GET {
 			hasRoutesRoute = true
 		}
-		if route.Path == "/api/info" && route.Method == "GET" {
+		if route.Path == "/api/info" && route.Method == echo.GET {
 			hasInfoRoute = true
 		}
 	}
@@ -119,8 +111,8 @@ func TestServerRegisterSystemRoutes(t *testing.T) {
 
 func TestServerRunReturnsStartupError(t *testing.T) {
 	server := &Server{
-		server: echo.New(),
-		config: &ServerConfig{
+		echo: echo.New(),
+		config: &Config{
 			Port:            "invalid-address",
 			ReadTimeout:     1 * time.Second,
 			WriteTimeout:    1 * time.Second,
@@ -134,9 +126,10 @@ func TestServerRunReturnsStartupError(t *testing.T) {
 }
 
 func TestServerRunRejectsNilContext(t *testing.T) {
-	server := New(configs.Config{})
+	server := mustNewServer(t, configs.Config{})
 
-	err := server.Run(nil)
+	var ctx context.Context
+	err := server.Run(ctx)
 	if err == nil {
 		t.Fatal("Run(nil) error = nil, want nil context error")
 	}
@@ -144,7 +137,7 @@ func TestServerRunRejectsNilContext(t *testing.T) {
 }
 
 func TestServerAPIGroupRegistersBusinessRoutes(t *testing.T) {
-	server := New(configs.Config{})
+	server := mustNewServer(t, configs.Config{})
 
 	server.API().GET("/ping", func(c echo.Context) error {
 		return c.NoContent(204)
@@ -152,7 +145,7 @@ func TestServerAPIGroupRegistersBusinessRoutes(t *testing.T) {
 
 	hasPingRoute := false
 	for _, route := range server.Echo().Routes() {
-		if route.Method == "GET" && route.Path == "/api/ping" {
+		if route.Method == echo.GET && route.Path == "/api/ping" {
 			hasPingRoute = true
 			break
 		}
@@ -161,10 +154,9 @@ func TestServerAPIGroupRegistersBusinessRoutes(t *testing.T) {
 }
 
 func TestServerNew(t *testing.T) {
-	// 创建模拟参数
 	cfg := configs.Config{
 		System: configs.SystemConfig{
-			Port:  ":8080",
+			Port:  ":9323",
 			Level: 1,
 		},
 		JWT: configs.JWTConfig{
@@ -174,30 +166,40 @@ func TestServerNew(t *testing.T) {
 		},
 	}
 
-	server := New(cfg)
+	server, err := New(cfg)
 
+	assert.NoError(t, err)
 	assert.NotNil(t, server)
-	assert.NotNil(t, server.server)
+	assert.NotNil(t, server.echo)
 	assert.NotNil(t, server.config)
 	assert.NotNil(t, server.api)
-	assert.Equal(t, cfg, server.cfg)
+	assert.Equal(t, configs.Normalize(cfg), server.appConfig)
+}
+
+func TestServerNewReturnsConfigError(t *testing.T) {
+	server, err := New(configs.Config{
+		JWT: configs.JWTConfig{
+			Enabled: true,
+		},
+	})
+
+	assert.Nil(t, server)
+	assert.Error(t, err)
 }
 
 func TestServerSystemRoutes(t *testing.T) {
+	e := echo.New()
 	server := &Server{
-		server: echo.New(),
-		config: DefaultServerConfig(),
+		echo:   e,
+		api:    e.Group(apiPrefix),
+		config: DefaultConfig(),
 	}
 
-	// 注册系统路由
-	apiGroup := server.server.Group("/api")
-	server.registerSystemRoutes(apiGroup)
+	server.registerSystemRoutes()
 
-	// 测试路由是否已注册
-	routes := server.server.Routes()
+	routes := server.echo.Routes()
 	assert.NotEmpty(t, routes)
 
-	// 验证系统路由存在
 	hasSystemRoutes := false
 	hasRoutesRoute := false
 	for _, route := range routes {
@@ -213,10 +215,9 @@ func TestServerSystemRoutes(t *testing.T) {
 }
 
 func TestServerConfig(t *testing.T) {
-	config := DefaultServerConfig()
+	config := DefaultConfig()
 
-	// 测试配置字段
-	assert.Equal(t, ":8080", config.Port)
+	assert.Equal(t, ":9322", config.Port)
 	assert.Equal(t, 30*time.Second, config.ReadTimeout)
 	assert.Equal(t, 30*time.Second, config.WriteTimeout)
 	assert.Equal(t, 120*time.Second, config.IdleTimeout)
@@ -224,7 +225,6 @@ func TestServerConfig(t *testing.T) {
 	assert.True(t, config.HideBanner)
 	assert.False(t, config.Debug)
 
-	// 测试修改配置
 	config.Port = ":9090"
 	config.Debug = true
 	config.HideBanner = false
@@ -232,4 +232,14 @@ func TestServerConfig(t *testing.T) {
 	assert.Equal(t, ":9090", config.Port)
 	assert.True(t, config.Debug)
 	assert.False(t, config.HideBanner)
+}
+
+func mustNewServer(t *testing.T, cfg configs.Config) *Server {
+	t.Helper()
+
+	server, err := New(cfg)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	return server
 }

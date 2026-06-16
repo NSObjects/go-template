@@ -7,8 +7,8 @@ run:
   timeout: 5m
   # 是否检查测试文件
   tests: true
-  # 能自动修复的问题尽量自动修复（如gofumpt/goimports等）
-  fix: true
+  # 普通 lint 只检查；需要修改文件时显式运行 `make lint-fix`
+  fix: false
   # 模块下载模式
   modules-download-mode: mod
   # 是否允许并行运行
@@ -35,8 +35,6 @@ issues:
   max-issues-per-linter: 0
   # 相同问题的最大数量（0表示无限制）
   max-same-issues: 0
-  # 只报告相对于指定修订版本的新问题（HEAD表示只看当前分支新增问题）
-  new-from-rev: HEAD
   # 排除规则
   exclude-rules:
     # 在测试文件中放宽圈复杂度检查

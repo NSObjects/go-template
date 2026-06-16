@@ -1,12 +1,7 @@
-/*
- * Created by lintao on 2023/7/18 下午3:56
- * Copyright © 2020-2023 LINTAO. All rights reserved.
- *
- */
-
 package httpresp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -14,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/NSObjects/go-template/internal/apperr"
+	"github.com/NSObjects/go-template/internal/requestctx"
 	"github.com/labstack/echo/v4"
 )
 
@@ -87,146 +83,18 @@ func TestStatus(t *testing.T) {
 	}
 }
 
-func TestOperateSuccess(t *testing.T) {
-	c, rec := GetContext()
+func TestRequestIDUsesRequestContext(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = req.WithContext(requestctx.WithInfo(context.Background(), requestctx.Info{
+		RequestID: "req-from-context",
+	}))
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
 
-	if err := OperateSuccess(c); err != nil {
-		t.Fatalf("OperateSuccess() error = %v", err)
+	if got := RequestID(c); got != "req-from-context" {
+		t.Fatalf("RequestID() = %q, want req-from-context", got)
 	}
-
-	assertJSONResponse(t, rec, http.StatusOK, map[string]any{
-		"code": float64(0),
-		"msg":  "success",
-		"data": map[string]any{},
-	})
-}
-
-func TestListDataResponse(t *testing.T) {
-	tests := []struct {
-		name  string
-		list  interface{}
-		total int64
-		want  map[string]any
-	}{
-		{
-			name:  "nil list returns empty list",
-			list:  nil,
-			total: 0,
-			want: map[string]any{
-				"code": float64(0),
-				"msg":  "success",
-				"data": map[string]any{
-					"list":  []any{},
-					"total": float64(0),
-				},
-			},
-		},
-		{
-			name:  "typed nil slice returns empty list",
-			list:  []string(nil),
-			total: 0,
-			want: map[string]any{
-				"code": float64(0),
-				"msg":  "success",
-				"data": map[string]any{
-					"list":  []any{},
-					"total": float64(0),
-				},
-			},
-		},
-		{
-			name:  "list data preserves list and total",
-			list:  []string{"alpha"},
-			total: 1,
-			want: map[string]any{
-				"code": float64(0),
-				"msg":  "success",
-				"data": map[string]any{
-					"list":  []any{"alpha"},
-					"total": float64(1),
-				},
-			},
-		},
-		{
-			name:  "non nilable list value is preserved",
-			list:  struct{ Name string }{Name: "alpha"},
-			total: 1,
-			want: map[string]any{
-				"code": float64(0),
-				"msg":  "success",
-				"data": map[string]any{
-					"list": map[string]any{
-						"Name": "alpha",
-					},
-					"total": float64(1),
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, rec := GetContext()
-
-			if err := ListDataResponse(c, tt.list, tt.total); err != nil {
-				t.Fatalf("ListDataResponse() error = %v", err)
-			}
-
-			assertJSONResponse(t, rec, http.StatusOK, tt.want)
-		})
-	}
-}
-
-func TestOneDataResponse(t *testing.T) {
-	tests := []struct {
-		name string
-		data interface{}
-		want map[string]any
-	}{
-		{
-			name: "nil data is preserved",
-			data: nil,
-			want: map[string]any{
-				"code": float64(0),
-				"msg":  "success",
-				"data": nil,
-			},
-		},
-		{
-			name: "object data is wrapped",
-			data: map[string]string{"name": "lintao"},
-			want: map[string]any{
-				"code": float64(0),
-				"msg":  "success",
-				"data": map[string]any{"name": "lintao"},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c, rec := GetContext()
-
-			if err := OneDataResponse(c, tt.data); err != nil {
-				t.Fatalf("OneDataResponse() error = %v", err)
-			}
-
-			assertJSONResponse(t, rec, http.StatusOK, tt.want)
-		})
-	}
-}
-
-func assertJSONResponse(t *testing.T, rec *httptest.ResponseRecorder, wantStatus int, want map[string]any) {
-	t.Helper()
-
-	if rec.Code != wantStatus {
-		t.Fatalf("status = %d, want %d", rec.Code, wantStatus)
-	}
-
-	var got map[string]any
-	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
-		t.Fatalf("response body is not valid JSON: %v", err)
-	}
-
-	assertMapEqual(t, got, want)
 }
 
 func assertErrorResponse(t *testing.T, rec *httptest.ResponseRecorder, wantStatus int, wantCode float64, wantMessage string) {
@@ -252,23 +120,5 @@ func assertErrorResponse(t *testing.T, rec *httptest.ResponseRecorder, wantStatu
 	}
 	if _, ok := got["timestamp"].(float64); !ok {
 		t.Fatalf("timestamp = %T, want number", got["timestamp"])
-	}
-}
-
-func assertMapEqual(t *testing.T, got, want map[string]any) {
-	t.Helper()
-
-	gotJSON, err := json.Marshal(got)
-	if err != nil {
-		t.Fatalf("marshal got response: %v", err)
-	}
-
-	wantJSON, err := json.Marshal(want)
-	if err != nil {
-		t.Fatalf("marshal want response: %v", err)
-	}
-
-	if string(gotJSON) != string(wantJSON) {
-		t.Fatalf("response = %s, want %s", gotJSON, wantJSON)
 	}
 }

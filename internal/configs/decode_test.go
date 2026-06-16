@@ -23,13 +23,13 @@ port = ":9322"
 }
 
 func TestDecodeConfigWithEnvAppliesJWTOverride(t *testing.T) {
-	t.Setenv("GO_TEMPLATE_JWT_EXPIRE", "7200")
 	t.Setenv("GO_TEMPLATE_JWT_ENABLED", "true")
+	t.Setenv("GO_TEMPLATE_JWT_SECRET", "env-secret")
 
 	cfg, err := decodeConfigWithEnv([]byte(`
 	[jwt]
 	enabled = false
-	expire = 3600
+	secret = ""
 	`), "toml", true)
 	if err != nil {
 		t.Fatalf("decodeConfigWithEnv() error = %v", err)
@@ -38,8 +38,8 @@ func TestDecodeConfigWithEnvAppliesJWTOverride(t *testing.T) {
 	if !cfg.JWT.Enabled {
 		t.Fatal("JWT.Enabled = false, want env override true")
 	}
-	if cfg.JWT.Expire != 7200 {
-		t.Fatalf("JWT.Expire = %d, want env override 7200", cfg.JWT.Expire)
+	if cfg.JWT.Secret != "env-secret" {
+		t.Fatalf("JWT.Secret = %q, want env-secret", cfg.JWT.Secret)
 	}
 }
 
@@ -55,7 +55,6 @@ env = "test"
 
 [jwt]
 enabled = false
-expire = 3600
 `), 0o600); err != nil {
 		t.Fatalf("write config file: %v", err)
 	}
@@ -71,7 +70,7 @@ expire = 3600
 	if cfg.System.Level != DebugLevel {
 		t.Fatalf("System.Level = %d, want %d", cfg.System.Level, DebugLevel)
 	}
-	if cfg.JWT.Expire != 3600 {
-		t.Fatalf("JWT.Expire = %d, want 3600", cfg.JWT.Expire)
+	if cfg.JWT.SkipPaths == nil {
+		t.Fatal("JWT.SkipPaths = nil, want default skip paths")
 	}
 }

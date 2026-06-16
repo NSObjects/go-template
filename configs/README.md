@@ -19,19 +19,17 @@ env = "dev"
 [jwt]
 enabled = false
 secret = ""
-expire = 3600
 skip_paths = ["/api/health", "/api/info"]
 ```
 
 ## 环境变量覆盖
 
 ```bash
-export GO_TEMPLATE_SYSTEM_PORT=:8080
+export GO_TEMPLATE_SYSTEM_PORT=:9322
 export GO_TEMPLATE_SYSTEM_LEVEL=1
 export GO_TEMPLATE_SYSTEM_ENV=dev
 export GO_TEMPLATE_JWT_ENABLED=false
 export GO_TEMPLATE_JWT_SECRET=
-export GO_TEMPLATE_JWT_EXPIRE=3600
 ```
 
 JWT 默认不启用，且默认 secret 为空。业务启用 JWT 时必须显式提供 secret。

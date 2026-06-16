@@ -2,6 +2,7 @@ package archtest
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os/exec"
 	"path/filepath"
@@ -27,6 +28,10 @@ func TestCleanLiteImportBoundaries(t *testing.T) {
 			assertNoForbiddenImports(t, pkg, domainForbiddenImports())
 		case isLayerPackage(pkg.ImportPath, "usecase"):
 			assertNoForbiddenImports(t, pkg, usecaseForbiddenImports(pkg.ImportPath))
+		case isLayerPackage(pkg.ImportPath, "http"):
+			assertNoForbiddenImports(t, pkg, httpForbiddenImports(pkg.ImportPath))
+		case isLayerPackage(pkg.ImportPath, "mysql"):
+			assertNoForbiddenImports(t, pkg, mysqlForbiddenImports(pkg.ImportPath))
 		case isInternalRootPackage(pkg.ImportPath, "server"), isInternalRootPackage(pkg.ImportPath, "configs"):
 			assertNoBusinessImports(t, pkg, businessRoots)
 		}
@@ -67,7 +72,8 @@ func listInternalPackages(t *testing.T) []goPackage {
 
 	out, err := cmd.Output()
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
 			t.Fatalf("go list ./internal/... failed: %v\n%s", err, exitErr.Stderr)
 		}
 		t.Fatalf("go list ./internal/... failed: %v", err)
@@ -154,6 +160,50 @@ func usecaseForbiddenImports(importPath string) []string {
 	forbidden = append(forbidden,
 		businessPath+"/http",
 		businessPath+"/mysql",
+	)
+	return forbidden
+}
+
+func httpForbiddenImports(importPath string) []string {
+	parts := internalParts(importPath)
+	forbidden := make([]string, 0, 7)
+	forbidden = append(forbidden,
+		"gorm.io",
+		"github.com/redis/go-redis",
+		modulePath+"/internal/configs",
+		modulePath+"/internal/log",
+		modulePath+"/internal/code",
+	)
+	if len(parts) == 0 {
+		return forbidden
+	}
+
+	businessPath := modulePath + "/internal/" + parts[0]
+	forbidden = append(forbidden,
+		businessPath+"/domain",
+		businessPath+"/mysql",
+	)
+	return forbidden
+}
+
+func mysqlForbiddenImports(importPath string) []string {
+	parts := internalParts(importPath)
+	forbidden := make([]string, 0, 7)
+	forbidden = append(forbidden,
+		"github.com/labstack/echo",
+		modulePath+"/internal/configs",
+		modulePath+"/internal/log",
+		modulePath+"/internal/server",
+		modulePath+"/internal/server/httpresp",
+		modulePath+"/internal/code",
+	)
+	if len(parts) == 0 {
+		return forbidden
+	}
+
+	businessPath := modulePath + "/internal/" + parts[0]
+	forbidden = append(forbidden,
+		businessPath+"/http",
 	)
 	return forbidden
 }
