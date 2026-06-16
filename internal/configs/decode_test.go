@@ -7,7 +7,7 @@ import (
 )
 
 func TestDecodeConfigWithEnvKeepsFileSourceOverrides(t *testing.T) {
-	t.Setenv("ECHOADMIN_SYSTEM_PORT", ":9999")
+	t.Setenv("GO_TEMPLATE_SYSTEM_PORT", ":9999")
 
 	cfg, err := decodeConfigWithEnv([]byte(`
 [system]
@@ -23,8 +23,8 @@ port = ":9322"
 }
 
 func TestDecodeConfigWithEnvAppliesJWTOverride(t *testing.T) {
-	t.Setenv("ECHOADMIN_JWT_EXPIRE", "7200")
-	t.Setenv("ECHOADMIN_JWT_ENABLED", "true")
+	t.Setenv("GO_TEMPLATE_JWT_EXPIRE", "7200")
+	t.Setenv("GO_TEMPLATE_JWT_ENABLED", "true")
 
 	cfg, err := decodeConfigWithEnv([]byte(`
 	[jwt]
@@ -44,7 +44,7 @@ func TestDecodeConfigWithEnvAppliesJWTOverride(t *testing.T) {
 }
 
 func TestLoadReadsFileAndAppliesEnvOverrides(t *testing.T) {
-	t.Setenv("ECHOADMIN_SYSTEM_PORT", ":9999")
+	t.Setenv("GO_TEMPLATE_SYSTEM_PORT", ":9999")
 
 	path := filepath.Join(t.TempDir(), "config.toml")
 	if err := os.WriteFile(path, []byte(`

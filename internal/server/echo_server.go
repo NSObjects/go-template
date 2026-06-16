@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/NSObjects/go-template/internal/configs"
-	"github.com/NSObjects/go-template/internal/server/httpresp"
 	"github.com/NSObjects/go-template/internal/server/middlewares"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -123,15 +122,10 @@ func (s *Server) registerSystemRoutes(g *echo.Group) {
 		})
 	})
 
-	// 路由信息
-	g.GET("/routes", func(c echo.Context) error {
-		return httpresp.ListDataResponse(c, s.server.Routes(), int64(len(s.server.Routes())))
-	})
-
 	// 系统信息
 	g.GET("/info", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]interface{}{
-			"name":    "echo-admin",
+			"name":    "go-template",
 			"version": "1.0.0",
 			"time":    time.Now().Format(time.RFC3339),
 		})

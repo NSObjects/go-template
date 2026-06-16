@@ -19,6 +19,7 @@ type goPackage struct {
 
 func TestCleanLiteImportBoundaries(t *testing.T) {
 	packages := listInternalPackages(t)
+	businessRoots := findBusinessRoots(packages)
 
 	for _, pkg := range packages {
 		switch {
@@ -26,7 +27,29 @@ func TestCleanLiteImportBoundaries(t *testing.T) {
 			assertNoForbiddenImports(t, pkg, domainForbiddenImports())
 		case isLayerPackage(pkg.ImportPath, "usecase"):
 			assertNoForbiddenImports(t, pkg, usecaseForbiddenImports(pkg.ImportPath))
+		case isInternalRootPackage(pkg.ImportPath, "server"), isInternalRootPackage(pkg.ImportPath, "configs"):
+			assertNoBusinessImports(t, pkg, businessRoots)
 		}
+	}
+}
+
+func TestFindBusinessRoots(t *testing.T) {
+	packages := []goPackage{
+		{ImportPath: modulePath + "/internal/order/usecase"},
+		{ImportPath: modulePath + "/internal/order/http"},
+		{ImportPath: modulePath + "/internal/server/httpresp"},
+		{ImportPath: modulePath + "/internal/mysqlinfra"},
+	}
+
+	got := findBusinessRoots(packages)
+	if _, ok := got["order"]; !ok {
+		t.Fatal("findBusinessRoots() did not detect order module")
+	}
+	if _, ok := got["server"]; ok {
+		t.Fatal("findBusinessRoots() detected server as a business module")
+	}
+	if _, ok := got["mysqlinfra"]; ok {
+		t.Fatal("findBusinessRoots() detected infrastructure package as a business module")
 	}
 }
 
@@ -70,6 +93,11 @@ func isLayerPackage(importPath string, layer string) bool {
 	return len(parts) >= 2 && parts[1] == layer
 }
 
+func isInternalRootPackage(importPath string, root string) bool {
+	parts := internalParts(importPath)
+	return len(parts) >= 1 && parts[0] == root
+}
+
 func internalParts(importPath string) []string {
 	const marker = "/internal/"
 	index := strings.Index(importPath, marker)
@@ -77,6 +105,29 @@ func internalParts(importPath string) []string {
 		return nil
 	}
 	return strings.Split(importPath[index+len(marker):], "/")
+}
+
+func findBusinessRoots(packages []goPackage) map[string]struct{} {
+	roots := make(map[string]struct{})
+	for _, pkg := range packages {
+		parts := internalParts(pkg.ImportPath)
+		if len(parts) < 2 {
+			continue
+		}
+		if isBusinessLayer(parts[1]) {
+			roots[parts[0]] = struct{}{}
+		}
+	}
+	return roots
+}
+
+func isBusinessLayer(layer string) bool {
+	switch layer {
+	case "domain", "usecase", "http", "mysql":
+		return true
+	default:
+		return false
+	}
 }
 
 func domainForbiddenImports() []string {
@@ -116,6 +167,15 @@ func assertNoForbiddenImports(t *testing.T, pkg goPackage, forbidden []string) {
 				t.Fatalf("%s imports forbidden package %s", pkg.ImportPath, imported)
 			}
 		}
+	}
+}
+
+func assertNoBusinessImports(t *testing.T, pkg goPackage, businessRoots map[string]struct{}) {
+	t.Helper()
+
+	for root := range businessRoots {
+		prefix := modulePath + "/internal/" + root
+		assertNoForbiddenImports(t, pkg, []string{prefix})
 	}
 }
 

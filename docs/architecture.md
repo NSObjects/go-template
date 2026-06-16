@@ -417,6 +417,9 @@ internal/*/usecase must not import:
   internal/code
   internal/*/http
   internal/*/mysql
+
+internal/server and internal/configs must not import:
+  internal/<business>
 ```
 
 The guard matters because package layout is only useful when the dependency rule is mechanically protected.

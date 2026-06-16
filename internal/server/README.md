@@ -4,7 +4,7 @@
 
 - 创建 Echo 实例；
 - 注册基础 middleware；
-- 注册 `/api/health`、`/api/info`、`/api/routes`；
+- 注册 `/api/health`、`/api/info`；
 - 提供业务路由入口 `API()`；
 - 处理 HTTP 错误响应；
 - 管理启动和优雅关闭。

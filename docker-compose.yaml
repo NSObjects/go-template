@@ -3,16 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # 先将 api 镜像发布到私有仓库，当前配置只是测试使用
-    # api:
-    #    image: xxx/api
-    #    container_name: echo-admin-api
-    #    volumes:
-    #      - ./configs/config.toml:/configs/config.toml
-    #    ports:
-    #      - "9328:9322"
-    #image: registry.pyl.com/backend/echo-admin:v0.0.3
-    container_name: echo-admin-api
+    container_name: go-template-api
     volumes:
       - ./configs/config.toml:/configs/config.toml
     ports:

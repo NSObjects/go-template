@@ -15,7 +15,7 @@ func decodeConfigWithEnv(data []byte, format string, useEnv bool) (Config, error
 	v := viper.NewWithOptions(viper.KeyDelimiter("::"))
 	v.SetConfigType(configType(format))
 	if useEnv {
-		v.SetEnvPrefix("ECHOADMIN")
+		v.SetEnvPrefix("GO_TEMPLATE")
 		v.AutomaticEnv()
 		v.SetEnvKeyReplacer(strings.NewReplacer("::", "_", ".", "_"))
 	}

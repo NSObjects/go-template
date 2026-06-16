@@ -177,21 +177,6 @@ func NewValidation(field, message string) error {
 	return newError(ErrValidation, message, fmt.Sprintf("validation failed for field %s: %s", field, message), nil)
 }
 
-// NewPermissionDenied creates a permission denied error.
-func NewPermissionDenied(resource, action string) error {
-	return Newf(ErrPermissionDenied, "permission denied for %s on %s", action, resource)
-}
-
-// NewTokenInvalid creates a token invalid error.
-func NewTokenInvalid() error {
-	return New(ErrTokenInvalid, "token is invalid")
-}
-
-// NewTokenExpired creates a token expired error.
-func NewTokenExpired() error {
-	return New(ErrExpired, "token is expired")
-}
-
 // NewUnauthorized creates an unauthorized error.
 func NewUnauthorized() error {
 	return New(ErrUnauthorized, "unauthorized")

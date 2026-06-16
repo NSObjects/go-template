@@ -26,12 +26,12 @@ skip_paths = ["/api/health", "/api/info"]
 ## 环境变量覆盖
 
 ```bash
-export ECHOADMIN_SYSTEM_PORT=:8080
-export ECHOADMIN_SYSTEM_LEVEL=1
-export ECHOADMIN_SYSTEM_ENV=dev
-export ECHOADMIN_JWT_ENABLED=false
-export ECHOADMIN_JWT_SECRET=
-export ECHOADMIN_JWT_EXPIRE=3600
+export GO_TEMPLATE_SYSTEM_PORT=:8080
+export GO_TEMPLATE_SYSTEM_LEVEL=1
+export GO_TEMPLATE_SYSTEM_ENV=dev
+export GO_TEMPLATE_JWT_ENABLED=false
+export GO_TEMPLATE_JWT_SECRET=
+export GO_TEMPLATE_JWT_EXPIRE=3600
 ```
 
 JWT 默认不启用，且默认 secret 为空。业务启用 JWT 时必须显式提供 secret。

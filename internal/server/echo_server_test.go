@@ -97,8 +97,8 @@ func TestServerRegisterSystemRoutes(t *testing.T) {
 
 	// 验证至少包含系统路由
 	hasHealthRoute := false
-	hasRoutesRoute := false
 	hasInfoRoute := false
+	hasRoutesRoute := false
 
 	for _, route := range routes {
 		if route.Path == "/api/health" && route.Method == "GET" {
@@ -113,8 +113,8 @@ func TestServerRegisterSystemRoutes(t *testing.T) {
 	}
 
 	assert.True(t, hasHealthRoute, "Health route should be registered")
-	assert.True(t, hasRoutesRoute, "Routes route should be registered")
 	assert.True(t, hasInfoRoute, "Info route should be registered")
+	assert.False(t, hasRoutesRoute, "Routes introspection route should not be registered by default")
 }
 
 func TestServerRunReturnsStartupError(t *testing.T) {
@@ -199,13 +199,17 @@ func TestServerSystemRoutes(t *testing.T) {
 
 	// 验证系统路由存在
 	hasSystemRoutes := false
+	hasRoutesRoute := false
 	for _, route := range routes {
-		if route.Path == "/api/health" || route.Path == "/api/routes" || route.Path == "/api/info" {
+		if route.Path == "/api/health" || route.Path == "/api/info" {
 			hasSystemRoutes = true
-			break
+		}
+		if route.Path == "/api/routes" {
+			hasRoutesRoute = true
 		}
 	}
 	assert.True(t, hasSystemRoutes, "System routes should be registered")
+	assert.False(t, hasRoutesRoute, "Routes introspection route should not be registered by default")
 }
 
 func TestServerConfig(t *testing.T) {
