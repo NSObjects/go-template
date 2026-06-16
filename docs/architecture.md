@@ -42,9 +42,6 @@ internal/
     httpresp/
 
   configs/
-  log/
-  cache/
-  metrics/
 
   apperr/
   requestctx/
@@ -65,7 +62,7 @@ internal/report/
   mysql/
 ```
 
-Add `domain/` when the module has real business concepts or invariants. Add `memory/`, `redis/`, `queue/`, or `client/` adapters only when those details exist.
+Add `domain/` when the module has real business concepts or invariants. Add `memory/`, `queue/`, `client/`, or other concrete adapters only when those details exist.
 
 ## Dependency Direction
 
@@ -111,10 +108,10 @@ Forbidden imports:
 `internal/boot` is the composition root. It owns process-level wiring:
 
 ```go
-cfg, store, err := configs.BootstrapE(configPath)
-srv := server.New(cfg, store)
+cfg, err := configs.Load(configPath)
+srv := server.New(cfg)
 
-db := mysqlinfra.Open(cfg.MySQL)
+db := mysqlinfra.Open(databaseConfig)
 orders := ordermysql.NewStore(db)
 orderUC := orderusecase.New(orders)
 orderHTTP := orderhttp.New(orderUC)
@@ -142,7 +139,7 @@ It should expose a small interface:
 ```go
 type Server struct { ... }
 
-func New(cfg Config, store *configs.Store) *Server
+func New(cfg configs.Config) *Server
 func (s *Server) API() *echo.Group
 func (s *Server) Run(ctx context.Context) error
 ```
@@ -279,15 +276,15 @@ Echo extraction lives in the HTTP adapter or server middleware. Usecases receive
 
 ## External Resources
 
-Create external clients in boot or infrastructure packages. Pass concrete adapters into usecases through small outbound interfaces.
+Create external clients in boot, business-specific adapters, or narrowly named infrastructure packages. Pass concrete adapters into usecases through small outbound interfaces.
 
 Do not add generic capability providers.
 
 Examples:
 
-- MySQL client factory belongs in an infrastructure package or boot helper.
-- Redis client factory belongs in `internal/cache` or an infrastructure package.
-- Business-specific Redis behavior belongs in the business module's adapter.
+- MySQL client factory belongs in an infrastructure package, a business adapter, or a boot helper.
+- Cache or queue client factories belong in a business adapter or a narrowly named infrastructure package when real cache or queue-backed behavior exists.
+- Business-specific cache or queue behavior belongs in the business module's adapter.
 
 ## Transactions
 
@@ -387,13 +384,12 @@ The cleaned skeleton has already started this migration:
 - Request metadata lives in framework-free `internal/requestctx`.
 - Import boundaries are enforced by `internal/archtest`.
 - The old global `internal/utils` package has been removed.
+- Framework-free errors live in `internal/apperr`, while HTTP status mapping lives in `internal/server/httpresp`.
+- The old mixed-responsibility `internal/code` package has been removed.
+- The old unused generic cache, metrics, rate-limit, validator, database, log, and demo user packages have been removed.
+- Config loading is static and explicit through `configs.Load(path)`; the old config center, hot reload, merge, and store abstractions have been removed.
 
-The next migration steps should be:
-
-1. Split framework-free errors from HTTP rendering.
-2. Add the first real business module using the vertical module shape.
-
-This keeps the app runnable at every step.
+The next business feature should use the vertical module shape. Do not add a fake sample business module just to demonstrate the layout.
 
 ## Import Guard Target
 
@@ -405,16 +401,20 @@ internal/*/domain must not import:
   gorm.io
   github.com/redis/go-redis
   internal/configs
+  internal/log
   internal/server
   internal/server/httpresp
+  internal/code
 
 internal/*/usecase must not import:
   github.com/labstack/echo
   gorm.io
   github.com/redis/go-redis
   internal/configs
+  internal/log
   internal/server
   internal/server/httpresp
+  internal/code
   internal/*/http
   internal/*/mysql
 ```

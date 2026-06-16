@@ -16,7 +16,7 @@ import (
 )
 
 func TestServerEcho(t *testing.T) {
-	server := New(configs.Config{}, nil)
+	server := New(configs.Config{})
 
 	assert.NotNil(t, server)
 	assert.NotNil(t, server.Echo())
@@ -42,12 +42,10 @@ func TestServerSetupServer(t *testing.T) {
 }
 
 func TestServerCreateMiddlewareConfig(t *testing.T) {
-	store := configs.NewStore(configs.Config{})
-
 	server := &Server{
 		server: echo.New(),
 		config: DefaultServerConfig(),
-		store:  store,
+		cfg:    configs.Config{},
 	}
 
 	config := server.createMiddlewareConfig()
@@ -56,9 +54,31 @@ func TestServerCreateMiddlewareConfig(t *testing.T) {
 	assert.True(t, config.EnableRecovery)
 	assert.True(t, config.EnableLogger)
 	assert.True(t, config.EnableGzip)
-	assert.True(t, config.EnableCORS)
+	assert.False(t, config.EnableCORS)
 	assert.False(t, config.EnableJWT) // 默认情况下JWT应该被禁用
 	assert.NotNil(t, config.JWT)
+}
+
+func TestServerCreateMiddlewareConfigEnablesJWTFromConfig(t *testing.T) {
+	server := &Server{
+		server: echo.New(),
+		config: DefaultServerConfig(),
+		cfg: configs.Config{
+			JWT: configs.JWTConfig{
+				Enabled:   true,
+				Secret:    "test-secret",
+				SkipPaths: []string{"/api/health"},
+			},
+		},
+	}
+
+	config := server.createMiddlewareConfig()
+
+	assert.True(t, config.EnableJWT)
+	assert.NotNil(t, config.JWT)
+	assert.True(t, config.JWT.Enabled)
+	assert.Equal(t, []byte("test-secret"), config.JWT.SigningKey)
+	assert.Equal(t, []string{"/api/health"}, config.JWT.SkipPaths)
 }
 
 func TestServerRegisterSystemRoutes(t *testing.T) {
@@ -114,7 +134,7 @@ func TestServerRunReturnsStartupError(t *testing.T) {
 }
 
 func TestServerRunRejectsNilContext(t *testing.T) {
-	server := New(configs.Config{}, nil)
+	server := New(configs.Config{})
 
 	err := server.Run(nil)
 	if err == nil {
@@ -124,7 +144,7 @@ func TestServerRunRejectsNilContext(t *testing.T) {
 }
 
 func TestServerAPIGroupRegistersBusinessRoutes(t *testing.T) {
-	server := New(configs.Config{}, nil)
+	server := New(configs.Config{})
 
 	server.API().GET("/ping", func(c echo.Context) error {
 		return c.NoContent(204)
@@ -148,21 +168,19 @@ func TestServerNew(t *testing.T) {
 			Level: 1,
 		},
 		JWT: configs.JWTConfig{
+			Enabled:   true,
 			Secret:    "test-secret",
 			SkipPaths: []string{"/api/health"},
 		},
 	}
 
-	store := configs.NewStore(cfg)
-
-	server := New(cfg, store)
+	server := New(cfg)
 
 	assert.NotNil(t, server)
 	assert.NotNil(t, server.server)
 	assert.NotNil(t, server.config)
 	assert.NotNil(t, server.api)
 	assert.Equal(t, cfg, server.cfg)
-	assert.Equal(t, store, server.store)
 }
 
 func TestServerSystemRoutes(t *testing.T) {

@@ -12,7 +12,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/NSObjects/go-template/internal/code"
+	"github.com/NSObjects/go-template/internal/apperr"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
@@ -50,7 +50,7 @@ func APIError(c echo.Context, err error) error {
 		return errors.New("error can't be nil")
 	}
 
-	info := code.NewErrorInfo(err)
+	info := apperr.NewInfo(err)
 	rjson := ErrorResponse{
 		Code:      info.Code,
 		Message:   info.Message,
@@ -58,7 +58,27 @@ func APIError(c echo.Context, err error) error {
 		Timestamp: time.Now().Unix(),
 	}
 
-	return c.JSON(code.HTTPStatus(info.Code), rjson)
+	return c.JSON(Status(info.Kind), rjson)
+}
+
+// Status maps framework-free application error kinds to HTTP status codes.
+func Status(kind apperr.Kind) int {
+	switch kind {
+	case apperr.KindOK:
+		return http.StatusOK
+	case apperr.KindBadRequest, apperr.KindValidation:
+		return http.StatusBadRequest
+	case apperr.KindUnauthorized:
+		return http.StatusUnauthorized
+	case apperr.KindForbidden:
+		return http.StatusForbidden
+	case apperr.KindNotFound:
+		return http.StatusNotFound
+	case apperr.KindConflict:
+		return http.StatusConflict
+	default:
+		return http.StatusInternalServerError
+	}
 }
 
 func OperateSuccess(c echo.Context) error {
@@ -72,9 +92,7 @@ func OperateSuccess(c echo.Context) error {
 }
 
 func ListDataResponse(c echo.Context, arr interface{}, total int64) error {
-	if arr == nil {
-		arr = make([]interface{}, 0)
-	} else if reflect.ValueOf(arr).IsNil() {
+	if isNilList(arr) {
 		arr = make([]interface{}, 0)
 	}
 
@@ -88,6 +106,20 @@ func ListDataResponse(c echo.Context, arr interface{}, total int64) error {
 	}
 
 	return c.JSONPretty(http.StatusOK, r, "  ")
+}
+
+func isNilList(arr interface{}) bool {
+	if arr == nil {
+		return true
+	}
+
+	value := reflect.ValueOf(arr)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
 }
 
 func OneDataResponse(c echo.Context, data interface{}) error {

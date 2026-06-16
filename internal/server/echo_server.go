@@ -28,7 +28,6 @@ type Server struct {
 	api    *echo.Group
 	config *ServerConfig
 	cfg    configs.Config
-	store  *configs.Store
 }
 
 // Echo returns the underlying Echo instance for HTTP adapter tests and
@@ -43,15 +42,11 @@ func (s *Server) API() *echo.Group {
 }
 
 // New creates an Echo-backed HTTP server.
-func New(cfg configs.Config, store *configs.Store) *Server {
-	if store == nil {
-		store = configs.NewStore(cfg)
-	}
+func New(cfg configs.Config) *Server {
 	s := &Server{
 		server: echo.New(),
 		config: FromAppConfig(cfg),
 		cfg:    cfg,
-		store:  store,
 	}
 
 	// 配置服务器
@@ -91,20 +86,18 @@ func (s *Server) loadMiddleware() {
 
 // createMiddlewareConfig 创建中间件配置
 func (s *Server) createMiddlewareConfig() *middlewares.MiddlewareConfig {
-	cur := s.store.Current()
-
-	// 创建JWT配置 - 禁用JWT用于演示
+	// 默认不启用 JWT；业务接入认证时显式开启。
 	jwtConfig := middlewares.CreateJWTConfig(
-		cur.JWT.Secret,
-		cur.JWT.SkipPaths,
-		false, // 禁用JWT
+		s.cfg.JWT.Secret,
+		s.cfg.JWT.SkipPaths,
+		s.cfg.JWT.Enabled,
 	)
 
 	return &middlewares.MiddlewareConfig{
 		EnableRecovery: true,
 		EnableLogger:   true,
 		EnableGzip:     true,
-		EnableCORS:     true,
+		EnableCORS:     false,
 		EnableJWT:      jwtConfig.Enabled,
 		LoggerFormat:   "method=${method}, uri=${uri}, status=${status}, latency=${latency_human}\n",
 		JWT:            jwtConfig,

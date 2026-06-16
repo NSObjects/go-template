@@ -5,8 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/NSObjects/go-template/internal/code"
-	"github.com/NSObjects/go-template/internal/log"
+	"github.com/NSObjects/go-template/internal/apperr"
 	"github.com/NSObjects/go-template/internal/server/httpresp"
 	"github.com/labstack/echo/v4"
 )
@@ -14,7 +13,7 @@ import (
 // ErrorHandler 增强的错误处理器
 func ErrorHandler(err error, c echo.Context) {
 	normalized := normalizeError(err)
-	info := code.NewErrorInfo(normalized)
+	info := apperr.NewInfo(normalized)
 	logAPIError(c, info)
 	_ = httpresp.APIError(c, normalized)
 }
@@ -32,10 +31,10 @@ func (e *ValidationError) Error() string {
 
 func normalizeError(err error) error {
 	if err == nil {
-		return code.NewError(code.ErrInternalServer, "internal server error")
+		return apperr.New(apperr.ErrInternalServer, "internal server error")
 	}
 
-	if _, ok := code.ParseRegisteredCoder(err); ok {
+	if _, ok := apperr.Parse(err); ok {
 		return err
 	}
 
@@ -43,9 +42,9 @@ func normalizeError(err error) error {
 	case *echo.HTTPError:
 		return normalizeHTTPError(e)
 	case *ValidationError:
-		return code.NewValidationError(e.Field, e.Message)
+		return apperr.NewValidation(e.Field, e.Message)
 	default:
-		return code.WrapInternalServerError(err, "internal server error")
+		return apperr.WrapInternal(err, "internal server error")
 	}
 }
 
@@ -53,19 +52,19 @@ func normalizeHTTPError(err *echo.HTTPError) error {
 	message := extractErrorMessage(err.Message)
 	switch err.Code {
 	case http.StatusBadRequest:
-		return code.WrapBadRequestError(nil, message)
+		return apperr.WrapBadRequest(nil, message)
 	case http.StatusUnauthorized:
-		return code.WrapUnauthorizedError(nil, message)
+		return apperr.WrapUnauthorized(nil, message)
 	case http.StatusForbidden:
-		return code.WrapForbiddenError(nil, message)
+		return apperr.WrapForbidden(nil, message)
 	case http.StatusNotFound:
-		return code.WrapNotFoundError(nil, message)
+		return apperr.WrapNotFound(nil, message)
 	default:
-		return code.WrapInternalServerError(err, message)
+		return apperr.WrapInternal(err, message)
 	}
 }
 
-func logAPIError(c echo.Context, info code.ErrorInfo) {
+func logAPIError(c echo.Context, info apperr.Info) {
 	fields := []slog.Attr{
 		slog.Int("code", info.Code),
 		slog.String("message", info.Message),
@@ -75,15 +74,15 @@ func logAPIError(c echo.Context, info code.ErrorInfo) {
 		slog.String("uri", c.Request().RequestURI),
 		slog.String("user_agent", c.Request().UserAgent()),
 	}
-	if info.Details != "" {
-		fields = append(fields, slog.String("details", info.Details))
+	if info.Detail != "" {
+		fields = append(fields, slog.String("detail", info.Detail))
 	}
 
 	if info.IsInternal() {
-		log.Error("API internal error", fields...)
+		slog.LogAttrs(c.Request().Context(), slog.LevelError, "API internal error", fields...)
 		return
 	}
-	log.Warn("API business error", fields...)
+	slog.LogAttrs(c.Request().Context(), slog.LevelWarn, "API business error", fields...)
 }
 
 // extractErrorMessage 将 Echo 错误消息转换为字符串
@@ -104,7 +103,7 @@ func ErrorRecovery() echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			defer func() {
 				if r := recover(); r != nil {
-					err := code.WrapInternalServerError(fmt.Errorf("panic recovered: %v", r), "internal server error")
+					err := apperr.WrapInternal(fmt.Errorf("panic recovered: %v", r), "internal server error")
 					ErrorHandler(err, c)
 				}
 			}()

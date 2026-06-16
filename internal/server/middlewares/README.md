@@ -2,7 +2,7 @@
 
 ## 概述
 
-Middlewares 包提供 API 模板默认需要的通用中间件能力，包括 JWT 认证、错误恢复、请求日志、压缩和 CORS。
+Middlewares 包提供 API 模板的通用中间件能力，包括 JWT 认证、错误恢复、请求日志、压缩和可选 CORS。
 
 ## 中间件列表
 
@@ -36,13 +36,11 @@ type JWTConfig struct {
 - 支持业务错误码转换
 
 **边界约定**:
-- `internal/code` 是错误码、HTTP 状态、错误分类和对外安全消息的唯一来源。
-- `ErrorHandler` 是 HTTP 错误边界，负责把 Echo 错误、验证错误、panic 和未知错误归一化为已注册错误码，并记录结构化日志。
-- `internal/server/httpresp.APIError` 只负责根据 `code.ErrorInfo` 渲染 JSON，不做错误归类或日志记录。
-- Service 层直接返回错误，Data 层包装存储错误，Biz 层只包装业务语义错误或透传 Repository 已编码错误。
-- HTTP 状态码刻意收敛为少量通用状态，业务差异通过响应 `code` 表达，避免模板使用者在细粒度 HTTP 状态之间做重复决策。
-- 业务错误可以返回具体、安全的 `message`；内部错误对外始终返回注册表中的安全文案，原始错误和诊断上下文只进入日志 `details`。
-- 项目内需要读取错误码时使用 `code.ParseRegisteredCoder` 或 `code.NewErrorInfo`，不要直接依赖第三方错误库的默认解析行为。
+- `internal/apperr` 是错误码、错误类别和对外安全消息的唯一来源，并且不依赖 HTTP。
+- `ErrorHandler` 是 HTTP 错误边界，负责把 Echo 错误、验证错误、panic 和未知错误归一化为应用错误，并记录结构化日志。
+- `internal/server/httpresp.APIError` 负责把 `apperr.Info` 映射为 HTTP 状态码和 JSON 响应。
+- Usecase 层直接返回错误，Adapter 层包装外部系统错误，业务模块只包装业务语义错误或透传已编码错误。
+- 业务错误可以返回具体、安全的 `message`；内部错误对外始终返回安全文案，原始错误和诊断上下文只进入日志 `detail`。
 
 ### 3. 中间件配置 (`config.go`)
 
@@ -67,7 +65,7 @@ config := &MiddlewareConfig{
     EnableRecovery: true,
     EnableLogger:   true,
     EnableGzip:     true,
-    EnableCORS:     true,
+    EnableCORS:     false,
     EnableJWT:      true,
     LoggerFormat:   "method=${method}, uri=${uri}, status=${status}\n",
     JWT: &JWTConfig{

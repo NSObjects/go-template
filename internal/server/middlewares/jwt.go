@@ -9,10 +9,9 @@
 package middlewares
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/NSObjects/go-template/internal/code"
+	"github.com/NSObjects/go-template/internal/apperr"
 	"github.com/golang-jwt/jwt/v5"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
@@ -31,7 +30,7 @@ type JWTConfig struct {
 // DefaultJWTConfig 默认JWT配置
 func DefaultJWTConfig() *JWTConfig {
 	return &JWTConfig{
-		SigningKey: []byte("default-secret"),
+		SigningKey: nil,
 		SkipPaths: []string{
 			"/api/health",
 			"/api/info",
@@ -43,11 +42,14 @@ func DefaultJWTConfig() *JWTConfig {
 
 // JWT JWT认证中间件
 func JWT(config *JWTConfig) echo.MiddlewareFunc {
-	if !config.Enabled {
-		// 如果JWT未启用，返回空中间件
+	if config == nil || !config.Enabled {
+		// 如果 JWT 未启用，返回空中间件
 		return func(next echo.HandlerFunc) echo.HandlerFunc {
 			return next
 		}
+	}
+	if len(config.SigningKey) == 0 {
+		panic("jwt signing key is required when JWT is enabled")
 	}
 
 	return echojwt.WithConfig(echojwt.Config{
@@ -58,23 +60,19 @@ func JWT(config *JWTConfig) echo.MiddlewareFunc {
 		Skipper: func(c echo.Context) bool {
 			path := c.Path()
 
-			// 调试日志
-			fmt.Printf("DEBUG: Request path: %s, Skip paths: %v\n", path, config.SkipPaths)
-
 			for _, skipPath := range config.SkipPaths {
 				// 支持精确匹配和前缀匹配
 				if path == skipPath ||
 					(len(skipPath) > 0 && skipPath[len(skipPath)-1] == '*' &&
 						len(path) >= len(skipPath)-1 &&
 						strings.HasPrefix(path, skipPath[:len(skipPath)-1])) {
-					fmt.Printf("DEBUG: Skipping JWT for path: %s\n", path)
 					return true
 				}
 			}
 			return false
 		},
 		ErrorHandler: func(c echo.Context, err error) error {
-			return code.WrapError(err, code.ErrSignatureInvalid, "JWT签名无效")
+			return apperr.Wrap(err, apperr.ErrSignatureInvalid, "JWT signature is invalid")
 		},
 	})
 }

@@ -1,0 +1,15 @@
+.git
+.idea
+.DS_Store
+**/.DS_Store
+
+.env
+*.log
+logs/
+
+vendor/
+tmp/
+dist/
+
+*.test
+*.out

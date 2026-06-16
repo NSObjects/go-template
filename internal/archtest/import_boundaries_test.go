@@ -85,8 +85,10 @@ func domainForbiddenImports() []string {
 		"gorm.io",
 		"github.com/redis/go-redis",
 		modulePath + "/internal/configs",
+		modulePath + "/internal/log",
 		modulePath + "/internal/server",
-		modulePath + "/internal/resp",
+		modulePath + "/internal/server/httpresp",
+		modulePath + "/internal/code",
 	}
 }
 

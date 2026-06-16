@@ -117,9 +117,6 @@ run() {
 test() {
     print_info "运行测试..."
     
-    # 设置测试环境
-    export RUN_ENVIRONMENT=test
-    
     # 运行测试
     make test
     

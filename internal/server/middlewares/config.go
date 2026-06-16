@@ -37,7 +37,7 @@ func DefaultMiddlewareConfig() *MiddlewareConfig {
 		EnableRecovery: true,
 		EnableLogger:   true,
 		EnableGzip:     true,
-		EnableCORS:     true,
+		EnableCORS:     false,
 		EnableJWT:      false,
 		LoggerFormat:   "method=${method}, uri=${uri}, status=${status}, latency=${latency_human}\n",
 		JWT:            DefaultJWTConfig(),
@@ -67,7 +67,7 @@ func ApplyMiddlewares(e *echo.Echo, config *MiddlewareConfig) {
 		e.Use(middleware.Gzip())
 	}
 
-	// CORS中间件
+	// CORS 中间件。默认不启用，避免模板在业务接入前隐式开放跨域。
 	if config.EnableCORS {
 		e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 			AllowOrigins: []string{"*"},

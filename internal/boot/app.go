@@ -15,7 +15,7 @@ import (
 // Run loads configuration, assembles concrete runtime modules, and blocks until
 // the process receives a shutdown signal.
 func Run(configPath string) error {
-	cfg, store, err := configs.BootstrapE(configPath)
+	cfg, err := configs.Load(configPath)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
@@ -23,5 +23,5 @@ func Run(configPath string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	return server.New(cfg, store).Run(ctx)
+	return server.New(cfg).Run(ctx)
 }

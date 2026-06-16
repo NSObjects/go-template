@@ -39,12 +39,12 @@ run:
 # 运行应用（开发模式）
 run-dev:
 	@echo "$(BLUE)[INFO]$(NC) Starting application in development mode..."
-	@export RUN_ENVIRONMENT=dev && go run main.go --config configs/config.toml
+	@go run main.go --config configs/config.toml
 
 # 运行应用（测试模式）
 run-test:
 	@echo "$(BLUE)[INFO]$(NC) Starting application in test mode..."
-	@export RUN_ENVIRONMENT=test && go run main.go --config configs/config.toml
+	@go run main.go --config configs/config.toml
 
 # 整理依赖
 tidy:
@@ -130,13 +130,13 @@ install-lint:
 # 运行测试
 test:
 	@echo "$(BLUE)[INFO]$(NC) Running tests..."
-	@export RUN_ENVIRONMENT=test && go test -race $(shell go list ./...)
+	@go test -race $(shell go list ./...)
 	@echo "$(GREEN)[SUCCESS]$(NC) Tests completed"
 
 # 详细测试输出
 test-verbose:
 	@echo "$(BLUE)[INFO]$(NC) Running tests with verbose output..."
-	@export RUN_ENVIRONMENT=test && go test -v -race $(shell go list ./...)
+	@go test -v -race $(shell go list ./...)
 	@echo "$(GREEN)[SUCCESS]$(NC) Verbose tests completed"
 
 # 生成测试覆盖率报告

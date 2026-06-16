@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/NSObjects/go-template/internal/code"
+	"github.com/NSObjects/go-template/internal/apperr"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -19,7 +19,7 @@ func TestDefaultMiddlewareConfig(t *testing.T) {
 	assert.True(t, config.EnableRecovery)
 	assert.True(t, config.EnableLogger)
 	assert.True(t, config.EnableGzip)
-	assert.True(t, config.EnableCORS)
+	assert.False(t, config.EnableCORS)
 	assert.False(t, config.EnableJWT)
 	assert.NotEmpty(t, config.LoggerFormat)
 	assert.NotNil(t, config.JWT)
@@ -31,7 +31,7 @@ func TestDefaultJWTConfig(t *testing.T) {
 	assert.NotNil(t, config)
 	assert.False(t, config.Enabled)
 	assert.NotNil(t, config.SkipPaths)
-	assert.NotEmpty(t, config.SigningKey) // 默认配置有默认密钥
+	assert.Empty(t, config.SigningKey)
 }
 
 func TestCreateJWTConfig(t *testing.T) {
@@ -94,7 +94,7 @@ func TestErrorRecovery(t *testing.T) {
 	// 测试panic恢复
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
-	assertErrorPayload(t, rec, code.ErrInternalServer, "Internal server error")
+	assertErrorPayload(t, rec, apperr.ErrInternalServer, "Internal server error")
 }
 
 func TestErrorHandlerNormalizesErrors(t *testing.T) {
@@ -109,21 +109,21 @@ func TestErrorHandlerNormalizesErrors(t *testing.T) {
 			name:       "plain error becomes internal server error",
 			err:        errors.New("database password leaked in raw error"),
 			wantStatus: http.StatusInternalServerError,
-			wantCode:   code.ErrInternalServer,
+			wantCode:   apperr.ErrInternalServer,
 			wantMsg:    "Internal server error",
 		},
 		{
 			name:       "echo bad request becomes bad request code",
 			err:        echo.NewHTTPError(http.StatusBadRequest, "invalid query"),
 			wantStatus: http.StatusBadRequest,
-			wantCode:   code.ErrBadRequest,
+			wantCode:   apperr.ErrBadRequest,
 			wantMsg:    "invalid query",
 		},
 		{
 			name:       "validation error becomes validation code",
 			err:        &ValidationError{Field: "email", Message: "invalid format"},
 			wantStatus: http.StatusBadRequest,
-			wantCode:   code.ErrValidation,
+			wantCode:   apperr.ErrValidation,
 			wantMsg:    "invalid format",
 		},
 	}
@@ -190,6 +190,12 @@ func TestJWTConfig(t *testing.T) {
 			assert.NotNil(t, middleware)
 		})
 	}
+}
+
+func TestJWTRequiresSigningKeyWhenEnabled(t *testing.T) {
+	assert.Panics(t, func() {
+		JWT(&JWTConfig{Enabled: true})
+	})
 }
 
 func TestMiddlewareConfig(t *testing.T) {

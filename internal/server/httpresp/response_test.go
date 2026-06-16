@@ -13,7 +13,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/NSObjects/go-template/internal/code"
+	"github.com/NSObjects/go-template/internal/apperr"
 	"github.com/labstack/echo/v4"
 )
 
@@ -38,7 +38,7 @@ func TestApiError(t *testing.T) {
 			name:       "plain error is rendered as unknown internal error",
 			err:        errors.New("api error"),
 			wantStatus: http.StatusInternalServerError,
-			wantCode:   float64(code.ErrUnknown),
+			wantCode:   float64(apperr.ErrUnknown),
 			wantMsg:    "Internal server error",
 		},
 		{
@@ -58,6 +58,31 @@ func TestApiError(t *testing.T) {
 			}
 
 			assertErrorResponse(t, rec, tt.wantStatus, tt.wantCode, tt.wantMsg)
+		})
+	}
+}
+
+func TestStatus(t *testing.T) {
+	tests := []struct {
+		name string
+		kind apperr.Kind
+		want int
+	}{
+		{name: "bad request", kind: apperr.KindBadRequest, want: http.StatusBadRequest},
+		{name: "validation", kind: apperr.KindValidation, want: http.StatusBadRequest},
+		{name: "unauthorized", kind: apperr.KindUnauthorized, want: http.StatusUnauthorized},
+		{name: "forbidden", kind: apperr.KindForbidden, want: http.StatusForbidden},
+		{name: "not found", kind: apperr.KindNotFound, want: http.StatusNotFound},
+		{name: "conflict", kind: apperr.KindConflict, want: http.StatusConflict},
+		{name: "internal", kind: apperr.KindInternal, want: http.StatusInternalServerError},
+		{name: "unknown kind", kind: apperr.Kind("unknown"), want: http.StatusInternalServerError},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Status(tt.kind); got != tt.want {
+				t.Fatalf("Status(%q) = %d, want %d", tt.kind, got, tt.want)
+			}
 		})
 	}
 }
@@ -118,6 +143,21 @@ func TestListDataResponse(t *testing.T) {
 				"msg":  "success",
 				"data": map[string]any{
 					"list":  []any{"alpha"},
+					"total": float64(1),
+				},
+			},
+		},
+		{
+			name:  "non nilable list value is preserved",
+			list:  struct{ Name string }{Name: "alpha"},
+			total: 1,
+			want: map[string]any{
+				"code": float64(0),
+				"msg":  "success",
+				"data": map[string]any{
+					"list": map[string]any{
+						"Name": "alpha",
+					},
 					"total": float64(1),
 				},
 			},

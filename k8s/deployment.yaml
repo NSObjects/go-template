@@ -19,17 +19,6 @@ spec:
         image: go-template:latest
         ports:
         - containerPort: 9322
-        env:
-        - name: MYSQL_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mysql-secret
-              key: password
-        - name: REDIS_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: redis-secret
-              key: password
         resources:
           requests:
             memory: "128Mi"
@@ -51,7 +40,7 @@ spec:
           periodSeconds: 5
         volumeMounts:
         - name: config
-          mountPath: /app/configs
+          mountPath: /configs
       volumes:
       - name: config
         configMap:
@@ -75,30 +64,13 @@ metadata:
   name: go-template-config
 data:
   config.toml: |
+    [system]
     port = ":9322"
     level = 1
     env = "prod"
-    
-    [mysql]
-    host = "mysql-service"
-    port = "3306"
-    database = "test"
-    user = "root"
-    max_idle_conns = 50
-    max_open_conns = 100
-    conn_max_lifetime = "1h"
-    conn_max_idle_time = "30m"
-    
-    [redis]
-    host = "redis-service"
-    port = "6379"
-    db = 0
-    
-    [log]
-    level = "info"
-    format = "json"
-    
+
     [jwt]
-    secret = "your-secret-key"
+    enabled = false
+    secret = ""
     expire = 3600
     skip_paths = ["/api/health","/api/info","/api/auth/login"]

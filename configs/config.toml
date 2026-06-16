@@ -5,79 +5,8 @@ level = 1
 # 环境配置: dev, test, prod
 env = "dev"
 
-[mysql]
-# 数据库只是模板能力，默认不连接；需要时显式改为 true。
-enabled = false
-# 容器运行时host修改为 数据库服务名称 mysql
-# links:
-#      - mysql
-host = "127.0.0.1"
-docker_host = "db"
-port = "3306"
-database = "erp_dev"
-user = "root"
-password = "123456"
-max_idle_conns = 50
-max_open_conns = 100
-conn_max_lifetime = "1h"
-conn_max_idle_time = "30m"
-
-[mongodb]
-enabled = false
-host = ""
-port = "27017"
-user = ""
-password = ""
-
-[redis]
-enabled = false
-host = "127.0.0.1"
-port = "6379"
-password = ""
-database = 0
-
-[log]
-# 日志级别: debug, info, warn, error
-level = "debug"
-# 日志格式: color(开发), json(生产)
-format = "color"
-
-[log.console]
-format = "color"  # json, text, color
-output = "stdout" # stdout, stderr
-
-[log.file]
-# 文件日志配置 - 生产环境启用
-filename = "logs/app.log"
-max_size = 100    # MB
-max_backups = 3
-max_age = 28      # days
-compress = true
-format = "json"   # json, text
-
-[log.elasticsearch]
-url = ""
-index = "echo-admin-logs"
-timeout = "5s"
-
-[log.loki]
-url = ""
-labels = { service = "echo-admin", env = "dev" }
-timeout = "5s"
-
 [jwt]
-secret = "tn)M^P<j,/6$Gr/Wrs"
+enabled = false
+secret = ""
 expire = 3600
 skip_paths = ["/api/health","/api/info"]
-
-[cors]
-allow_origins = ["*"]
-allow_headers = ["Origin", "Content-Type", "Accept"]
-allow_methods = ["GET","HEAD","PUT","PATCH","POST","DELETE"]
-allow_credentials = true
-
-[kafka]
-enabled = false
-brokers = []
-client_id = "echo-admin"
-topic = "demo"
