@@ -34,7 +34,7 @@ Server包是HTTP服务的核心，负责管理Echo服务器实例、中间件配
 ### 4. 路由管理优化
 
 - **系统路由**: 健康检查、路由信息、系统信息
-- **业务路由**: 通过依赖注入自动注册
+- **业务路由**: 由 `internal/boot` 显式注册
 - **路由分组**: 清晰的API路由组织
 
 ### 5. 服务器生命周期优化
@@ -62,10 +62,10 @@ Server包是HTTP服务的核心，负责管理Echo服务器实例、中间件配
 
 ```go
 // 创建服务器实例
-server := NewEchoServer(routers, config, store)
+server := New(config, store)
 
 // 启动服务器
-server.Run(":8080")
+server.Run(ctx)
 ```
 
 ## 性能优化

@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/NSObjects/go-template/internal/code"
-	"github.com/NSObjects/go-template/internal/utils"
 	"github.com/golang-jwt/jwt/v5"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
@@ -53,7 +52,7 @@ func JWT(config *JWTConfig) echo.MiddlewareFunc {
 
 	return echojwt.WithConfig(echojwt.Config{
 		NewClaimsFunc: func(c echo.Context) jwt.Claims {
-			return new(utils.JwtCustomClaims)
+			return new(JwtCustomClaims)
 		},
 		SigningKey: config.SigningKey,
 		Skipper: func(c echo.Context) bool {

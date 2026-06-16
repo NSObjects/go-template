@@ -40,12 +40,4 @@ func init() {
 	register(ErrInvalidYaml, 500, "Data is not valid Yaml")
 	register(ErrEncodingYaml, 500, "Yaml data could not be encoded")
 	register(ErrDecodingYaml, 500, "Yaml data could not be decoded")
-	register(ErrUserNotFound, 404, "User not found")
-	register(ErrUserAlreadyExists, 400, "User already exists")
-	register(ErrUserInvalidData, 400, "User invalid data")
-	register(ErrUserPermissionDenied, 403, "User permission denied")
-	register(ErrUserInUse, 400, "User is in use")
-	register(ErrUserCreateFailed, 500, "User create failed")
-	register(ErrUserUpdateFailed, 500, "User update failed")
-	register(ErrUserDeleteFailed, 500, "User delete failed")
 }

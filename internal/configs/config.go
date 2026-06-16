@@ -54,22 +54,16 @@ var (
 )
 
 type Config struct {
-	Mysql        MysqlConfig        `mapstructure:"mysql"`
-	System       SystemConfig       `mapstructure:"system"`
-	Log          LogConfig          `mapstructure:"log"`
-	Mongodb      Mongodb            `mapstructure:"mongodb"`
-	Redis        RedisConfig        `mapstructure:"redis"`
-	JWT          JWTConfig          `mapstructure:"jwt"`
-	CORS         CORSConfig         `mapstructure:"cors"`
-	Kafka        KafkaConfig        `mapstructure:"kafka"`
-	Etcd         EtcdClientConfig   `mapstructure:"etcd"`
-	Consul       ConsulClientConfig `mapstructure:"consul"`
-	Capabilities CapabilitiesConfig `mapstructure:"capabilities"`
-}
-
-// CapabilitiesConfig contains platform-level capability provider selections.
-type CapabilitiesConfig struct {
-	Providers map[string]string `mapstructure:"providers"`
+	Mysql   MysqlConfig        `mapstructure:"mysql"`
+	System  SystemConfig       `mapstructure:"system"`
+	Log     LogConfig          `mapstructure:"log"`
+	Mongodb Mongodb            `mapstructure:"mongodb"`
+	Redis   RedisConfig        `mapstructure:"redis"`
+	JWT     JWTConfig          `mapstructure:"jwt"`
+	CORS    CORSConfig         `mapstructure:"cors"`
+	Kafka   KafkaConfig        `mapstructure:"kafka"`
+	Etcd    EtcdClientConfig   `mapstructure:"etcd"`
+	Consul  ConsulClientConfig `mapstructure:"consul"`
 }
 
 type SystemConfig struct {

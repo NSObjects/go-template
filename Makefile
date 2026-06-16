@@ -16,7 +16,7 @@ NC := \033[0m # No Color
 # 项目配置
 BIN_DIR := bin
 APP_NAME := app
-DEFAULT_DSN := "root:12345678@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=True&loc=Local"
+LINT_SKIP_DIRS := vendor
 
 # =============================================================================
 # 基础命令
@@ -84,41 +84,41 @@ vet:
 # 代码检查（使用golangci-lint）
 lint:
 	@echo "$(BLUE)[INFO]$(NC) Running linter..."
-	@golangci-lint run --skip-dirs=vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' || true
+	@golangci-lint run --skip-dirs=$(LINT_SKIP_DIRS) --skip-files='.*\.gen\.go$$' || true
 	@echo "$(GREEN)[SUCCESS]$(NC) Linting completed"
 
 # 严格代码检查（失败时退出）
 lint-strict:
 	@echo "$(BLUE)[INFO]$(NC) Running strict linter..."
-	@golangci-lint run --skip-dirs=vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
+	@golangci-lint run --skip-dirs=$(LINT_SKIP_DIRS) --skip-files='.*\.gen\.go$$'
 	@echo "$(GREEN)[SUCCESS]$(NC) Strict linting completed"
 
 # 快速代码检查（只运行快速linter）
 lint-fast:
 	@echo "$(BLUE)[INFO]$(NC) Running fast linter..."
-	@golangci-lint run --fast-only --skip-dirs=vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
+	@golangci-lint run --fast-only --skip-dirs=$(LINT_SKIP_DIRS) --skip-files='.*\.gen\.go$$'
 	@echo "$(GREEN)[SUCCESS]$(NC) Fast linting completed"
 
 # 修复可自动修复的问题
 lint-fix:
 	@echo "$(BLUE)[INFO]$(NC) Running linter with auto-fix..."
-	@golangci-lint run --fix --skip-dirs=vendor,internal/api/data/query --skip-files='.*\.gen\.go$$'
+	@golangci-lint run --fix --skip-dirs=$(LINT_SKIP_DIRS) --skip-files='.*\.gen\.go$$'
 	@echo "$(GREEN)[SUCCESS]$(NC) Linting with auto-fix completed"
 
 # 检查特定目录
 lint-dir:
 	@if [ -z "$(DIR)" ]; then \
-		echo "$(RED)[ERROR]$(NC) Usage: make lint-dir DIR=./internal/api"; \
+		echo "$(RED)[ERROR]$(NC) Usage: make lint-dir DIR=./internal/server"; \
 		exit 1; \
 	fi
 	@echo "$(BLUE)[INFO]$(NC) Running linter on directory: $(DIR)"
-	@golangci-lint run --skip-dirs=vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' $(DIR)
+	@golangci-lint run --skip-dirs=$(LINT_SKIP_DIRS) --skip-files='.*\.gen\.go$$' $(DIR)
 	@echo "$(GREEN)[SUCCESS]$(NC) Directory linting completed"
 
 # 生成lint报告
 lint-report:
 	@echo "$(BLUE)[INFO]$(NC) Generating lint report..."
-	@golangci-lint run --output.checkstyle.path=golangci-report.xml --skip-dirs=vendor,internal/api/data/query --skip-files='.*\.gen\.go$$' || true
+	@golangci-lint run --output.checkstyle.path=golangci-report.xml --skip-dirs=$(LINT_SKIP_DIRS) --skip-files='.*\.gen\.go$$' || true
 	@echo "$(GREEN)[SUCCESS]$(NC) Lint report generated: golangci-report.xml"
 
 # 安装golangci-lint
@@ -145,49 +145,6 @@ test-coverage:
 	@go test ./... -coverprofile=coverage.out
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "$(GREEN)[SUCCESS]$(NC) Coverage report generated: coverage.html"
-
-# =============================================================================
-# 代码生成工具
-# =============================================================================
-
-.PHONY: ensure-gentool db-gen db-gen-table gen-all
-
-ensure-gentool:
-	@command -v gentool >/dev/null 2>&1 || { \
-		echo "$(YELLOW)[WARNING]$(NC) gentool 未安装，正在安装 gorm.io/gen/tools/gentool@v0.3.28"; \
-		go install gorm.io/gen/tools/gentool@v0.3.28; \
-	}
-
-# 生成数据库模型和查询
-db-gen: ensure-gentool
-	@echo "$(BLUE)[INFO]$(NC) Generating database models and queries..."
-	@$(shell go env GOPATH)/bin/gentool \
-		-dsn=$(DEFAULT_DSN) \
-		-outPath="./internal/api/data/query" \
-		-modelPkgName="model" \
-		-fieldWithIndexTag \
-		-fieldWithTypeTag
-	@echo "$(GREEN)[SUCCESS]$(NC) Database generation completed"
-
-# 生成指定表的模型和查询方法
-db-gen-table: ensure-gentool
-	@if [ -z "$(TABLE)" ]; then \
-		echo "$(RED)[ERROR]$(NC) Usage: make db-gen-table TABLE=table_name"; \
-		exit 1; \
-	fi
-	@echo "$(BLUE)[INFO]$(NC) Generating model for table: $(TABLE)"
-	@$(shell go env GOPATH)/bin/gentool \
-		-dsn=$(DEFAULT_DSN) \
-		-outPath="./internal/api/data/query" \
-		-modelPkgName="model" \
-		-fieldWithIndexTag \
-		-fieldWithTypeTag \
-		-tables="$(TABLE)"
-	@echo "$(GREEN)[SUCCESS]$(NC) Table $(TABLE) generation completed"
-
-# 完整生成（数据库模型和查询）
-gen-all: db-gen
-	@echo "$(GREEN)[SUCCESS]$(NC) All generation completed"
 
 # =============================================================================
 # 开发工作流
@@ -281,7 +238,7 @@ bench:
 load-test:
 	@echo "$(BLUE)[INFO]$(NC) Running load tests..."
 	@echo "Please install hey: go install github.com/rakyll/hey@latest"
-	@hey -n 1000 -c 10 http://localhost:9322/api/users
+	@hey -n 1000 -c 10 http://localhost:9322/api/health
 	@echo "$(GREEN)[SUCCESS]$(NC) Load tests completed"
 
 # =============================================================================
@@ -315,11 +272,6 @@ help:
 	@echo "  $(GREEN)test-verbose$(NC)       - 运行详细测试"
 	@echo "  $(GREEN)test-coverage$(NC)      - 生成测试覆盖率报告"
 	@echo ""
-	@echo "$(YELLOW)代码生成:$(NC)"
-	@echo "  $(GREEN)db-gen$(NC)                      - 生成数据库模型和查询"
-	@echo "  $(GREEN)db-gen-table$(NC)                - 生成指定表模型 (TABLE=table_name)"
-	@echo "  $(GREEN)gen-all$(NC)                     - 生成所有数据库代码"
-	@echo ""
 	@echo "$(YELLOW)开发工作流:$(NC)"
 	@echo "  $(GREEN)dev-setup$(NC)          - 设置开发环境"
 	@echo "  $(GREEN)dev-check$(NC)          - 运行开发检查"
@@ -337,13 +289,11 @@ help:
 	@echo "  $(GREEN)docker-clean$(NC)       - 清理Docker资源"
 	@echo ""
 	@echo "$(YELLOW)环境变量:$(NC)"
-	@echo "  $(GREEN)TABLE$(NC)              - 表名 (用于db-gen-table)"
 	@echo "  $(GREEN)DIR$(NC)                - 目录路径 (用于lint-dir)"
 	@echo "  $(GREEN)m$(NC)                  - 提交消息 (用于push)"
 	@echo ""
 	@echo "$(YELLOW)示例用法:$(NC)"
-	@echo "  make db-gen-table TABLE=users"
-	@echo "  make lint-dir DIR=./internal/api"
+	@echo "  make lint-dir DIR=./internal/server"
 	@echo "  make lint-fix"
 	@echo "  make push m=\"feat: add user module\""
 	@echo "  make dev-full"

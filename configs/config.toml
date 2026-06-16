@@ -68,7 +68,7 @@ timeout = "5s"
 [jwt]
 secret = "tn)M^P<j,/6$Gr/Wrs"
 expire = 3600
-skip_paths = ["/api/v1/health","/api/v1/info","/api/v1/auth/login","/api/v1/users"]
+skip_paths = ["/api/health","/api/info"]
 
 [cors]
 allow_origins = ["*"]
@@ -81,6 +81,3 @@ enabled = false
 brokers = []
 client_id = "echo-admin"
 topic = "demo"
-
-[capabilities.providers]
-# 默认不启用数据库能力；业务适配器需要 GORM 时配置 database.gorm = "mysql"，并同时启用和配置 [mysql]。

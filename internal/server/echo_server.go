@@ -11,40 +11,45 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/NSObjects/go-template/internal/configs"
-	platformhttp "github.com/NSObjects/go-template/internal/platform/http"
-	"github.com/NSObjects/go-template/internal/resp"
+	"github.com/NSObjects/go-template/internal/server/httpresp"
 	"github.com/NSObjects/go-template/internal/server/middlewares"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 )
 
-// EchoServer Echo HTTP服务器
-type EchoServer struct {
+// Server owns the Echo HTTP server lifecycle and system routes.
+type Server struct {
 	server *echo.Echo
+	api    *echo.Group
 	config *ServerConfig
-	routes []platformhttp.Route
 	cfg    configs.Config
 	store  *configs.Store
 }
 
-// Server 获取Echo实例
-func (s *EchoServer) Server() *echo.Echo {
+// Echo returns the underlying Echo instance for HTTP adapter tests and
+// framework-level integration.
+func (s *Server) Echo() *echo.Echo {
 	return s.server
 }
 
-// NewEchoServer 创建Echo服务器实例
-func NewEchoServer(routes []platformhttp.Route, cfg configs.Config, store *configs.Store) *EchoServer {
-	s := &EchoServer{
+// API returns the root API route group used by boot to register business routes.
+func (s *Server) API() *echo.Group {
+	return s.api
+}
+
+// New creates an Echo-backed HTTP server.
+func New(cfg configs.Config, store *configs.Store) *Server {
+	if store == nil {
+		store = configs.NewStore(cfg)
+	}
+	s := &Server{
 		server: echo.New(),
 		config: FromAppConfig(cfg),
-		routes: routes,
 		cfg:    cfg,
 		store:  store,
 	}
@@ -58,7 +63,7 @@ func NewEchoServer(routes []platformhttp.Route, cfg configs.Config, store *confi
 }
 
 // setupServer 配置服务器基础设置
-func (s *EchoServer) setupServer() {
+func (s *Server) setupServer() {
 	// 设置验证器
 	s.server.Validator = &middlewares.Validator{Validator: validator.New()}
 
@@ -76,7 +81,7 @@ func (s *EchoServer) setupServer() {
 }
 
 // loadMiddleware 加载中间件
-func (s *EchoServer) loadMiddleware() {
+func (s *Server) loadMiddleware() {
 	// 创建中间件配置
 	config := s.createMiddlewareConfig()
 
@@ -85,7 +90,7 @@ func (s *EchoServer) loadMiddleware() {
 }
 
 // createMiddlewareConfig 创建中间件配置
-func (s *EchoServer) createMiddlewareConfig() *middlewares.MiddlewareConfig {
+func (s *Server) createMiddlewareConfig() *middlewares.MiddlewareConfig {
 	cur := s.store.Current()
 
 	// 创建JWT配置 - 禁用JWT用于演示
@@ -107,21 +112,16 @@ func (s *EchoServer) createMiddlewareConfig() *middlewares.MiddlewareConfig {
 }
 
 // registerRouter 注册路由
-func (s *EchoServer) registerRouter() {
+func (s *Server) registerRouter() {
 	// 创建API路由组
-	apiGroup := s.server.Group("/api")
-
-	// 注册业务路由
-	if err := platformhttp.RegisterRoutes(apiGroup, s.routes); err != nil {
-		s.server.Logger.Fatal("Failed to register routes", err)
-	}
+	s.api = s.server.Group("/api")
 
 	// 注册系统路由
-	s.registerSystemRoutes(apiGroup)
+	s.registerSystemRoutes(s.api)
 }
 
 // registerSystemRoutes 注册系统路由
-func (s *EchoServer) registerSystemRoutes(g *echo.Group) {
+func (s *Server) registerSystemRoutes(g *echo.Group) {
 	// 健康检查
 	g.GET("/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]interface{}{
@@ -132,7 +132,7 @@ func (s *EchoServer) registerSystemRoutes(g *echo.Group) {
 
 	// 路由信息
 	g.GET("/routes", func(c echo.Context) error {
-		return resp.ListDataResponse(c, s.server.Routes(), int64(len(s.server.Routes())))
+		return httpresp.ListDataResponse(c, s.server.Routes(), int64(len(s.server.Routes())))
 	})
 
 	// 系统信息
@@ -145,34 +145,52 @@ func (s *EchoServer) registerSystemRoutes(g *echo.Group) {
 	})
 }
 
-// Run 启动服务器
-func (s *EchoServer) Run(port string) {
-	if port == "" {
-		port = s.config.Port
+// Run starts the HTTP server and blocks until ctx is cancelled or startup fails.
+func (s *Server) Run(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("server run: nil context")
 	}
 
-	// 启动服务器
+	port := s.config.Port
+	if port == "" {
+		port = DefaultServerConfig().Port
+	}
+
+	errCh := make(chan error, 1)
 	go func() {
 		s.server.Logger.Infof("Starting server on %s", port)
-		if err := s.server.Start(port); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			s.server.Logger.Fatal("Failed to start server", err)
+		err := s.server.Start(port)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
+			return
 		}
+		errCh <- nil
 	}()
 
-	// 等待中断信号
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-	<-quit
+	select {
+	case err := <-errCh:
+		return err
+	case <-ctx.Done():
+	}
 
 	s.server.Logger.Info("Shutting down server...")
 
-	// 优雅关闭
-	ctx, cancel := context.WithTimeout(context.Background(), s.config.ShutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), s.config.ShutdownTimeout)
 	defer cancel()
 
-	if err := s.server.Shutdown(ctx); err != nil {
-		s.server.Logger.Fatal("Server forced to shutdown", err)
+	if err := s.server.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("shutdown server: %w", err)
+	}
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return err
+		}
+	case <-shutdownCtx.Done():
+		return fmt.Errorf("wait for server shutdown: %w", shutdownCtx.Err())
 	}
 
 	s.server.Logger.Info("Server exited")
+	return nil
 }

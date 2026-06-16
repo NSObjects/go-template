@@ -6,26 +6,25 @@
 package server
 
 import (
-	"net/http"
+	"context"
 	"testing"
 	"time"
 
 	"github.com/NSObjects/go-template/internal/configs"
-	platformhttp "github.com/NSObjects/go-template/internal/platform/http"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestEchoServer_Server(t *testing.T) {
-	server := NewEchoServer(nil, configs.Config{}, &configs.Store{})
+func TestServerEcho(t *testing.T) {
+	server := New(configs.Config{}, nil)
 
 	assert.NotNil(t, server)
-	assert.NotNil(t, server.Server())
-	assert.IsType(t, &echo.Echo{}, server.Server())
+	assert.NotNil(t, server.Echo())
+	assert.IsType(t, &echo.Echo{}, server.Echo())
 }
 
-func TestEchoServer_setupServer(t *testing.T) {
-	server := &EchoServer{
+func TestServerSetupServer(t *testing.T) {
+	server := &Server{
 		server: echo.New(),
 		config: DefaultServerConfig(),
 	}
@@ -42,10 +41,10 @@ func TestEchoServer_setupServer(t *testing.T) {
 	assert.Equal(t, server.config.IdleTimeout, server.server.Server.IdleTimeout)
 }
 
-func TestEchoServer_createMiddlewareConfig(t *testing.T) {
-	store := &configs.Store{}
+func TestServerCreateMiddlewareConfig(t *testing.T) {
+	store := configs.NewStore(configs.Config{})
 
-	server := &EchoServer{
+	server := &Server{
 		server: echo.New(),
 		config: DefaultServerConfig(),
 		store:  store,
@@ -62,8 +61,8 @@ func TestEchoServer_createMiddlewareConfig(t *testing.T) {
 	assert.NotNil(t, config.JWT)
 }
 
-func TestEchoServer_registerSystemRoutes(t *testing.T) {
-	server := &EchoServer{
+func TestServerRegisterSystemRoutes(t *testing.T) {
+	server := &Server{
 		server: echo.New(),
 		config: DefaultServerConfig(),
 	}
@@ -98,37 +97,11 @@ func TestEchoServer_registerSystemRoutes(t *testing.T) {
 	assert.True(t, hasInfoRoute, "Info route should be registered")
 }
 
-func TestEchoServer_registerRouter(t *testing.T) {
-	server := &EchoServer{
-		server: echo.New(),
-		config: DefaultServerConfig(),
-		routes: []platformhttp.Route{
-			{
-				Owner:   "orders",
-				Name:    "list orders",
-				Method:  http.MethodGet,
-				Path:    "/orders",
-				Handler: func(c echo.Context) error { return c.NoContent(http.StatusNoContent) },
-			},
-		},
-	}
-
-	server.registerRouter()
-
-	hasBusinessRoute := false
-	for _, route := range server.server.Routes() {
-		if route.Method == http.MethodGet && route.Path == "/api/orders" && route.Name == "list orders" {
-			hasBusinessRoute = true
-		}
-	}
-	assert.True(t, hasBusinessRoute, "Business route should be registered")
-}
-
-func TestEchoServer_Run(t *testing.T) {
-	server := &EchoServer{
+func TestServerRunReturnsStartupError(t *testing.T) {
+	server := &Server{
 		server: echo.New(),
 		config: &ServerConfig{
-			Port:            ":0", // 使用随机端口
+			Port:            "invalid-address",
 			ReadTimeout:     1 * time.Second,
 			WriteTimeout:    1 * time.Second,
 			IdleTimeout:     1 * time.Second,
@@ -136,19 +109,38 @@ func TestEchoServer_Run(t *testing.T) {
 		},
 	}
 
-	// 在goroutine中运行服务器，避免阻塞测试
-	go func() {
-		server.Run(":0")
-	}()
-
-	// 等待服务器启动
-	time.Sleep(100 * time.Millisecond)
-
-	// 验证服务器配置
-	assert.NotNil(t, server.server)
+	err := server.Run(context.Background())
+	assert.Error(t, err)
 }
 
-func TestEchoServer_NewEchoServer(t *testing.T) {
+func TestServerRunRejectsNilContext(t *testing.T) {
+	server := New(configs.Config{}, nil)
+
+	err := server.Run(nil)
+	if err == nil {
+		t.Fatal("Run(nil) error = nil, want nil context error")
+	}
+	assert.Contains(t, err.Error(), "nil context")
+}
+
+func TestServerAPIGroupRegistersBusinessRoutes(t *testing.T) {
+	server := New(configs.Config{}, nil)
+
+	server.API().GET("/ping", func(c echo.Context) error {
+		return c.NoContent(204)
+	})
+
+	hasPingRoute := false
+	for _, route := range server.Echo().Routes() {
+		if route.Method == "GET" && route.Path == "/api/ping" {
+			hasPingRoute = true
+			break
+		}
+	}
+	assert.True(t, hasPingRoute, "API group should register routes under /api")
+}
+
+func TestServerNew(t *testing.T) {
 	// 创建模拟参数
 	cfg := configs.Config{
 		System: configs.SystemConfig{
@@ -161,21 +153,20 @@ func TestEchoServer_NewEchoServer(t *testing.T) {
 		},
 	}
 
-	store := &configs.Store{}
-	// 注意：这里需要根据实际的Store实现来设置配置
-	// store.Set(cfg)
+	store := configs.NewStore(cfg)
 
-	server := NewEchoServer(nil, cfg, store)
+	server := New(cfg, store)
 
 	assert.NotNil(t, server)
 	assert.NotNil(t, server.server)
 	assert.NotNil(t, server.config)
+	assert.NotNil(t, server.api)
 	assert.Equal(t, cfg, server.cfg)
 	assert.Equal(t, store, server.store)
 }
 
-func TestEchoServer_SystemRoutes(t *testing.T) {
-	server := &EchoServer{
+func TestServerSystemRoutes(t *testing.T) {
+	server := &Server{
 		server: echo.New(),
 		config: DefaultServerConfig(),
 	}
@@ -199,7 +190,7 @@ func TestEchoServer_SystemRoutes(t *testing.T) {
 	assert.True(t, hasSystemRoutes, "System routes should be registered")
 }
 
-func TestEchoServer_Config(t *testing.T) {
+func TestServerConfig(t *testing.T) {
 	config := DefaultServerConfig()
 
 	// 测试配置字段

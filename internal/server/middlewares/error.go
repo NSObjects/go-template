@@ -7,7 +7,7 @@ import (
 
 	"github.com/NSObjects/go-template/internal/code"
 	"github.com/NSObjects/go-template/internal/log"
-	"github.com/NSObjects/go-template/internal/resp"
+	"github.com/NSObjects/go-template/internal/server/httpresp"
 	"github.com/labstack/echo/v4"
 )
 
@@ -16,7 +16,7 @@ func ErrorHandler(err error, c echo.Context) {
 	normalized := normalizeError(err)
 	info := code.NewErrorInfo(normalized)
 	logAPIError(c, info)
-	_ = resp.APIError(c, normalized)
+	_ = httpresp.APIError(c, normalized)
 }
 
 // ValidationError 验证错误
@@ -70,7 +70,7 @@ func logAPIError(c echo.Context, info code.ErrorInfo) {
 		slog.Int("code", info.Code),
 		slog.String("message", info.Message),
 		slog.String("category", string(info.Category)),
-		slog.String("request_id", resp.RequestID(c)),
+		slog.String("request_id", httpresp.RequestID(c)),
 		slog.String("method", c.Request().Method),
 		slog.String("uri", c.Request().RequestURI),
 		slog.String("user_agent", c.Request().UserAgent()),

@@ -43,7 +43,6 @@ show_help() {
     echo "  lint           - 代码检查"
     echo "  clean          - 清理生成的文件"
     echo "  db-setup       - 设置数据库"
-    echo "  db-gen         - 生成数据库代码"
     echo "  help           - 显示帮助信息"
     echo ""
     echo "示例:"
@@ -60,12 +59,6 @@ check_dependencies() {
     if ! command -v go &> /dev/null; then
         print_error "Go 未安装，请先安装 Go 1.19+"
         exit 1
-    fi
-    
-    # 检查gentool
-    if ! command -v gentool &> /dev/null; then
-        print_warning "gentool 未安装，正在安装..."
-        go install gorm.io/gen/tools/gentool@v0.3.28
     fi
     
     print_success "依赖检查完成"
@@ -169,21 +162,7 @@ db_setup() {
     # 检查数据库连接
     print_info "检查数据库连接..."
     
-    # 生成数据库代码
-    print_info "生成数据库代码..."
-    make db-gen
-    
     print_success "数据库设置完成"
-}
-
-# 生成数据库代码
-db_gen() {
-    print_info "生成数据库代码..."
-    
-    # 生成模型和查询
-    make db-gen
-    
-    print_success "数据库代码生成完成"
 }
 
 # 主函数
@@ -209,9 +188,6 @@ main() {
             ;;
         db-setup)
             db_setup
-            ;;
-        db-gen)
-            db_gen
             ;;
         help|--help|-h)
             show_help

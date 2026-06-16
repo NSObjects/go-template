@@ -38,7 +38,7 @@ type JWTConfig struct {
 **边界约定**:
 - `internal/code` 是错误码、HTTP 状态、错误分类和对外安全消息的唯一来源。
 - `ErrorHandler` 是 HTTP 错误边界，负责把 Echo 错误、验证错误、panic 和未知错误归一化为已注册错误码，并记录结构化日志。
-- `internal/resp.APIError` 只负责根据 `code.ErrorInfo` 渲染 JSON，不做错误归类或日志记录。
+- `internal/server/httpresp.APIError` 只负责根据 `code.ErrorInfo` 渲染 JSON，不做错误归类或日志记录。
 - Service 层直接返回错误，Data 层包装存储错误，Biz 层只包装业务语义错误或透传 Repository 已编码错误。
 - HTTP 状态码刻意收敛为少量通用状态，业务差异通过响应 `code` 表达，避免模板使用者在细粒度 HTTP 状态之间做重复决策。
 - 业务错误可以返回具体、安全的 `message`；内部错误对外始终返回注册表中的安全文案，原始错误和诊断上下文只进入日志 `details`。

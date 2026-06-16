@@ -13,7 +13,7 @@ var cfgFile string
 var rootCmd = &cobra.Command{
 	Use:   "go-template",
 	Short: "Start the configured application",
-	Long:  "Start the configured application with explicitly assembled platform and business modules.",
+	Long:  "Start the configured application through the boot composition root.",
 	Run: func(cmd *cobra.Command, args []string) {
 		Run(cfgFile)
 	},

@@ -1,13 +1,10 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 
-	included "github.com/NSObjects/go-template/internal/app"
-	"github.com/NSObjects/go-template/internal/configs"
-	platformapp "github.com/NSObjects/go-template/internal/platform/app"
+	"github.com/NSObjects/go-template/internal/boot"
 )
 
 func Run(cfg string) {
@@ -18,22 +15,5 @@ func Run(cfg string) {
 }
 
 func run(cfg string) error {
-	loaded, store, err := configs.BootstrapE(cfg)
-	if err != nil {
-		return fmt.Errorf("load config: %w", err)
-	}
-	modules, err := included.Modules(loaded)
-	if err != nil {
-		return fmt.Errorf("build modules: %w", err)
-	}
-	app, err := platformapp.Assemble(platformapp.Options{
-		Config:               loaded,
-		Store:                store,
-		Modules:              modules.Modules,
-		CapabilitySelections: modules.CapabilitySelections,
-	})
-	if err != nil {
-		return err
-	}
-	return app.Run(context.Background())
+	return boot.Run(cfg)
 }

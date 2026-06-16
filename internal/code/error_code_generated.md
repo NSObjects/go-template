@@ -31,9 +31,6 @@
 - **100201-100299**: 认证授权错误
 - **100301-100399**: 编解码错误
 - **100401-100499**: 验证错误
-- **100501-100599**: 菜单相关错误
-- **100601-100699**: 用户相关错误
-- **100701-100799**: 角色相关错误
 
 ## 错误码列表
 
@@ -73,11 +70,3 @@
 | ErrInvalidYaml | 100306 | 500 | Data is not valid Yaml |
 | ErrEncodingYaml | 100307 | 500 | Yaml data could not be encoded |
 | ErrDecodingYaml | 100308 | 500 | Yaml data could not be decoded |
-| ErrUserNotFound | 200000 | 404 | User not found |
-| ErrUserAlreadyExists | 200001 | 400 | User already exists |
-| ErrUserInvalidData | 200002 | 400 | User invalid data |
-| ErrUserPermissionDenied | 200003 | 403 | User permission denied |
-| ErrUserInUse | 200004 | 400 | User is in use |
-| ErrUserCreateFailed | 200005 | 500 | User create failed |
-| ErrUserUpdateFailed | 200006 | 500 | User update failed |
-| ErrUserDeleteFailed | 200007 | 500 | User delete failed |

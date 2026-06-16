@@ -139,14 +139,6 @@ func Merge(dst, src Config) Config {
 	if src.Kafka.Topic != "" {
 		dst.Kafka.Topic = src.Kafka.Topic
 	}
-	if len(src.Capabilities.Providers) > 0 {
-		if dst.Capabilities.Providers == nil {
-			dst.Capabilities.Providers = make(map[string]string, len(src.Capabilities.Providers))
-		}
-		for capability, provider := range src.Capabilities.Providers {
-			dst.Capabilities.Providers[capability] = provider
-		}
-	}
 	// JWT
 	if src.JWT.Secret != "" {
 		dst.JWT.Secret = src.JWT.Secret
