@@ -59,11 +59,11 @@ func Status(kind apperr.Kind) int {
 
 // RequestID returns the request ID used in HTTP error responses.
 func RequestID(c echo.Context) string {
-	if requestID := c.Request().Header.Get("X-Request-ID"); requestID != "" {
+	if requestID := requestctx.GetRequestID(c.Request().Context()); requestID != "" {
 		return requestID
 	}
 
-	if requestID := requestctx.GetRequestID(c.Request().Context()); requestID != "" {
+	if requestID := c.Request().Header.Get("X-Request-ID"); requestID != "" {
 		return requestID
 	}
 

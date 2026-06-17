@@ -108,12 +108,16 @@ Forbidden imports:
 
 ```go
 cfg, err := configs.Load(configPath)
+if err != nil {
+	return err
+}
+
 srv, err := server.New(cfg)
 if err != nil {
 	return err
 }
 
-db := mysqlinfra.Open(databaseConfig)
+db := openOrderDatabase(databaseConfig)
 orders := ordermysql.NewStore(db)
 orderUC := orderusecase.New(orders)
 orderHTTP := orderhttp.New(orderUC)
@@ -141,7 +145,7 @@ It should expose a small interface:
 ```go
 type Server struct { ... }
 
-func New(cfg configs.Config) *Server
+func New(cfg configs.Config) (*Server, error)
 func (s *Server) API() *echo.Group
 func (s *Server) Run(ctx context.Context) error
 ```
@@ -271,10 +275,9 @@ Use `internal/requestctx` for framework-free request metadata:
 
 - request ID;
 - trace ID;
-- user ID;
-- roles or permissions when needed.
+- authenticated user ID only after a real authentication boundary has verified it.
 
-Echo extraction lives in the HTTP adapter or server middleware. Usecases receive ordinary `context.Context` and read request metadata through `requestctx`.
+Echo extraction for request and trace IDs lives in server middleware. Authenticated identity extraction belongs in a real auth HTTP adapter or auth middleware; do not trust user identity from client-supplied metadata headers. Usecases receive ordinary `context.Context` and read request metadata through `requestctx`.
 
 ## External Resources
 
@@ -399,14 +402,7 @@ The repository enforces these checks through `internal/archtest`:
 
 ```text
 internal/*/domain must not import:
-  github.com/labstack/echo
-  gorm.io
-  github.com/redis/go-redis
-  internal/configs
-  internal/log
-  internal/server
-  internal/server/httpresp
-  internal/code
+  anything outside the Go standard library
 
 internal/*/usecase must not import:
   github.com/labstack/echo
@@ -419,6 +415,7 @@ internal/*/usecase must not import:
   internal/code
   internal/*/http
   internal/*/mysql
+  internal/<other-business>
 
 internal/*/http must not import:
   gorm.io
@@ -428,6 +425,7 @@ internal/*/http must not import:
   internal/code
   internal/*/domain
   internal/*/mysql
+  internal/<other-business>
 
 internal/*/mysql must not import:
   github.com/labstack/echo
@@ -437,6 +435,7 @@ internal/*/mysql must not import:
   internal/server/httpresp
   internal/code
   internal/*/http
+  internal/<other-business>
 
 internal/server and internal/configs must not import:
   internal/<business>

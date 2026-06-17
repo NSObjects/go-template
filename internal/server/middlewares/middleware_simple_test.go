@@ -9,6 +9,7 @@ import (
 
 	"github.com/NSObjects/go-template/internal/apperr"
 	"github.com/NSObjects/go-template/internal/requestctx"
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/stretchr/testify/assert"
@@ -90,8 +91,8 @@ func TestRequestContextMiddlewareStoresMetadata(t *testing.T) {
 		if info.TraceID != "trace-123" {
 			t.Fatalf("TraceID = %q, want trace-123", info.TraceID)
 		}
-		if info.UserID != "user-123" {
-			t.Fatalf("UserID = %q, want user-123", info.UserID)
+		if info.UserID != "" {
+			t.Fatalf("UserID = %q, want empty because request metadata does not authenticate users", info.UserID)
 		}
 		return c.NoContent(http.StatusNoContent)
 	})
@@ -99,7 +100,7 @@ func TestRequestContextMiddlewareStoresMetadata(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/ping", nil)
 	req.Header.Set(headerRequestID, "req-123")
 	req.Header.Set(headerTraceID, "trace-123")
-	req.Header.Set(headerUserID, "user-123")
+	req.Header.Set("X-User-ID", "user-123")
 	rec := httptest.NewRecorder()
 
 	e.ServeHTTP(rec, req)
@@ -143,11 +144,11 @@ func TestErrorHandlerNormalizesErrors(t *testing.T) {
 			wantMsg:    "Internal server error",
 		},
 		{
-			name:       "echo bad request becomes bad request code",
+			name:       "echo bad request uses generic public message",
 			err:        echo.NewHTTPError(http.StatusBadRequest, "invalid query"),
 			wantStatus: http.StatusBadRequest,
 			wantCode:   apperr.ErrBadRequest,
-			wantMsg:    "invalid query",
+			wantMsg:    "Bad request",
 		},
 		{
 			name:       "validation error becomes validation code",
@@ -173,6 +174,31 @@ func TestErrorHandlerNormalizesErrors(t *testing.T) {
 	}
 }
 
+func TestValidatorReturnsSafeBadRequest(t *testing.T) {
+	type request struct {
+		Email string `validate:"required,email"`
+	}
+
+	err := (&Validator{Validator: validator.New()}).Validate(request{})
+	if err == nil {
+		t.Fatal("Validate() error = nil, want validation error")
+	}
+
+	appErr, ok := apperr.Parse(err)
+	if !ok {
+		t.Fatal("Validate() did not return application error")
+	}
+	if appErr.Code() != apperr.ErrBadRequest {
+		t.Fatalf("Code = %d, want %d", appErr.Code(), apperr.ErrBadRequest)
+	}
+	if appErr.Message() != "invalid request" {
+		t.Fatalf("Message = %q, want invalid request", appErr.Message())
+	}
+	if appErr.Detail() == "invalid request" {
+		t.Fatal("Detail lost validator cause")
+	}
+}
+
 func assertErrorPayload(t *testing.T, rec *httptest.ResponseRecorder, wantCode int, wantMessage string) {
 	t.Helper()
 
@@ -190,9 +216,8 @@ func assertErrorPayload(t *testing.T, rec *httptest.ResponseRecorder, wantCode i
 
 func TestJWTConfig(t *testing.T) {
 	tests := []struct {
-		name     string
-		config   *JWTConfig
-		expected bool
+		name   string
+		config *JWTConfig
 	}{
 		{
 			name: "enabled JWT",
@@ -201,7 +226,6 @@ func TestJWTConfig(t *testing.T) {
 				SkipPaths:  []string{"/api/health"},
 				Enabled:    true,
 			},
-			expected: true,
 		},
 		{
 			name: "disabled JWT",
@@ -210,7 +234,6 @@ func TestJWTConfig(t *testing.T) {
 				SkipPaths:  []string{},
 				Enabled:    false,
 			},
-			expected: false,
 		},
 	}
 

@@ -46,14 +46,7 @@ boot -> concrete adapters/usecases/server/config
 
 ## 禁止导入
 
-`domain` 禁止导入：
-
-- Echo 或其他 HTTP framework
-- GORM、Redis、Kafka、具体 driver
-- `internal/configs`
-- `internal/server`
-- `internal/server/httpresp`
-- 全局 logger
+`domain` 只允许导入 Go 标准库。
 
 `usecase` 禁止导入：
 
@@ -63,6 +56,7 @@ boot -> concrete adapters/usecases/server/config
 - `internal/server`
 - `internal/server/httpresp`
 - 同业务模块的 `http` 或 `mysql` adapter
+- 其他业务模块
 
 这些规则由 `internal/archtest` 保护。改架构时必须同步更新守卫测试。
 

@@ -6,10 +6,12 @@ import (
 	"time"
 )
 
+const traceIDForTest = "trace-123"
+
 func TestWithInfoStoresRequestMetadata(t *testing.T) {
 	start := time.Now()
 	ctx := WithInfo(context.Background(), Info{
-		TraceID:   "trace-123",
+		TraceID:   traceIDForTest,
 		SpanID:    "span-456",
 		RequestID: "req-789",
 		UserID:    "user-001",
@@ -20,8 +22,8 @@ func TestWithInfoStoresRequestMetadata(t *testing.T) {
 	if !ok {
 		t.Fatal("FromContext() ok = false, want true")
 	}
-	if info.TraceID != "trace-123" {
-		t.Fatalf("TraceID = %q, want trace-123", info.TraceID)
+	if info.TraceID != traceIDForTest {
+		t.Fatalf("TraceID = %q, want %s", info.TraceID, traceIDForTest)
 	}
 	if info.SpanID != "span-456" {
 		t.Fatalf("SpanID = %q, want span-456", info.SpanID)
@@ -59,19 +61,41 @@ func TestFromContextWithoutMetadata(t *testing.T) {
 }
 
 func TestWithTraceInfoSupportsGetters(t *testing.T) {
-	ctx := WithTraceInfo(context.Background(), "trace-123", "span-456", "req-789", "user-001")
+	ctx := WithTraceInfo(context.Background(), traceIDForTest, "span-456", "req-789")
 
-	if got := GetTraceID(ctx); got != "trace-123" {
-		t.Fatalf("GetTraceID() = %q, want trace-123", got)
+	if got := GetTraceID(ctx); got != traceIDForTest {
+		t.Fatalf("GetTraceID() = %q, want %s", got, traceIDForTest)
 	}
 	if got := GetRequestID(ctx); got != "req-789" {
 		t.Fatalf("GetRequestID() = %q, want req-789", got)
 	}
-	if got := GetUserID(ctx); got != "user-001" {
-		t.Fatalf("GetUserID() = %q, want user-001", got)
-	}
 	if GetStartTime(ctx).IsZero() {
 		t.Fatal("GetStartTime() is zero")
+	}
+}
+
+func TestWithUserIDAddsAuthenticatedIdentity(t *testing.T) {
+	start := time.Now()
+	ctx := WithInfo(context.Background(), Info{
+		TraceID:   traceIDForTest,
+		RequestID: "req-789",
+		StartTime: start,
+	})
+
+	ctx = WithUserID(ctx, "user-001")
+
+	info, ok := FromContext(ctx)
+	if !ok {
+		t.Fatal("FromContext() ok = false, want true")
+	}
+	if info.TraceID != traceIDForTest {
+		t.Fatalf("TraceID = %q, want %s", info.TraceID, traceIDForTest)
+	}
+	if info.UserID != "user-001" {
+		t.Fatalf("UserID = %q, want user-001", info.UserID)
+	}
+	if !info.StartTime.Equal(start) {
+		t.Fatalf("StartTime = %v, want %v", info.StartTime, start)
 	}
 }
 

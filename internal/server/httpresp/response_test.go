@@ -97,6 +97,21 @@ func TestRequestIDUsesRequestContext(t *testing.T) {
 	}
 }
 
+func TestRequestIDPrefersRequestContextOverHeader(t *testing.T) {
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("X-Request-ID", "req-from-header")
+	req = req.WithContext(requestctx.WithInfo(context.Background(), requestctx.Info{
+		RequestID: "req-from-context",
+	}))
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	if got := RequestID(c); got != "req-from-context" {
+		t.Fatalf("RequestID() = %q, want req-from-context", got)
+	}
+}
+
 func assertErrorResponse(t *testing.T, rec *httptest.ResponseRecorder, wantStatus int, wantCode float64, wantMessage string) {
 	t.Helper()
 

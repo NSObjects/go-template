@@ -74,3 +74,14 @@ enabled = false
 		t.Fatal("JWT.SkipPaths = nil, want default skip paths")
 	}
 }
+
+func TestLoadRejectsUnsupportedConfigExtension(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.conf")
+	if err := os.WriteFile(path, []byte(`[system]`), 0o600); err != nil {
+		t.Fatalf("write config file: %v", err)
+	}
+
+	if _, err := Load(path); err == nil {
+		t.Fatal("Load() error = nil, want unsupported extension error")
+	}
+}

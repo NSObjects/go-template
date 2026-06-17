@@ -28,7 +28,7 @@ A business module should keep its domain rules, usecases, and adapters close tog
 
 ### Domain Package
 
-The domain package contains entities, value objects, and business invariants. It should not import Echo, GORM, Redis, project config, HTTP response helpers, or global loggers.
+The domain package contains entities, value objects, and business invariants. It imports only the Go standard library.
 
 Create a domain package only when there are real domain rules or durable business concepts.
 

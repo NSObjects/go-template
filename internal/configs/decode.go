@@ -8,6 +8,13 @@ import (
 	"github.com/spf13/viper"
 )
 
+const (
+	configFormatJSON = "json"
+	configFormatTOML = "toml"
+	configFormatYAML = "yaml"
+	configFormatYML  = "yml"
+)
+
 func decodeConfigWithEnv(data []byte, format string, useEnv bool) (Config, error) {
 	v := viper.NewWithOptions(viper.KeyDelimiter("::"))
 	v.SetConfigType(configType(format))
@@ -58,11 +65,11 @@ func Validate(cfg Config) error {
 
 func configType(format string) string {
 	switch strings.ToLower(format) {
-	case "json":
-		return "json"
-	case "yaml", "yml":
-		return "yaml"
+	case configFormatJSON:
+		return configFormatJSON
+	case configFormatYAML, configFormatYML:
+		return configFormatYAML
 	default:
-		return "toml"
+		return configFormatTOML
 	}
 }

@@ -10,7 +10,6 @@ const (
 	headerRequestID = "X-Request-ID"
 	headerTraceID   = "X-Trace-ID"
 	headerSpanID    = "X-Span-ID"
-	headerUserID    = "X-User-ID"
 )
 
 // RequestContext stores request-scoped metadata in the standard context.
@@ -28,7 +27,6 @@ func RequestContext() echo.MiddlewareFunc {
 				TraceID:   request.Header.Get(headerTraceID),
 				SpanID:    request.Header.Get(headerSpanID),
 				RequestID: requestID,
-				UserID:    request.Header.Get(headerUserID),
 			}
 			c.SetRequest(request.WithContext(requestctx.WithInfo(request.Context(), info)))
 			return next(c)

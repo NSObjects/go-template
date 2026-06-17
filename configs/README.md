@@ -6,7 +6,7 @@
 cfg, err := configs.Load("configs/config.toml")
 ```
 
-配置文件支持 TOML、YAML、JSON，格式由文件后缀识别。环境变量可以覆盖同名配置项。
+配置文件支持 TOML、YAML、JSON，格式由文件后缀识别。无后缀时按 TOML 解析，未知后缀会在启动时失败。环境变量可以覆盖同名配置项。
 
 ## 当前配置项
 

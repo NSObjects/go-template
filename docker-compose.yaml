@@ -7,7 +7,7 @@ services:
     volumes:
       - ./configs/config.toml:/configs/config.toml
     ports:
-      - "9328:9322"
+      - "9322:9322"
     networks:
       - api-net
 networks:

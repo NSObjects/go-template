@@ -16,7 +16,7 @@ NC := \033[0m # No Color
 # 项目配置
 BIN_DIR := bin
 APP_NAME := app
-LINT_SKIP_DIRS := vendor
+LOAD_TEST_URL ?= http://localhost:9322/api/health
 
 # =============================================================================
 # 基础命令
@@ -211,6 +211,10 @@ docker-clean: docker-stop
 # 安全扫描
 security-scan:
 	@echo "$(BLUE)[INFO]$(NC) Running security scan..."
+	@if ! command -v gosec >/dev/null 2>&1; then \
+		echo "$(RED)[ERROR]$(NC) gosec is not installed. Install: go install github.com/securego/gosec/v2/cmd/gosec@latest"; \
+		exit 1; \
+	fi
 	@gosec ./...
 	@echo "$(GREEN)[SUCCESS]$(NC) Security scan completed"
 
@@ -218,7 +222,7 @@ security-scan:
 # 性能测试相关命令
 # =============================================================================
 
-.PHONY: bench-load-test
+.PHONY: bench load-test
 
 # 性能基准测试
 bench:
@@ -229,8 +233,11 @@ bench:
 # 负载测试
 load-test:
 	@echo "$(BLUE)[INFO]$(NC) Running load tests..."
-	@echo "Please install hey: go install github.com/rakyll/hey@latest"
-	@hey -n 1000 -c 10 http://localhost:9322/api/health
+	@if ! command -v hey >/dev/null 2>&1; then \
+		echo "$(RED)[ERROR]$(NC) hey is not installed. Install: go install github.com/rakyll/hey@latest"; \
+		exit 1; \
+	fi
+	@hey -n 1000 -c 10 $(LOAD_TEST_URL)
 	@echo "$(GREEN)[SUCCESS]$(NC) Load tests completed"
 
 # =============================================================================

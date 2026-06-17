@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/NSObjects/go-template/internal/requestctx"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -88,8 +89,10 @@ func requestLogger() echo.MiddlewareFunc {
 		LogStatus:  true,
 		LogLatency: true,
 		LogValuesFunc: func(c echo.Context, values middleware.RequestLoggerValues) error {
+			requestID := requestctx.GetRequestID(c.Request().Context())
 			c.Logger().Printf(
-				"method=%s, uri=%s, status=%d, latency=%s\n",
+				"request_id=%s, method=%s, uri=%s, status=%d, latency=%s\n",
+				requestID,
 				values.Method,
 				values.URI,
 				values.Status,

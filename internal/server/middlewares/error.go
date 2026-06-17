@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 
 	"github.com/NSObjects/go-template/internal/apperr"
 	"github.com/NSObjects/go-template/internal/server/httpresp"
@@ -53,18 +54,17 @@ func normalizeError(err error) error {
 }
 
 func normalizeHTTPError(err *echo.HTTPError) error {
-	message := extractErrorMessage(err.Message)
 	switch err.Code {
 	case http.StatusBadRequest:
-		return apperr.WrapBadRequest(nil, message)
+		return apperr.WrapBadRequest(err, "")
 	case http.StatusUnauthorized:
-		return apperr.WrapUnauthorized(nil, message)
+		return apperr.WrapUnauthorized(err, "")
 	case http.StatusForbidden:
-		return apperr.WrapForbidden(nil, message)
+		return apperr.WrapForbidden(err, "")
 	case http.StatusNotFound:
-		return apperr.WrapNotFound(nil, message)
+		return apperr.WrapNotFound(err, "")
 	default:
-		return apperr.WrapInternal(err, message)
+		return apperr.WrapInternal(err, "")
 	}
 }
 
@@ -89,25 +89,16 @@ func logAPIError(c echo.Context, info apperr.Info) {
 	slog.LogAttrs(c.Request().Context(), slog.LevelWarn, "API business error", fields...)
 }
 
-// extractErrorMessage 将 Echo 错误消息转换为字符串
-func extractErrorMessage(message interface{}) string {
-	switch v := message.(type) {
-	case string:
-		return v
-	case error:
-		return v.Error()
-	default:
-		return fmt.Sprint(v)
-	}
-}
-
 // ErrorRecovery 错误恢复中间件
 func ErrorRecovery() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			defer func() {
 				if r := recover(); r != nil {
-					err := apperr.WrapInternal(fmt.Errorf("panic recovered: %v", r), "internal server error")
+					err := apperr.WrapInternal(
+						fmt.Errorf("panic recovered: %v\n%s", r, debug.Stack()),
+						"internal server error",
+					)
 					ErrorHandler(err, c)
 				}
 			}()

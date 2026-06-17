@@ -12,6 +12,7 @@ Middlewares 包提供 API 模板的通用中间件能力，包括请求元数据
 
 **边界约定**:
 - 该中间件只搬运请求元数据，不做认证授权。
+- 该中间件不读取 `X-User-ID` 这类客户端身份 header；真实用户身份必须由认证边界验证后写入 context。
 - usecase 层通过 `internal/requestctx` 读取元数据，不依赖 Echo context。
 
 ### 2. JWT 中间件 (`jwt.go`)
@@ -90,6 +91,8 @@ config := &MiddlewareConfig{
 
 ApplyMiddlewares(e, config)
 ```
+
+`server.New` 使用保守默认值：不启用 CORS，且静态配置文件不提供 CORS 开关。项目真的需要跨域时，在确认允许的 origin 后再显式接入，避免模板默认放大浏览器访问面。
 
 ## 扩展性
 

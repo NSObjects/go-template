@@ -28,13 +28,19 @@ func WithInfo(ctx context.Context, info Info) context.Context {
 }
 
 // WithTraceInfo returns a child context carrying common trace metadata.
-func WithTraceInfo(ctx context.Context, traceID, spanID, requestID, userID string) context.Context {
+func WithTraceInfo(ctx context.Context, traceID, spanID, requestID string) context.Context {
 	return WithInfo(ctx, Info{
 		TraceID:   traceID,
 		SpanID:    spanID,
 		RequestID: requestID,
-		UserID:    userID,
 	})
+}
+
+// WithUserID returns a child context carrying authenticated user identity.
+func WithUserID(ctx context.Context, userID string) context.Context {
+	info, _ := FromContext(ctx)
+	info.UserID = userID
+	return WithInfo(ctx, info)
 }
 
 // FromContext returns request metadata from ctx.
