@@ -36,16 +36,6 @@ run:
 	@echo "$(BLUE)[INFO]$(NC) Starting application..."
 	@go run main.go --config configs/config.toml
 
-# 运行应用（开发模式）
-run-dev:
-	@echo "$(BLUE)[INFO]$(NC) Starting application in development mode..."
-	@go run main.go --config configs/config.toml
-
-# 运行应用（测试模式）
-run-test:
-	@echo "$(BLUE)[INFO]$(NC) Starting application in test mode..."
-	@go run main.go --config configs/config.toml
-
 # 整理依赖
 tidy:
 	@echo "$(BLUE)[INFO]$(NC) Tidying dependencies..."
@@ -98,7 +88,7 @@ lint-fix:
 # 检查特定目录
 lint-dir:
 	@if [ -z "$(DIR)" ]; then \
-		echo "$(RED)[ERROR]$(NC) Usage: make lint-dir DIR=./internal/server"; \
+		echo "$(RED)[ERROR]$(NC) Usage: make lint-dir DIR=./internal/platform/server"; \
 		exit 1; \
 	fi
 	@echo "$(BLUE)[INFO]$(NC) Running linter on directory: $(DIR)"
@@ -178,7 +168,7 @@ clean-all: clean
 # Docker 相关命令
 # =============================================================================
 
-.PHONY: docker-build docker-run docker-stop docker-clean
+.PHONY: docker-build docker-run docker-stop docker-clean docker-up docker-down verify
 
 # 构建Docker镜像
 docker-build:
@@ -197,6 +187,17 @@ docker-stop:
 	@echo "$(BLUE)[INFO]$(NC) Stopping Docker container..."
 	@docker compose down
 	@echo "$(GREEN)[SUCCESS]$(NC) Docker container stopped"
+
+docker-up: docker-run
+
+docker-down: docker-stop
+
+verify:
+	@go test ./... -count=1
+	@go vet ./...
+	@go build ./...
+	@docker compose config >/dev/null
+	@git diff --check
 
 # 清理Docker资源
 docker-clean: docker-stop
@@ -252,8 +253,6 @@ help:
 	@echo "$(YELLOW)基础命令:$(NC)"
 	@echo "  $(GREEN)build$(NC)              - 构建应用程序"
 	@echo "  $(GREEN)run$(NC)                - 运行应用程序"
-	@echo "  $(GREEN)run-dev$(NC)            - 运行应用程序（开发模式）"
-	@echo "  $(GREEN)run-test$(NC)           - 运行应用程序（测试模式）"
 	@echo "  $(GREEN)tidy$(NC)               - 整理Go模块依赖"
 	@echo ""
 	@echo "$(YELLOW)代码质量:$(NC)"
@@ -290,6 +289,6 @@ help:
 	@echo "  $(GREEN)DIR$(NC)                - 目录路径 (用于lint-dir)"
 	@echo ""
 	@echo "$(YELLOW)示例用法:$(NC)"
-	@echo "  make lint-dir DIR=./internal/server"
+	@echo "  make lint-dir DIR=./internal/platform/server"
 	@echo "  make lint-fix"
 	@echo "  make dev-full"

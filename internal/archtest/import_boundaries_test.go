@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -13,14 +14,44 @@ import (
 
 const modulePath = "github.com/NSObjects/go-template"
 
+const (
+	internalModulesDir  = "modules"
+	internalPlatformDir = "platform"
+	adaptersDir         = "adapters"
+)
+
 type goPackage struct {
 	ImportPath string
 	Imports    []string
 }
 
-func TestCleanLiteImportBoundaries(t *testing.T) {
+func TestInternalRootOnlyExposesFrameworkModuleBuckets(t *testing.T) {
+	root := repositoryRoot(t)
+	entries, err := os.ReadDir(filepath.Join(root, "internal"))
+	if err != nil {
+		t.Fatalf("read internal root: %v", err)
+	}
+
+	allowed := map[string]struct{}{
+		"archtest":          {},
+		"boot":              {},
+		internalModulesDir:  {},
+		internalPlatformDir: {},
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			t.Fatalf("internal root contains file %q, want only archtest, boot, modules, platform directories", entry.Name())
+		}
+		if _, ok := allowed[entry.Name()]; !ok {
+			t.Fatalf("internal root exposes %q, want only archtest, boot, modules, platform", entry.Name())
+		}
+	}
+}
+
+func TestBusinessImportBoundaries(t *testing.T) {
 	packages := listInternalPackages(t)
 	businessRoots := findBusinessRoots(packages)
+	adapterPathsByRoot := findBusinessAdapterPathsByRoot(packages)
 
 	for _, pkg := range packages {
 		switch {
@@ -28,15 +59,15 @@ func TestCleanLiteImportBoundaries(t *testing.T) {
 			assertDomainImportsStdlibOnly(t, pkg)
 			assertNoOtherBusinessImports(t, pkg, businessRoots)
 		case isLayerPackage(pkg.ImportPath, "usecase"):
-			assertNoForbiddenImports(t, pkg, usecaseForbiddenImports(pkg.ImportPath))
+			assertNoForbiddenImports(t, pkg, usecaseForbiddenImports(pkg.ImportPath, adapterPathsByRoot))
 			assertNoOtherBusinessImports(t, pkg, businessRoots)
 		case isLayerPackage(pkg.ImportPath, "http"):
-			assertNoForbiddenImports(t, pkg, httpForbiddenImports(pkg.ImportPath))
+			assertNoForbiddenImports(t, pkg, httpForbiddenImports(pkg.ImportPath, adapterPathsByRoot))
 			assertNoOtherBusinessImports(t, pkg, businessRoots)
-		case isLayerPackage(pkg.ImportPath, "mysql"):
-			assertNoForbiddenImports(t, pkg, mysqlForbiddenImports(pkg.ImportPath))
+		case isBusinessAdapterPackage(pkg.ImportPath):
+			assertNoForbiddenImports(t, pkg, adapterForbiddenImports(pkg.ImportPath))
 			assertNoOtherBusinessImports(t, pkg, businessRoots)
-		case isInternalRootPackage(pkg.ImportPath, "server"), isInternalRootPackage(pkg.ImportPath, "configs"):
+		case isPlatformPackage(pkg.ImportPath):
 			assertNoBusinessImports(t, pkg, businessRoots)
 		}
 	}
@@ -44,12 +75,14 @@ func TestCleanLiteImportBoundaries(t *testing.T) {
 
 func TestFindBusinessRoots(t *testing.T) {
 	packages := []goPackage{
-		{ImportPath: modulePath + "/internal/order/usecase"},
-		{ImportPath: modulePath + "/internal/order/http"},
-		{ImportPath: modulePath + "/internal/server/httpresp"},
+		{ImportPath: modulePath + "/internal/modules/order/usecase"},
+		{ImportPath: modulePath + "/internal/modules/order/http"},
+		{ImportPath: modulePath + "/internal/modules/order/adapters/memory"},
+		{ImportPath: modulePath + "/internal/modules/order/adapters/redis"},
+		{ImportPath: modulePath + "/internal/platform/server/httpresp"},
 		{ImportPath: modulePath + "/internal/mysqlinfra"},
-		{ImportPath: modulePath + "/internal/infrastructure/mysql"},
-		{ImportPath: modulePath + "/internal/infra/mysql"},
+		{ImportPath: modulePath + "/internal/platform/infrastructure/mysql"},
+		{ImportPath: modulePath + "/internal/tools/mysql"},
 	}
 
 	got := findBusinessRoots(packages)
@@ -65,8 +98,8 @@ func TestFindBusinessRoots(t *testing.T) {
 	if _, ok := got["infrastructure"]; ok {
 		t.Fatal("findBusinessRoots() detected infrastructure as a business module")
 	}
-	if _, ok := got["infra"]; ok {
-		t.Fatal("findBusinessRoots() detected infra as a business module")
+	if _, ok := got["tools"]; ok {
+		t.Fatal("findBusinessRoots() detected tools as a business module")
 	}
 }
 
@@ -78,7 +111,7 @@ func TestStandardLibraryImportDetection(t *testing.T) {
 		{importPath: "context", want: true},
 		{importPath: "net/http", want: true},
 		{importPath: "github.com/labstack/echo/v4", want: false},
-		{importPath: modulePath + "/internal/apperr", want: false},
+		{importPath: modulePath + "/internal/platform/apperr", want: false},
 	}
 
 	for _, tt := range tests {
@@ -91,14 +124,98 @@ func TestStandardLibraryImportDetection(t *testing.T) {
 }
 
 func TestLayerPackageDetectionIgnoresInfrastructureRoots(t *testing.T) {
-	if !isLayerPackage(modulePath+"/internal/order/mysql", "mysql") {
-		t.Fatal("isLayerPackage() did not detect business mysql package")
+	if !isLayerPackage(modulePath+"/internal/modules/order/domain", "domain") {
+		t.Fatal("isLayerPackage() did not detect business domain package")
 	}
-	if isLayerPackage(modulePath+"/internal/infrastructure/mysql", "mysql") {
+	if !isBusinessAdapterPackage(modulePath + "/internal/modules/order/adapters/redis") {
+		t.Fatal("isBusinessAdapterPackage() did not detect business redis adapter")
+	}
+	if isLayerPackage(modulePath+"/internal/platform/infrastructure/mysql", "mysql") {
 		t.Fatal("isLayerPackage() detected infrastructure mysql package as business layer")
 	}
-	if isLayerPackage(modulePath+"/internal/infra/mysql", "mysql") {
-		t.Fatal("isLayerPackage() detected infra mysql package as business layer")
+	if isLayerPackage(modulePath+"/internal/tools/mysql", "mysql") {
+		t.Fatal("isLayerPackage() detected tools mysql package as business layer")
+	}
+}
+
+func TestPlatformPackageDetectionIncludesPlatformRoot(t *testing.T) {
+	tests := []struct {
+		importPath string
+		want       bool
+	}{
+		{importPath: modulePath + "/internal/platform", want: true},
+		{importPath: modulePath + "/internal/platform/server", want: true},
+		{importPath: modulePath + "/internal/modules/order", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.importPath, func(t *testing.T) {
+			if got := isPlatformPackage(tt.importPath); got != tt.want {
+				t.Fatalf("isPlatformPackage() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestForbiddenImportsCoverConcreteAdapters(t *testing.T) {
+	packages := []goPackage{
+		{ImportPath: modulePath + "/internal/modules/order/usecase"},
+		{ImportPath: modulePath + "/internal/modules/order/http"},
+		{ImportPath: modulePath + "/internal/modules/order/adapters/memory"},
+		{ImportPath: modulePath + "/internal/modules/order/adapters/client"},
+		{ImportPath: modulePath + "/internal/modules/order/adapters/queue"},
+		{ImportPath: modulePath + "/internal/modules/order/adapters/redis"},
+	}
+	adapterPathsByRoot := findBusinessAdapterPathsByRoot(packages)
+
+	usecaseForbidden := usecaseForbiddenImports(modulePath+"/internal/modules/order/usecase", adapterPathsByRoot)
+	if !containsString(usecaseForbidden, modulePath+"/internal/modules/order/adapters/memory") {
+		t.Fatal("usecase forbidden imports do not include memory adapter")
+	}
+	if !containsString(usecaseForbidden, modulePath+"/internal/modules/order/adapters/client") {
+		t.Fatal("usecase forbidden imports do not include client adapter")
+	}
+	if !containsString(usecaseForbidden, modulePath+"/internal/modules/order/adapters/redis") {
+		t.Fatal("usecase forbidden imports do not include redis adapter")
+	}
+	if !containsString(usecaseForbidden, modulePath+"/internal/platform/infrastructure") {
+		t.Fatal("usecase forbidden imports do not include shared infrastructure")
+	}
+
+	httpForbidden := httpForbiddenImports(modulePath+"/internal/modules/order/http", adapterPathsByRoot)
+	if !containsString(httpForbidden, modulePath+"/internal/modules/order/adapters/queue") {
+		t.Fatal("http forbidden imports do not include queue adapter")
+	}
+	if !containsString(httpForbidden, modulePath+"/internal/platform/infrastructure") {
+		t.Fatal("http forbidden imports do not include shared infrastructure")
+	}
+
+	adapterForbidden := adapterForbiddenImports(modulePath + "/internal/modules/order/adapters/client")
+	if !containsString(adapterForbidden, modulePath+"/internal/platform/server/httpresp") {
+		t.Fatal("adapter forbidden imports do not include server http response package")
+	}
+	if !containsString(adapterForbidden, modulePath+"/internal/modules/order/http") {
+		t.Fatal("adapter forbidden imports do not include same-business HTTP adapter")
+	}
+}
+
+func TestForbiddenImportsCoverMongoDBAndTracingDrivers(t *testing.T) {
+	adapterPathsByRoot := map[string][]string{"order": nil}
+
+	usecaseForbidden := usecaseForbiddenImports(modulePath+"/internal/modules/order/usecase", adapterPathsByRoot)
+	if !containsString(usecaseForbidden, "go.mongodb.org/mongo-driver") {
+		t.Fatal("usecase forbidden imports do not include MongoDB driver")
+	}
+	if !containsString(usecaseForbidden, "go.opentelemetry.io/otel") {
+		t.Fatal("usecase forbidden imports do not include OpenTelemetry")
+	}
+
+	httpForbidden := httpForbiddenImports(modulePath+"/internal/modules/order/http", adapterPathsByRoot)
+	if !containsString(httpForbidden, "go.mongodb.org/mongo-driver") {
+		t.Fatal("http forbidden imports do not include MongoDB driver")
+	}
+	if !containsString(httpForbidden, "go.opentelemetry.io/otel") {
+		t.Fatal("http forbidden imports do not include OpenTelemetry")
 	}
 }
 
@@ -138,14 +255,19 @@ func listInternalPackages(t *testing.T) []goPackage {
 	return packages
 }
 
-func isLayerPackage(importPath string, layer string) bool {
-	parts := internalParts(importPath)
-	return len(parts) >= 2 && isBusinessRoot(parts[0]) && parts[1] == layer
+func isLayerPackage(importPath, layer string) bool {
+	_, parts, ok := businessModuleParts(importPath)
+	return ok && len(parts) >= 1 && parts[0] == layer
 }
 
-func isInternalRootPackage(importPath string, root string) bool {
+func isBusinessAdapterPackage(importPath string) bool {
+	_, parts, ok := businessModuleParts(importPath)
+	return ok && len(parts) >= 2 && parts[0] == adaptersDir && parts[1] != ""
+}
+
+func isPlatformPackage(importPath string) bool {
 	parts := internalParts(importPath)
-	return len(parts) >= 1 && parts[0] == root
+	return len(parts) >= 1 && parts[0] == internalPlatformDir
 }
 
 func internalParts(importPath string) []string {
@@ -157,36 +279,71 @@ func internalParts(importPath string) []string {
 	return strings.Split(importPath[index+len(marker):], "/")
 }
 
+func businessModuleParts(importPath string) (string, []string, bool) {
+	parts := internalParts(importPath)
+	if len(parts) < 3 || parts[0] != internalModulesDir || parts[1] == "" {
+		return "", nil, false
+	}
+	return parts[1], parts[2:], true
+}
+
+func businessPath(root string) string {
+	return modulePath + "/internal/modules/" + root
+}
+
 func findBusinessRoots(packages []goPackage) map[string]struct{} {
 	roots := make(map[string]struct{})
 	for _, pkg := range packages {
-		parts := internalParts(pkg.ImportPath)
-		if len(parts) < 2 {
+		root, parts, ok := businessModuleParts(pkg.ImportPath)
+		if !ok || len(parts) < 1 {
 			continue
 		}
-		if isBusinessRoot(parts[0]) && isBusinessLayer(parts[1]) {
-			roots[parts[0]] = struct{}{}
+		if isBusinessLayer(parts[0]) {
+			roots[root] = struct{}{}
 		}
 	}
 	return roots
 }
 
-func isBusinessRoot(root string) bool {
-	switch root {
-	case "apperr", "archtest", "boot", "configs", "infra", "infrastructure", "requestctx", "server":
-		return false
-	default:
-		return true
+func findBusinessAdapterPathsByRoot(packages []goPackage) map[string][]string {
+	pathsByRoot := make(map[string][]string)
+	seen := make(map[string]struct{})
+	for _, pkg := range packages {
+		root, parts, ok := businessModuleParts(pkg.ImportPath)
+		if !ok || len(parts) < 2 || parts[0] != adaptersDir || parts[1] == "" {
+			continue
+		}
+
+		adapterPath := businessPath(root) + "/" + adaptersDir + "/" + parts[1]
+		if _, ok := seen[adapterPath]; ok {
+			continue
+		}
+		seen[adapterPath] = struct{}{}
+		pathsByRoot[root] = append(pathsByRoot[root], adapterPath)
 	}
+	return pathsByRoot
 }
 
 func isBusinessLayer(layer string) bool {
 	switch layer {
-	case "domain", "usecase", "http", "mysql":
+	case "domain", "usecase", "http":
+		return true
+	default:
+		return isBusinessAdapterLayer(layer)
+	}
+}
+
+func isBusinessAdapterLayer(layer string) bool {
+	switch layer {
+	case adaptersDir:
 		return true
 	default:
 		return false
 	}
+}
+
+func sharedInfrastructurePaths() []string {
+	return []string{modulePath + "/internal/platform/infrastructure"}
 }
 
 func outerDetailForbiddenImports() []string {
@@ -194,69 +351,72 @@ func outerDetailForbiddenImports() []string {
 		"github.com/labstack/echo",
 		"gorm.io",
 		"github.com/redis/go-redis",
-		modulePath + "/internal/configs",
+		"go.mongodb.org/mongo-driver",
+		"go.opentelemetry.io/otel",
+		modulePath + "/internal/platform/configs",
 		modulePath + "/internal/log",
-		modulePath + "/internal/server",
-		modulePath + "/internal/server/httpresp",
+		modulePath + "/internal/platform/server",
+		modulePath + "/internal/platform/server/httpresp",
 		modulePath + "/internal/code",
 	}
 }
 
-func usecaseForbiddenImports(importPath string) []string {
+func usecaseForbiddenImports(importPath string, adapterPathsByRoot map[string][]string) []string {
 	forbidden := outerDetailForbiddenImports()
-	parts := internalParts(importPath)
-	if len(parts) == 0 {
+	forbidden = append(forbidden, sharedInfrastructurePaths()...)
+	root, _, ok := businessModuleParts(importPath)
+	if !ok {
 		return forbidden
 	}
 
-	businessPath := modulePath + "/internal/" + parts[0]
 	forbidden = append(forbidden,
-		businessPath+"/http",
-		businessPath+"/mysql",
+		businessPath(root)+"/http",
 	)
+	forbidden = append(forbidden, adapterPathsByRoot[root]...)
 	return forbidden
 }
 
-func httpForbiddenImports(importPath string) []string {
-	parts := internalParts(importPath)
+func httpForbiddenImports(importPath string, adapterPathsByRoot map[string][]string) []string {
+	root, _, ok := businessModuleParts(importPath)
 	forbidden := make([]string, 0, 7)
 	forbidden = append(forbidden,
 		"gorm.io",
 		"github.com/redis/go-redis",
-		modulePath+"/internal/configs",
+		"go.mongodb.org/mongo-driver",
+		"go.opentelemetry.io/otel",
+		modulePath+"/internal/platform/configs",
 		modulePath+"/internal/log",
 		modulePath+"/internal/code",
 	)
-	if len(parts) == 0 {
+	forbidden = append(forbidden, sharedInfrastructurePaths()...)
+	if !ok {
 		return forbidden
 	}
 
-	businessPath := modulePath + "/internal/" + parts[0]
 	forbidden = append(forbidden,
-		businessPath+"/domain",
-		businessPath+"/mysql",
+		businessPath(root)+"/domain",
 	)
+	forbidden = append(forbidden, adapterPathsByRoot[root]...)
 	return forbidden
 }
 
-func mysqlForbiddenImports(importPath string) []string {
-	parts := internalParts(importPath)
+func adapterForbiddenImports(importPath string) []string {
+	root, _, ok := businessModuleParts(importPath)
 	forbidden := make([]string, 0, 7)
 	forbidden = append(forbidden,
 		"github.com/labstack/echo",
-		modulePath+"/internal/configs",
+		modulePath+"/internal/platform/configs",
 		modulePath+"/internal/log",
-		modulePath+"/internal/server",
-		modulePath+"/internal/server/httpresp",
+		modulePath+"/internal/platform/server",
+		modulePath+"/internal/platform/server/httpresp",
 		modulePath+"/internal/code",
 	)
-	if len(parts) == 0 {
+	if !ok {
 		return forbidden
 	}
 
-	businessPath := modulePath + "/internal/" + parts[0]
 	forbidden = append(forbidden,
-		businessPath+"/http",
+		businessPath(root)+"/http",
 	)
 	return forbidden
 }
@@ -294,8 +454,7 @@ func assertNoOtherBusinessImports(t *testing.T, pkg goPackage, businessRoots map
 		if root == currentRoot {
 			continue
 		}
-		prefix := modulePath + "/internal/" + root
-		assertNoForbiddenImports(t, pkg, []string{prefix})
+		assertNoForbiddenImports(t, pkg, []string{businessPath(root)})
 	}
 }
 
@@ -303,17 +462,16 @@ func assertNoBusinessImports(t *testing.T, pkg goPackage, businessRoots map[stri
 	t.Helper()
 
 	for root := range businessRoots {
-		prefix := modulePath + "/internal/" + root
-		assertNoForbiddenImports(t, pkg, []string{prefix})
+		assertNoForbiddenImports(t, pkg, []string{businessPath(root)})
 	}
 }
 
 func businessRoot(importPath string) (string, bool) {
-	parts := internalParts(importPath)
-	if len(parts) < 2 || !isBusinessRoot(parts[0]) || !isBusinessLayer(parts[1]) {
+	root, parts, ok := businessModuleParts(importPath)
+	if !ok || len(parts) < 1 || !isBusinessLayer(parts[0]) {
 		return "", false
 	}
-	return parts[0], true
+	return root, true
 }
 
 func isStandardLibraryImport(imported string) bool {
@@ -321,6 +479,15 @@ func isStandardLibraryImport(imported string) bool {
 	return !strings.Contains(first, ".")
 }
 
-func matchesImport(imported string, forbidden string) bool {
+func matchesImport(imported, forbidden string) bool {
 	return imported == forbidden || strings.HasPrefix(imported, forbidden+"/")
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }

@@ -1,8 +1,8 @@
 ARG GO_VERSION=1.26.1
 
-FROM golang:${GO_VERSION}-alpine AS builder
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS builder
+ARG TARGETOS
+ARG TARGETARCH
 
 # ca-certificates is required to call HTTPS endpoints.
 # tzdata is required for time zone info.
@@ -16,11 +16,13 @@ COPY . .
 
 ENV CGO_ENABLED=0
 
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-w -s" -o /out/app ./main.go
+RUN GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-$(go env GOARCH)} go build -trimpath -ldflags="-w -s" -o /out/app ./main.go
 
 FROM scratch AS final
 
 ENV LANG=en_US.UTF-8
+ENV GO_TEMPLATE_SYSTEM_LEVEL=2 \
+    GO_TEMPLATE_LOG_FORMAT=json
 
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/

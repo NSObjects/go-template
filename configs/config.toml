@@ -1,11 +1,68 @@
+[app]
+name = "go-template"
+version = "dev"
+
 [system]
 port = ":9322"
 #1 = debug , 2 = online
 level = 1
-# 环境配置: dev, test, prod
-env = "dev"
+
+[log]
+# console is convenient for local debug; json is better for production collectors.
+format = "console"
+output = "stdout"
+caller = false
+
+[http]
+recovery_disabled = false
+request_context_disabled = false
+request_log_disabled = false
+gzip_disabled = false
+
+[http.cors]
+enabled = false
+allow_origins = []
+allow_methods = []
+allow_headers = []
+allow_credentials = false
+expose_headers = []
+max_age_seconds = 0
 
 [jwt]
 enabled = false
-secret = ""
-skip_paths = ["/api/health","/api/info"]
+skip_paths = ["/api/health","/api/info","/api/ready"]
+
+[mysql]
+enabled = false
+dsn = ""
+max_open_conns = 25
+max_idle_conns = 5
+conn_max_lifetime_seconds = 300
+ping_timeout_seconds = 3
+
+[redis]
+enabled = false
+address = ""
+username = ""
+password = ""
+db = 0
+dial_timeout_seconds = 3
+read_timeout_seconds = 3
+write_timeout_seconds = 3
+ping_timeout_seconds = 3
+
+[mongodb]
+enabled = false
+uri = ""
+database = ""
+connect_timeout_seconds = 3
+ping_timeout_seconds = 3
+
+[tracing]
+enabled = false
+endpoint = ""
+protocol = "grpc"
+insecure = true
+service_name = ""
+sample_ratio = 1.0
+shutdown_timeout_seconds = 5

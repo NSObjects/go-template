@@ -17,5 +17,5 @@ func Run(cfg string) {
 }
 
 func run(cfg string) error {
-	return boot.Run(cfg)
+	return boot.Run(cfg, boot.WithModules(boot.BusinessModules()...))
 }

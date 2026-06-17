@@ -44,7 +44,7 @@ spec:
           periodSeconds: 10
         readinessProbe:
           httpGet:
-            path: /api/health
+            path: /api/ready
             port: 9322
           initialDelaySeconds: 5
           periodSeconds: 5
@@ -74,12 +74,54 @@ metadata:
   name: go-template-config
 data:
   config.toml: |
+    [app]
+    name = "go-template"
+    version = "dev"
+
     [system]
     port = ":9322"
     level = 2
-    env = "prod"
+
+    [log]
+    format = "json"
+    output = "stdout"
+    caller = false
 
     [jwt]
     enabled = false
-    secret = ""
-    skip_paths = ["/api/health","/api/info"]
+    skip_paths = ["/api/health","/api/info","/api/ready"]
+
+    [mysql]
+    enabled = false
+    dsn = ""
+    max_open_conns = 25
+    max_idle_conns = 5
+    conn_max_lifetime_seconds = 300
+    ping_timeout_seconds = 3
+
+    [redis]
+    enabled = false
+    address = ""
+    username = ""
+    password = ""
+    db = 0
+    dial_timeout_seconds = 3
+    read_timeout_seconds = 3
+    write_timeout_seconds = 3
+    ping_timeout_seconds = 3
+
+    [mongodb]
+    enabled = false
+    uri = ""
+    database = ""
+    connect_timeout_seconds = 3
+    ping_timeout_seconds = 3
+
+    [tracing]
+    enabled = false
+    endpoint = ""
+    protocol = "grpc"
+    insecure = true
+    service_name = ""
+    sample_ratio = 1.0
+    shutdown_timeout_seconds = 5
