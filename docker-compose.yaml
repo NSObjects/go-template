@@ -1,31 +1,42 @@
-# Local development compose file. Published ports bind to localhost by default.
+# Local development compose file. The API is the only default service; optional
+# infrastructure stays behind the resources profile. Published ports bind to
+# localhost so a template checkout does not expose dev services on the LAN.
 services:
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: go-template-api
     env_file:
       - path: .env
         required: false
     volumes:
-      - ./configs/config.toml:/configs/config.toml
+      - type: bind
+        source: ./configs/config.toml
+        target: /configs/config.toml
+        read_only: true
     ports:
-      - "127.0.0.1:${GO_TEMPLATE_API_PORT:-9322}:9322"
+      - host_ip: 127.0.0.1
+        published: "${GO_TEMPLATE_API_PORT:-9322}"
+        target: 9322
+        protocol: tcp
     networks:
       - api-net
 
   mysql:
     image: mysql:8.4
-    container_name: go-template-mysql
     profiles: ["resources"]
     environment:
       MYSQL_DATABASE: ${GO_TEMPLATE_MYSQL_DATABASE:-go_template}
       MYSQL_USER: ${GO_TEMPLATE_MYSQL_USER:-go_template}
       MYSQL_PASSWORD: ${GO_TEMPLATE_MYSQL_PASSWORD:-go_template_dev_password}
       MYSQL_ROOT_PASSWORD: ${GO_TEMPLATE_MYSQL_ROOT_PASSWORD:-go_template_dev_root_password}
+    volumes:
+      - mysql-data:/var/lib/mysql
     ports:
-      - "127.0.0.1:${GO_TEMPLATE_MYSQL_PORT:-3306}:3306"
+      - host_ip: 127.0.0.1
+        published: "${GO_TEMPLATE_MYSQL_PORT:-3306}"
+        target: 3306
+        protocol: tcp
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD}"]
       interval: 5s
@@ -36,10 +47,15 @@ services:
 
   redis:
     image: redis:7.4-alpine
-    container_name: go-template-redis
     profiles: ["resources"]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
     ports:
-      - "127.0.0.1:${GO_TEMPLATE_REDIS_PORT:-6379}:6379"
+      - host_ip: 127.0.0.1
+        published: "${GO_TEMPLATE_REDIS_PORT:-6379}"
+        target: 6379
+        protocol: tcp
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -50,10 +66,14 @@ services:
 
   mongodb:
     image: mongo:8.0
-    container_name: go-template-mongodb
     profiles: ["resources"]
+    volumes:
+      - mongodb-data:/data/db
     ports:
-      - "127.0.0.1:${GO_TEMPLATE_MONGODB_PORT:-27017}:27017"
+      - host_ip: 127.0.0.1
+        published: "${GO_TEMPLATE_MONGODB_PORT:-27017}"
+        target: 27017
+        protocol: tcp
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 5s
@@ -64,17 +84,30 @@ services:
 
   jaeger:
     image: jaegertracing/all-in-one:1.65.0
-    container_name: go-template-jaeger
     profiles: ["resources"]
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
-      - "127.0.0.1:${GO_TEMPLATE_JAEGER_UI_PORT:-16686}:16686"
-      - "127.0.0.1:${GO_TEMPLATE_OTLP_GRPC_PORT:-4317}:4317"
-      - "127.0.0.1:${GO_TEMPLATE_OTLP_HTTP_PORT:-4318}:4318"
+      - host_ip: 127.0.0.1
+        published: "${GO_TEMPLATE_JAEGER_UI_PORT:-16686}"
+        target: 16686
+        protocol: tcp
+      - host_ip: 127.0.0.1
+        published: "${GO_TEMPLATE_OTLP_GRPC_PORT:-4317}"
+        target: 4317
+        protocol: tcp
+      - host_ip: 127.0.0.1
+        published: "${GO_TEMPLATE_OTLP_HTTP_PORT:-4318}"
+        target: 4318
+        protocol: tcp
     networks:
       - api-net
 
 networks:
   api-net:
     driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+  mongodb-data:

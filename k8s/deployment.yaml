@@ -1,127 +1,144 @@
+# Kubernetes runtime overrides use GO_TEMPLATE_* environment variables so the
+# image-owned /configs/config.toml remains the single static config baseline.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: go-template-runtime
+  labels:
+    app.kubernetes.io/name: go-template
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: go-template
+data:
+  GO_TEMPLATE_APP_NAME: "go-template"
+  GO_TEMPLATE_APP_VERSION: "dev"
+  GO_TEMPLATE_SYSTEM_PORT: ":9322"
+  GO_TEMPLATE_SYSTEM_LEVEL: "2"
+  GO_TEMPLATE_LOG_FORMAT: "json"
+  GO_TEMPLATE_LOG_OUTPUT: "stdout"
+  GO_TEMPLATE_LOG_CALLER: "false"
+  GO_TEMPLATE_HTTP_RECOVERY_DISABLED: "false"
+  GO_TEMPLATE_HTTP_REQUEST_CONTEXT_DISABLED: "false"
+  GO_TEMPLATE_HTTP_REQUEST_LOG_DISABLED: "false"
+  GO_TEMPLATE_HTTP_GZIP_DISABLED: "false"
+  GO_TEMPLATE_HTTP_CORS_ENABLED: "false"
+  GO_TEMPLATE_JWT_ENABLED: "false"
+  GO_TEMPLATE_MYSQL_ENABLED: "false"
+  GO_TEMPLATE_REDIS_ENABLED: "false"
+  GO_TEMPLATE_MONGODB_ENABLED: "false"
+  GO_TEMPLATE_TRACING_ENABLED: "false"
+  GO_TEMPLATE_TRACING_PROTOCOL: "grpc"
+  GO_TEMPLATE_TRACING_INSECURE: "true"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: go-template
+  name: go-template-api
   labels:
-    app: go-template
+    app.kubernetes.io/name: go-template
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: go-template
 spec:
-  replicas: 3
+  replicas: 2
+  revisionHistoryLimit: 3
   selector:
     matchLabels:
-      app: go-template
+      app.kubernetes.io/name: go-template
+      app.kubernetes.io/component: api
   template:
     metadata:
       labels:
-        app: go-template
+        app.kubernetes.io/name: go-template
+        app.kubernetes.io/component: api
+        app.kubernetes.io/part-of: go-template
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
       containers:
-      - name: go-template
-        image: go-template:latest
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop:
-            - ALL
-        ports:
-        - containerPort: 9322
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /api/health
-            port: 9322
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /api/ready
-            port: 9322
-          initialDelaySeconds: 5
-          periodSeconds: 5
-        volumeMounts:
-        - name: config
-          mountPath: /configs
-      volumes:
-      - name: config
-        configMap:
-          name: go-template-config
+        - name: api
+          image: go-template:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: go-template-runtime
+          env:
+            - name: GO_TEMPLATE_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: go-template-secrets
+                  key: jwt-secret
+                  optional: true
+            - name: GO_TEMPLATE_MYSQL_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: go-template-secrets
+                  key: mysql-dsn
+                  optional: true
+            - name: GO_TEMPLATE_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: go-template-secrets
+                  key: redis-password
+                  optional: true
+            - name: GO_TEMPLATE_MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: go-template-secrets
+                  key: mongodb-uri
+                  optional: true
+          ports:
+            - name: http
+              containerPort: 9322
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            failureThreshold: 12
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /api/ready
+              port: http
+            periodSeconds: 5
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: go-template-service
+  name: go-template-api
+  labels:
+    app.kubernetes.io/name: go-template
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: go-template
 spec:
-  selector:
-    app: go-template
-  ports:
-  - port: 80
-    targetPort: 9322
   type: ClusterIP
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: go-template-config
-data:
-  config.toml: |
-    [app]
-    name = "go-template"
-    version = "dev"
-
-    [system]
-    port = ":9322"
-    level = 2
-
-    [log]
-    format = "json"
-    output = "stdout"
-    caller = false
-
-    [jwt]
-    enabled = false
-    skip_paths = ["/api/health","/api/info","/api/ready"]
-
-    [mysql]
-    enabled = false
-    dsn = ""
-    max_open_conns = 25
-    max_idle_conns = 5
-    conn_max_lifetime_seconds = 300
-    ping_timeout_seconds = 3
-
-    [redis]
-    enabled = false
-    address = ""
-    username = ""
-    password = ""
-    db = 0
-    dial_timeout_seconds = 3
-    read_timeout_seconds = 3
-    write_timeout_seconds = 3
-    ping_timeout_seconds = 3
-
-    [mongodb]
-    enabled = false
-    uri = ""
-    database = ""
-    connect_timeout_seconds = 3
-    ping_timeout_seconds = 3
-
-    [tracing]
-    enabled = false
-    endpoint = ""
-    protocol = "grpc"
-    insecure = true
-    service_name = ""
-    sample_ratio = 1.0
-    shutdown_timeout_seconds = 5
+  selector:
+    app.kubernetes.io/name: go-template
+    app.kubernetes.io/component: api
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: http

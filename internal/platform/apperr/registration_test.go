@@ -1,10 +1,11 @@
 package apperr
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -20,18 +21,13 @@ func TestAllErrorCodesHaveDefinitions(t *testing.T) {
 
 	fset := token.NewFileSet()
 	pkgDir := filepath.Dir(currentFile)
-	pkgs, err := parser.ParseDir(fset, pkgDir, productionGoFile, 0)
+	files, err := parseProductionFiles(fset, pkgDir)
 	if err != nil {
 		t.Fatalf("parse package: %v", err)
 	}
 
-	pkg, ok := pkgs["apperr"]
-	if !ok {
-		t.Fatalf("package apperr not found in %s", pkgDir)
-	}
-
-	defined := collectErrorCodeConstants(pkg)
-	registered := collectDefinitionKeys(pkg)
+	defined := collectErrorCodeConstants(files)
+	registered := collectDefinitionKeys(files)
 	missing := make([]string, 0)
 	for name := range defined {
 		if _, ok := registered[name]; !ok {
@@ -45,14 +41,41 @@ func TestAllErrorCodesHaveDefinitions(t *testing.T) {
 	}
 }
 
-func productionGoFile(info fs.FileInfo) bool {
-	name := info.Name()
+func parseProductionFiles(fset *token.FileSet, pkgDir string) ([]*ast.File, error) {
+	entries, err := os.ReadDir(pkgDir)
+	if err != nil {
+		return nil, fmt.Errorf("read package dir: %w", err)
+	}
+
+	files := make([]*ast.File, 0, len(entries))
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !productionGoFile(name) {
+			continue
+		}
+		path := filepath.Join(pkgDir, name)
+		file, err := parser.ParseFile(fset, path, nil, 0)
+		if err != nil {
+			return nil, fmt.Errorf("parse %s: %w", name, err)
+		}
+		if file.Name.Name != "apperr" {
+			return nil, fmt.Errorf("parse %s: package = %s, want apperr", name, file.Name.Name)
+		}
+		files = append(files, file)
+	}
+	if len(files) == 0 {
+		return nil, fmt.Errorf("package apperr not found in %s", pkgDir)
+	}
+	return files, nil
+}
+
+func productionGoFile(name string) bool {
 	return strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go")
 }
 
-func collectErrorCodeConstants(pkg *ast.Package) map[string]struct{} {
+func collectErrorCodeConstants(files []*ast.File) map[string]struct{} {
 	defined := map[string]struct{}{}
-	for _, file := range pkg.Files {
+	for _, file := range files {
 		ast.Inspect(file, func(n ast.Node) bool {
 			decl, ok := n.(*ast.GenDecl)
 			if !ok || decl.Tok != token.CONST {
@@ -75,9 +98,9 @@ func collectErrorCodeConstants(pkg *ast.Package) map[string]struct{} {
 	return defined
 }
 
-func collectDefinitionKeys(pkg *ast.Package) map[string]struct{} {
+func collectDefinitionKeys(files []*ast.File) map[string]struct{} {
 	registered := map[string]struct{}{}
-	for _, file := range pkg.Files {
+	for _, file := range files {
 		ast.Inspect(file, func(n ast.Node) bool {
 			composite, ok := n.(*ast.CompositeLit)
 			if !ok || !isDefinitionsLiteral(composite.Type) {
