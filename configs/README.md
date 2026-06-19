@@ -66,7 +66,7 @@ insecure = true
 HTTP middleware、MySQL、Redis、MongoDB、JWT、Jaeger tracing 都是 configured infrastructure resources。默认配置可直接运行 API；启用外部依赖后必须提供连接配置，并会进入 `/api/ready` 和 `/api/capabilities`。
 
 业务代码放在 `internal/modules/<module>`，平台运行时代码放在 `internal/platform`。
-业务 adapter 复用 boot 已经加载的资源：usecase 定义 usecase-owned outbound interface，adapter 使用配置好的 MySQL/Redis/MongoDB client 实现它，然后业务 module 用 `boot.NewModule`、`boot.Provide` 和 `boot.Route` 声明 adapter、usecase、handler 和 route。
+业务 adapter 复用 boot 已经加载的资源：usecase 定义 usecase-owned outbound interface，adapter 使用配置好的 MySQL/Redis/MongoDB client 实现它，然后业务 module 用 `boot.NewModule`、`boot.Provide` 和 `boot.Route` 声明 adapter、usecase、handler 和 route。`product` 模块提供了 `adapters/mysql` 作为最小 GORM store 样板。
 
 ## 环境变量覆盖
 
@@ -112,7 +112,7 @@ JWT 默认不启用，且默认 secret 为空。业务启用 JWT 时必须显式
 `http.*_disabled` 可关闭模板默认安装的 HTTP middleware。
 `http.cors.enabled=true` 时必须配置 `http.cors.allow_origins`。
 `http.cors.allow_credentials=true` 时 `allow_origins` 不能包含 `*`。
-环境变量中的列表项使用逗号分隔，例如 `GO_TEMPLATE_HTTP_CORS_ALLOW_ORIGINS=https://app.example.com,https://admin.example.com`。
+环境变量中的列表项使用逗号分隔，例如 `GO_TEMPLATE_HTTP_CORS_ALLOW_ORIGINS=https://app.example.com,https://admin.example.com`。环境变量前缀由 `configs.EnvPrefix` 定义。
 `/api/health` 是进程存活，`/api/ready` 只返回整体 readiness，`/api/capabilities` 返回 logging、MySQL、Redis、MongoDB、Jaeger tracing 的 disabled/available/unavailable 状态。
 
-`docker-compose.yaml` 只用于本地开发，公开端口默认绑定 `127.0.0.1`。Compose 端口和本地 MySQL 凭据可通过 `.env` 中的 `GO_TEMPLATE_API_PORT`、`GO_TEMPLATE_MYSQL_PORT`、`GO_TEMPLATE_REDIS_PORT`、`GO_TEMPLATE_MONGODB_PORT`、`GO_TEMPLATE_JAEGER_UI_PORT`、`GO_TEMPLATE_OTLP_GRPC_PORT`、`GO_TEMPLATE_OTLP_HTTP_PORT`、`GO_TEMPLATE_MYSQL_PASSWORD` 和 `GO_TEMPLATE_MYSQL_ROOT_PASSWORD` 覆盖。
+`docker-compose.yaml` 只用于本地开发，公开端口默认绑定 `127.0.0.1`。默认只启动 API；MySQL、Redis、MongoDB 和 Jaeger 在 `resources` profile 下，使用 `docker compose --profile resources up` 启动。Compose 端口和本地 MySQL 凭据可通过 `.env` 中的 `GO_TEMPLATE_API_PORT`、`GO_TEMPLATE_MYSQL_PORT`、`GO_TEMPLATE_REDIS_PORT`、`GO_TEMPLATE_MONGODB_PORT`、`GO_TEMPLATE_JAEGER_UI_PORT`、`GO_TEMPLATE_OTLP_GRPC_PORT`、`GO_TEMPLATE_OTLP_HTTP_PORT`、`GO_TEMPLATE_MYSQL_PASSWORD` 和 `GO_TEMPLATE_MYSQL_ROOT_PASSWORD` 覆盖。

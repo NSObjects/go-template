@@ -20,7 +20,7 @@ func decodeConfigWithEnv(data []byte, format string, useEnv bool) (Config, error
 	v := viper.NewWithOptions(viper.KeyDelimiter("::"))
 	v.SetConfigType(configType(format))
 	if useEnv {
-		v.SetEnvPrefix("GO_TEMPLATE")
+		v.SetEnvPrefix(EnvPrefix)
 		v.AutomaticEnv()
 		v.SetEnvKeyReplacer(strings.NewReplacer("::", "_", ".", "_"))
 		if err := bindConfigEnv(v); err != nil {
@@ -163,11 +163,15 @@ func applyEnvListOverrides(cfg *Config) {
 	if cfg == nil {
 		return
 	}
-	applyEnvList("GO_TEMPLATE_JWT_SKIP_PATHS", &cfg.JWT.SkipPaths)
-	applyEnvList("GO_TEMPLATE_HTTP_CORS_ALLOW_ORIGINS", &cfg.HTTP.CORS.AllowOrigins)
-	applyEnvList("GO_TEMPLATE_HTTP_CORS_ALLOW_METHODS", &cfg.HTTP.CORS.AllowMethods)
-	applyEnvList("GO_TEMPLATE_HTTP_CORS_ALLOW_HEADERS", &cfg.HTTP.CORS.AllowHeaders)
-	applyEnvList("GO_TEMPLATE_HTTP_CORS_EXPOSE_HEADERS", &cfg.HTTP.CORS.ExposeHeaders)
+	applyEnvList(envName("JWT_SKIP_PATHS"), &cfg.JWT.SkipPaths)
+	applyEnvList(envName("HTTP_CORS_ALLOW_ORIGINS"), &cfg.HTTP.CORS.AllowOrigins)
+	applyEnvList(envName("HTTP_CORS_ALLOW_METHODS"), &cfg.HTTP.CORS.AllowMethods)
+	applyEnvList(envName("HTTP_CORS_ALLOW_HEADERS"), &cfg.HTTP.CORS.AllowHeaders)
+	applyEnvList(envName("HTTP_CORS_EXPOSE_HEADERS"), &cfg.HTTP.CORS.ExposeHeaders)
+}
+
+func envName(name string) string {
+	return EnvPrefix + "_" + name
 }
 
 func applyEnvList(name string, target *[]string) {

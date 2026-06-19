@@ -16,6 +16,9 @@ const (
 	// DefaultAppName is returned by /api/info when config omits app.name.
 	DefaultAppName = "go-template"
 
+	// EnvPrefix is the environment variable prefix used for config overrides.
+	EnvPrefix = "GO_TEMPLATE"
+
 	// DefaultAppVersion is returned by /api/info when config omits app.version.
 	DefaultAppVersion = "dev"
 

@@ -4,17 +4,20 @@ import (
 	"context"
 
 	"github.com/samber/do/v2"
+	"gorm.io/gorm"
 
 	customermemory "github.com/NSObjects/go-template/internal/modules/customer/adapters/memory"
 	customerhttp "github.com/NSObjects/go-template/internal/modules/customer/http"
 	customerusecase "github.com/NSObjects/go-template/internal/modules/customer/usecase"
 	productmemory "github.com/NSObjects/go-template/internal/modules/product/adapters/memory"
+	productmysql "github.com/NSObjects/go-template/internal/modules/product/adapters/mysql"
 	producthttp "github.com/NSObjects/go-template/internal/modules/product/http"
 	productusecase "github.com/NSObjects/go-template/internal/modules/product/usecase"
 	salesordermemory "github.com/NSObjects/go-template/internal/modules/salesorder/adapters/memory"
 	salesorderhttp "github.com/NSObjects/go-template/internal/modules/salesorder/http"
 	salesorderusecase "github.com/NSObjects/go-template/internal/modules/salesorder/usecase"
 	"github.com/NSObjects/go-template/internal/platform/apperr"
+	"github.com/NSObjects/go-template/internal/platform/configs"
 )
 
 // BusinessModules returns the business modules installed by the default runtime.
@@ -64,12 +67,23 @@ func productModule() Module {
 	)
 }
 
-func newProductStore(do.Injector) (*productmemory.Store, error) {
-	return productmemory.NewStore(), nil
+func newProductStore(i do.Injector) (productusecase.Store, error) {
+	cfg, err := do.Invoke[configs.Config](i)
+	if err != nil {
+		return nil, err
+	}
+	if !cfg.MySQL.Enabled {
+		return productmemory.NewStore(), nil
+	}
+	db, err := do.Invoke[*gorm.DB](i)
+	if err != nil {
+		return nil, err
+	}
+	return productmysql.NewStore(db)
 }
 
 func newProductUsecase(i do.Injector) (*productusecase.Usecase, error) {
-	store, err := do.Invoke[*productmemory.Store](i)
+	store, err := do.Invoke[productusecase.Store](i)
 	if err != nil {
 		return nil, err
 	}

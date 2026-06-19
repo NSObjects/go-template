@@ -29,6 +29,10 @@ func newOrderUsecase(i do.Injector) (*orderusecase.Usecase, error) {
 }
 ```
 
+When a module has both local and real storage adapters, keep the decision in
+boot. `product` uses `internal/modules/product/adapters/mysql` when
+`mysql.enabled=true` and falls back to the memory store otherwise.
+
 Business code lives under `internal/modules/<module>`. Platform runtime code
 lives under `internal/platform`. Keep business adapters under
 `internal/modules/<module>/adapters/<adapter>` so the `internal` root does not

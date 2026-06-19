@@ -4,12 +4,14 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/NSObjects/go-template/internal/platform/configs"
 )
 
 var cfgFile string
 
 var rootCmd = &cobra.Command{
-	Use:   "go-template",
+	Use:   configs.DefaultAppName,
 	Short: "Start the configured application",
 	Long:  "Start the configured application through the boot composition root.",
 	Run: func(_ *cobra.Command, _ []string) {

@@ -93,7 +93,7 @@ config := &MiddlewareConfig{
 ApplyMiddlewares(e, config)
 ```
 
-`server.New` 使用保守默认值：不启用 CORS，且静态配置文件不提供 CORS 开关。项目真的需要跨域时，在确认允许的 origin 后再显式接入，避免模板默认放大浏览器访问面。
+`server.New` 使用保守默认值：不启用 CORS。项目真的需要跨域时，在静态配置或环境变量里显式打开 `http.cors.enabled`，并确认允许的 origin，避免模板默认放大浏览器访问面。
 
 ## 扩展性
 

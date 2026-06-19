@@ -136,8 +136,7 @@ func joinDetail(detail string, cause error) string {
 
 // Parse returns the first application Error in err's unwrap chain.
 func Parse(err error) (*Error, bool) {
-	var appErr *Error
-	if stderrors.As(err, &appErr) {
+	if appErr, ok := stderrors.AsType[*Error](err); ok {
 		return appErr, true
 	}
 	return nil, false

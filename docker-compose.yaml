@@ -5,6 +5,9 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: go-template-api
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - ./configs/config.toml:/configs/config.toml
     ports:
@@ -15,6 +18,7 @@ services:
   mysql:
     image: mysql:8.4
     container_name: go-template-mysql
+    profiles: ["resources"]
     environment:
       MYSQL_DATABASE: ${GO_TEMPLATE_MYSQL_DATABASE:-go_template}
       MYSQL_USER: ${GO_TEMPLATE_MYSQL_USER:-go_template}
@@ -33,6 +37,7 @@ services:
   redis:
     image: redis:7.4-alpine
     container_name: go-template-redis
+    profiles: ["resources"]
     ports:
       - "127.0.0.1:${GO_TEMPLATE_REDIS_PORT:-6379}:6379"
     healthcheck:
@@ -46,6 +51,7 @@ services:
   mongodb:
     image: mongo:8.0
     container_name: go-template-mongodb
+    profiles: ["resources"]
     ports:
       - "127.0.0.1:${GO_TEMPLATE_MONGODB_PORT:-27017}:27017"
     healthcheck:
@@ -59,6 +65,7 @@ services:
   jaeger:
     image: jaegertracing/all-in-one:1.65.0
     container_name: go-template-jaeger
+    profiles: ["resources"]
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
     ports:
