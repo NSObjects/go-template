@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/NSObjects/go-template/internal/platform/apperr"
 	"github.com/NSObjects/go-template/internal/platform/requestctx"
@@ -16,7 +16,7 @@ import (
 
 const requestIDFromContext = "req-from-context"
 
-func GetContext() (echo.Context, *httptest.ResponseRecorder) {
+func GetContext() (*echo.Context, *httptest.ResponseRecorder) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)

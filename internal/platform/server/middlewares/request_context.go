@@ -2,7 +2,7 @@ package middlewares
 
 import (
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/NSObjects/go-template/internal/platform/requestctx"
 )
@@ -16,7 +16,7 @@ const (
 // RequestContext stores request-scoped metadata in the standard context.
 func RequestContext() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			request := c.Request()
 			requestID := requestctx.CleanMetadataID(request.Header.Get(headerRequestID))
 			if requestID == "" {

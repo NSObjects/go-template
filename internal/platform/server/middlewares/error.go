@@ -1,12 +1,11 @@
 package middlewares
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"runtime/debug"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/NSObjects/go-template/internal/platform/apperr"
 	"github.com/NSObjects/go-template/internal/platform/infrastructure/logging"
@@ -14,8 +13,8 @@ import (
 )
 
 // ErrorHandler 增强的错误处理器
-func ErrorHandler(err error, c echo.Context) {
-	if c.Response().Committed {
+func ErrorHandler(c *echo.Context, err error) {
+	if response, unwrapErr := echo.UnwrapResponse(c.Response()); unwrapErr == nil && response.Committed {
 		return
 	}
 
@@ -40,16 +39,15 @@ func normalizeError(err error) error {
 		return err
 	}
 
-	var httpErr *echo.HTTPError
-	if errors.As(err, &httpErr) {
-		return normalizeHTTPError(httpErr)
+	if status := echo.StatusCode(err); status != 0 {
+		return normalizeHTTPStatus(status, err)
 	}
 
 	return apperr.WrapInternal(err, "internal server error")
 }
 
-func normalizeHTTPError(err *echo.HTTPError) error {
-	switch err.Code {
+func normalizeHTTPStatus(status int, err error) error {
+	switch status {
 	case http.StatusBadRequest:
 		return apperr.WrapBadRequest(err, "")
 	case http.StatusUnauthorized:
@@ -63,14 +61,14 @@ func normalizeHTTPError(err *echo.HTTPError) error {
 	case http.StatusConflict:
 		return apperr.WrapConflict(err, "")
 	default:
-		if err.Code >= http.StatusBadRequest && err.Code < http.StatusInternalServerError {
+		if status >= http.StatusBadRequest && status < http.StatusInternalServerError {
 			return apperr.WrapBadRequest(err, "")
 		}
 		return apperr.WrapInternal(err, "")
 	}
 }
 
-func logAPIError(c echo.Context, info apperr.Info) {
+func logAPIError(c *echo.Context, info apperr.Info) {
 	logger := logging.FromContext(c.Request().Context())
 	event := logger.
 		Warn().
@@ -107,14 +105,14 @@ func logAPIError(c echo.Context, info apperr.Info) {
 // ErrorRecovery 错误恢复中间件
 func ErrorRecovery() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			defer func() {
 				if r := recover(); r != nil {
 					err := apperr.WrapInternal(
 						fmt.Errorf("panic recovered: %v\n%s", r, debug.Stack()),
 						"internal server error",
 					)
-					ErrorHandler(err, c)
+					ErrorHandler(c, err)
 				}
 			}()
 

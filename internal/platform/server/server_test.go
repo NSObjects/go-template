@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/NSObjects/go-template/internal/platform/apperr"
@@ -35,11 +37,33 @@ func TestServerConfigureEcho(t *testing.T) {
 
 	assert.NotNil(t, server.echo.Validator)
 	assert.NotNil(t, server.echo.HTTPErrorHandler)
-	assert.Equal(t, server.config.HideBanner, server.echo.HideBanner)
-	assert.Equal(t, server.config.Debug, server.echo.Debug)
-	assert.Equal(t, server.config.ReadTimeout, server.echo.Server.ReadTimeout)
-	assert.Equal(t, server.config.WriteTimeout, server.echo.Server.WriteTimeout)
-	assert.Equal(t, server.config.IdleTimeout, server.echo.Server.IdleTimeout)
+}
+
+func TestServerStartConfigAppliesRuntimeSettings(t *testing.T) {
+	server := &Server{
+		config: &Config{
+			Port:            ":9323",
+			ReadTimeout:     2 * time.Second,
+			WriteTimeout:    3 * time.Second,
+			IdleTimeout:     4 * time.Second,
+			ShutdownTimeout: 5 * time.Second,
+			HideBanner:      true,
+		},
+	}
+
+	startConfig := server.startConfig(server.config.Port)
+	httpServer := &http.Server{}
+	if err := startConfig.BeforeServeFunc(httpServer); err != nil {
+		t.Fatalf("BeforeServeFunc() error = %v", err)
+	}
+
+	assert.Equal(t, ":9323", startConfig.Address)
+	assert.True(t, startConfig.HideBanner)
+	assert.True(t, startConfig.HidePort)
+	assert.Equal(t, 5*time.Second, startConfig.GracefulTimeout)
+	assert.Equal(t, 2*time.Second, httpServer.ReadTimeout)
+	assert.Equal(t, 3*time.Second, httpServer.WriteTimeout)
+	assert.Equal(t, 4*time.Second, httpServer.IdleTimeout)
 }
 
 func TestServerMiddlewareConfig(t *testing.T) {
@@ -128,7 +152,7 @@ func TestServerRegisterSystemRoutes(t *testing.T) {
 
 	server.registerSystemRoutes()
 
-	routes := server.echo.Routes()
+	routes := server.echo.Router().Routes()
 	assert.NotEmpty(t, routes)
 
 	hasHealthRoute := false
@@ -136,13 +160,13 @@ func TestServerRegisterSystemRoutes(t *testing.T) {
 	hasRoutesRoute := false
 
 	for _, route := range routes {
-		if route.Path == "/api/health" && route.Method == echo.GET {
+		if route.Path == "/api/health" && route.Method == http.MethodGet {
 			hasHealthRoute = true
 		}
-		if route.Path == "/api/routes" && route.Method == echo.GET {
+		if route.Path == "/api/routes" && route.Method == http.MethodGet {
 			hasRoutesRoute = true
 		}
-		if route.Path == "/api/info" && route.Method == echo.GET {
+		if route.Path == "/api/info" && route.Method == http.MethodGet {
 			hasInfoRoute = true
 		}
 	}
@@ -168,6 +192,108 @@ func TestServerRunReturnsStartupError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestServerRunReturnsShutdownError(t *testing.T) {
+	addr := freeLocalAddr(t)
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	releaseHandler := func() {
+		releaseOnce.Do(func() {
+			close(release)
+		})
+	}
+	defer releaseHandler()
+
+	server := newSlowShutdownServer(addr, started, release)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	runErrCh := make(chan error, 1)
+	go func() {
+		runErrCh <- server.Run(ctx)
+	}()
+
+	clientErrCh := make(chan error, 1)
+	go func() {
+		clientErrCh <- requestUntilServerReady("http://"+addr+"/slow", 2*time.Second)
+	}()
+
+	waitForSlowRequestStarted(t, started, runErrCh, clientErrCh)
+	cancel()
+
+	err := waitForRunResult(t, runErrCh)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Run() error = %v, want context deadline exceeded", err)
+	}
+	assert.Contains(t, err.Error(), "shutdown server")
+
+	releaseHandler()
+	waitForClientRequest(t, clientErrCh)
+}
+
+func newSlowShutdownServer(addr string, started chan<- struct{}, release <-chan struct{}) *Server {
+	e := echo.New()
+	e.GET("/slow", func(c *echo.Context) error {
+		close(started)
+		<-release
+		return c.NoContent(http.StatusNoContent)
+	})
+
+	return &Server{
+		echo: e,
+		config: &Config{
+			Port:            addr,
+			ReadTimeout:     time.Second,
+			WriteTimeout:    time.Second,
+			IdleTimeout:     time.Second,
+			ShutdownTimeout: 50 * time.Millisecond,
+			HideBanner:      true,
+		},
+	}
+}
+
+func waitForSlowRequestStarted(
+	t *testing.T,
+	started <-chan struct{},
+	runErrCh <-chan error,
+	clientErrCh <-chan error,
+) {
+	t.Helper()
+
+	select {
+	case <-started:
+	case err := <-runErrCh:
+		t.Fatalf("Run() returned before request started: %v", err)
+	case err := <-clientErrCh:
+		t.Fatalf("client request failed before reaching handler: %v", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for slow request to start")
+	}
+}
+
+func waitForRunResult(t *testing.T, runErrCh <-chan error) error {
+	t.Helper()
+
+	select {
+	case err := <-runErrCh:
+		return err
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for Run() shutdown result")
+		return nil
+	}
+}
+
+func waitForClientRequest(t *testing.T, clientErrCh <-chan error) {
+	t.Helper()
+
+	select {
+	case err := <-clientErrCh:
+		assert.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for slow request to finish")
+	}
+}
+
 func TestServerRunRejectsNilContext(t *testing.T) {
 	server := mustNewServer(t, configs.Config{})
 
@@ -182,13 +308,13 @@ func TestServerRunRejectsNilContext(t *testing.T) {
 func TestServerAPIGroupRegistersBusinessRoutes(t *testing.T) {
 	server := mustNewServer(t, configs.Config{})
 
-	server.API().GET("/ping", func(c echo.Context) error {
+	server.API().GET("/ping", func(c *echo.Context) error {
 		return c.NoContent(204)
 	})
 
 	hasPingRoute := false
-	for _, route := range server.Echo().Routes() {
-		if route.Method == echo.GET && route.Path == "/api/ping" {
+	for _, route := range server.Echo().Router().Routes() {
+		if route.Method == http.MethodGet && route.Path == "/api/ping" {
 			hasPingRoute = true
 			break
 		}
@@ -240,7 +366,7 @@ func TestServerSystemRoutes(t *testing.T) {
 
 	server.registerSystemRoutes()
 
-	routes := server.echo.Routes()
+	routes := server.echo.Router().Routes()
 	assert.NotEmpty(t, routes)
 
 	hasSystemRoutes := false
@@ -380,15 +506,41 @@ func TestServerConfig(t *testing.T) {
 	assert.Equal(t, 120*time.Second, config.IdleTimeout)
 	assert.Equal(t, 10*time.Second, config.ShutdownTimeout)
 	assert.True(t, config.HideBanner)
-	assert.False(t, config.Debug)
 
 	config.Port = ":9090"
-	config.Debug = true
 	config.HideBanner = false
 
 	assert.Equal(t, ":9090", config.Port)
-	assert.True(t, config.Debug)
 	assert.False(t, config.HideBanner)
+}
+
+func freeLocalAddr(t *testing.T) string {
+	t.Helper()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen on free local port: %v", err)
+	}
+	addr := listener.Addr().String()
+	if err := listener.Close(); err != nil {
+		t.Fatalf("close free local port listener: %v", err)
+	}
+	return addr
+}
+
+func requestUntilServerReady(url string, timeout time.Duration) error {
+	client := &http.Client{Timeout: timeout}
+	deadline := time.Now().Add(timeout)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		resp, err := client.Get(url)
+		if err == nil {
+			return resp.Body.Close()
+		}
+		lastErr = err
+		time.Sleep(5 * time.Millisecond)
+	}
+	return lastErr
 }
 
 func mustNewServer(t *testing.T, cfg configs.Config, opts ...Option) *Server {

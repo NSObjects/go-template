@@ -36,6 +36,13 @@ func TestCommonRequestErrorCodes(t *testing.T) {
 		got  int
 		want int
 	}{
+		{name: "token invalid", got: ErrTokenInvalid, want: 100005},
+		{name: "redis", got: ErrRedis, want: 100102},
+		{name: "kafka", got: ErrKafka, want: 100103},
+		{name: "external service", got: ErrExternalService, want: 100104},
+		{name: "signature invalid", got: ErrSignatureInvalid, want: 100202},
+		{name: "permission denied", got: ErrPermissionDenied, want: 100207},
+		{name: "encoding json", got: ErrEncodingJSON, want: 100304},
 		{name: "bad request", got: ErrBadRequest, want: 100400},
 		{name: "unauthorized", got: ErrUnauthorized, want: 100401},
 		{name: "forbidden", got: ErrForbidden, want: 100403},
@@ -51,6 +58,50 @@ func TestCommonRequestErrorCodes(t *testing.T) {
 				t.Fatalf("code = %d, want %d", tt.got, tt.want)
 			}
 		})
+	}
+}
+
+func TestHTTPStatus(t *testing.T) {
+	tests := []struct {
+		name string
+		code int
+		want int
+	}{
+		{name: "zero success", code: 0, want: 200},
+		{name: "success", code: ErrSuccess, want: 200},
+		{name: "validation", code: ErrValidation, want: 400},
+		{name: "bad request", code: ErrBadRequest, want: 400},
+		{name: "token invalid", code: ErrTokenInvalid, want: 401},
+		{name: "signature invalid", code: ErrSignatureInvalid, want: 401},
+		{name: "permission denied", code: ErrPermissionDenied, want: 403},
+		{name: "method not allowed", code: ErrMethodNotAllowed, want: 405},
+		{name: "conflict", code: ErrConflict, want: 409},
+		{name: "redis", code: ErrRedis, want: 500},
+		{name: "encoding", code: ErrEncodingJSON, want: 500},
+		{name: "unknown code", code: -1, want: 500},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HTTPStatus(tt.code); got != tt.want {
+				t.Fatalf("HTTPStatus(%d) = %d, want %d", tt.code, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestStatusPredicates(t *testing.T) {
+	if !IsClientError(ErrPermissionDenied) {
+		t.Fatal("IsClientError(ErrPermissionDenied) = false, want true")
+	}
+	if IsClientError(ErrRedis) {
+		t.Fatal("IsClientError(ErrRedis) = true, want false")
+	}
+	if !IsServerError(ErrRedis) {
+		t.Fatal("IsServerError(ErrRedis) = false, want true")
+	}
+	if !IsInternalError(ErrEncodingJSON) {
+		t.Fatal("IsInternalError(ErrEncodingJSON) = false, want true")
 	}
 }
 
@@ -206,6 +257,12 @@ func TestWrapHelpers(t *testing.T) {
 	if err := WrapDatabase(nil, "query"); err != nil {
 		t.Fatalf("WrapDatabase(nil) = %v, want nil", err)
 	}
+	if err := WrapRedis(nil, "get"); err != nil {
+		t.Fatalf("WrapRedis(nil) = %v, want nil", err)
+	}
+	if err := WrapKafka(nil, "publish"); err != nil {
+		t.Fatalf("WrapKafka(nil) = %v, want nil", err)
+	}
 	if err := Wrap(nil, ErrForbidden, "access denied"); err != nil {
 		t.Fatalf("Wrap(nil) = %v, want nil", err)
 	}
@@ -235,5 +292,20 @@ func TestWrapHelpers(t *testing.T) {
 	}
 	if appErr.Code() != ErrConflict {
 		t.Fatalf("Code = %d, want %d", appErr.Code(), ErrConflict)
+	}
+}
+
+func TestParseRegistered(t *testing.T) {
+	err := fmt.Errorf("outer: %w", NewPermissionDenied("order", "update"))
+
+	def, ok := ParseRegistered(err)
+	if !ok {
+		t.Fatal("ParseRegistered() ok = false, want true")
+	}
+	if def.Code != ErrPermissionDenied {
+		t.Fatalf("Code = %d, want %d", def.Code, ErrPermissionDenied)
+	}
+	if def.Kind != KindForbidden {
+		t.Fatalf("Kind = %q, want %q", def.Kind, KindForbidden)
 	}
 }

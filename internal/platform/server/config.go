@@ -28,8 +28,6 @@ type Config struct {
 	ShutdownTimeout time.Duration
 
 	HideBanner bool
-
-	Debug bool
 }
 
 // DefaultConfig returns the default HTTP server settings.
@@ -41,7 +39,6 @@ func DefaultConfig() *Config {
 		IdleTimeout:     defaultIdleTimeout,
 		ShutdownTimeout: defaultShutdownPeriod,
 		HideBanner:      true,
-		Debug:           false,
 	}
 }
 
@@ -56,6 +53,5 @@ func FromAppConfig(cfg configs.Config) *Config {
 		IdleTimeout:     defaultIdleTimeout,
 		ShutdownTimeout: defaultShutdownPeriod,
 		HideBanner:      true,
-		Debug:           cfg.System.Level == configs.DebugLevel,
 	}
 }

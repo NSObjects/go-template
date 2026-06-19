@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/samber/do/v2"
 
 	"github.com/NSObjects/go-template/internal/platform/configs"
@@ -258,7 +258,7 @@ func TestAppRunRejectsNilServer(t *testing.T) {
 
 type testModuleHandler struct{}
 
-func (h *testModuleHandler) Handle(c echo.Context) error {
+func (h *testModuleHandler) Handle(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 

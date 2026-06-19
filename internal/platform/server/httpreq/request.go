@@ -4,13 +4,13 @@ package httpreq
 import (
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/NSObjects/go-template/internal/platform/apperr"
 )
 
 // BindAndValidate binds a JSON request body and runs the server validator.
-func BindAndValidate(c echo.Context, req any) error {
+func BindAndValidate(c *echo.Context, req any) error {
 	if err := c.Bind(req); err != nil {
 		return apperr.WrapBadRequest(err, "invalid request body")
 	}
@@ -18,7 +18,7 @@ func BindAndValidate(c echo.Context, req any) error {
 }
 
 // PathID parses a positive int64 path parameter.
-func PathID(c echo.Context, name, label string) (int64, error) {
+func PathID(c *echo.Context, name, label string) (int64, error) {
 	id, err := strconv.ParseInt(c.Param(name), 10, 64)
 	if err != nil || id <= 0 {
 		return 0, apperr.NewBadRequest("invalid " + label + " id")
@@ -27,7 +27,7 @@ func PathID(c echo.Context, name, label string) (int64, error) {
 }
 
 // Pagination parses standard page and page_size query parameters.
-func Pagination(c echo.Context, defaultPageSize int) (int, int, error) {
+func Pagination(c *echo.Context, defaultPageSize int) (int, int, error) {
 	page, err := QueryInt(c, "page", 1)
 	if err != nil {
 		return 0, 0, err
@@ -40,7 +40,7 @@ func Pagination(c echo.Context, defaultPageSize int) (int, int, error) {
 }
 
 // QueryInt parses an optional int query parameter.
-func QueryInt(c echo.Context, name string, fallback int) (int, error) {
+func QueryInt(c *echo.Context, name string, fallback int) (int, error) {
 	raw := c.QueryParam(name)
 	if raw == "" {
 		return fallback, nil
@@ -53,7 +53,7 @@ func QueryInt(c echo.Context, name string, fallback int) (int, error) {
 }
 
 // QueryInt64 parses an optional int64 query parameter.
-func QueryInt64(c echo.Context, name string, fallback int64) (int64, error) {
+func QueryInt64(c *echo.Context, name string, fallback int64) (int64, error) {
 	raw := c.QueryParam(name)
 	if raw == "" {
 		return fallback, nil
@@ -66,7 +66,7 @@ func QueryInt64(c echo.Context, name string, fallback int64) (int64, error) {
 }
 
 // QueryBool parses an optional bool query parameter.
-func QueryBool(c echo.Context, name string, fallback bool) (bool, error) {
+func QueryBool(c *echo.Context, name string, fallback bool) (bool, error) {
 	raw := c.QueryParam(name)
 	if raw == "" {
 		return fallback, nil

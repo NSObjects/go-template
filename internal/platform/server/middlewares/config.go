@@ -6,12 +6,11 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	echootel "github.com/labstack/echo-opentelemetry"
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 	"github.com/rs/zerolog"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/NSObjects/go-template/internal/platform/infrastructure/logging"
@@ -69,7 +68,7 @@ func ApplyMiddlewares(e *echo.Echo, config *MiddlewareConfig) error {
 	}
 
 	if config.EnableTracing {
-		e.Use(otelecho.Middleware(config.TracingServiceName))
+		e.Use(echootel.NewMiddleware(config.TracingServiceName))
 	}
 
 	if config.EnableLogger {
@@ -99,42 +98,45 @@ func ApplyMiddlewares(e *echo.Echo, config *MiddlewareConfig) error {
 }
 
 func requestLogger() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			startedAt := time.Now()
+	return middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		BeforeNextFunc: func(c *echo.Context) {
 			request := c.Request()
 			ctx := contextWithActiveTrace(request.Context())
 			logger := requestLoggerFromContext(ctx)
 			c.SetRequest(request.WithContext(logger.WithContext(ctx)))
-
-			err := next(c)
-			if err != nil {
-				c.Error(err)
-			}
-			status := responseStatus(c, err)
+		},
+		HandleError:  true,
+		LogLatency:   true,
+		LogMethod:    true,
+		LogRoutePath: true,
+		LogStatus:    true,
+		LogURIPath:   true,
+		LogValuesFunc: func(c *echo.Context, values middleware.RequestLoggerValues) error {
+			logger := requestLoggerFromContext(c.Request().Context())
+			status := responseStatus(c, values.Error)
 			event := logger.Info()
 			if status >= http.StatusInternalServerError {
 				event = logger.Error()
 			} else if status >= http.StatusBadRequest {
 				event = logger.Warn()
 			}
-			if err != nil {
-				event = event.Err(err)
+			if values.Error != nil {
+				event = event.Err(values.Error)
 			}
 			if info, ok := requestctx.FromContext(c.Request().Context()); ok && info.UserID != "" {
 				event = event.Str("user_id", info.UserID)
 			}
 
 			event.
-				Str("method", c.Request().Method).
-				Str("path", requestPath(c)).
+				Str("method", values.Method).
+				Str("path", requestLogPath(c, values)).
 				Int("status", status).
-				Dur("latency", time.Since(startedAt).Round(time.Microsecond)).
+				Dur("latency", values.Latency).
 				Msg("HTTP request")
 
 			return nil
-		}
-	}
+		},
+	})
 }
 
 func requestLoggerFromContext(ctx context.Context) zerolog.Logger {
@@ -164,22 +166,28 @@ func contextWithActiveTrace(ctx context.Context) context.Context {
 	return requestctx.WithTraceSpan(ctx, spanContext.TraceID().String(), spanContext.SpanID().String())
 }
 
-func responseStatus(c echo.Context, err error) int {
-	status := c.Response().Status
-	if status != 0 {
-		return status
-	}
-	var httpErr *echo.HTTPError
-	if errors.As(err, &httpErr) {
-		return httpErr.Code
-	}
-	if err != nil {
-		return http.StatusInternalServerError
-	}
-	return http.StatusOK
+func responseStatus(c *echo.Context, err error) int {
+	_, status := echo.ResolveResponseStatus(c.Response(), err)
+	return status
 }
 
-func requestPath(c echo.Context) string {
+func requestLogPath(c *echo.Context, values middleware.RequestLoggerValues) string {
+	if values.RoutePath != "" {
+		return values.RoutePath
+	}
+	if path := c.Path(); path != "" {
+		return path
+	}
+	if values.URIPath != "" {
+		return values.URIPath
+	}
+	if c.Request() == nil || c.Request().URL == nil {
+		return ""
+	}
+	return c.Request().URL.Path
+}
+
+func requestPath(c *echo.Context) string {
 	if path := c.Path(); path != "" {
 		return path
 	}
@@ -206,13 +214,13 @@ func normalizedCORSConfig(config middleware.CORSConfig) (middleware.CORSConfig, 
 	}
 	if len(config.AllowMethods) == 0 {
 		config.AllowMethods = []string{
-			echo.GET,
-			echo.HEAD,
-			echo.PUT,
-			echo.PATCH,
-			echo.POST,
-			echo.DELETE,
-			echo.OPTIONS,
+			http.MethodGet,
+			http.MethodHead,
+			http.MethodPut,
+			http.MethodPatch,
+			http.MethodPost,
+			http.MethodDelete,
+			http.MethodOptions,
 		}
 	}
 	return config, nil

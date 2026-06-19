@@ -1,7 +1,7 @@
 package salesorderhttp
 
 import (
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/NSObjects/go-template/internal/modules/salesorder/usecase"
 	"github.com/NSObjects/go-template/internal/platform/apperr"
@@ -40,7 +40,7 @@ type createItemInput struct {
 }
 
 // Create handles sales order creation requests.
-func (h *Handler) Create(c echo.Context) error {
+func (h *Handler) Create(c *echo.Context) error {
 	if err := h.ready(); err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (h *Handler) Create(c echo.Context) error {
 }
 
 // Get handles sales order lookup requests.
-func (h *Handler) Get(c echo.Context) error {
+func (h *Handler) Get(c *echo.Context) error {
 	if err := h.ready(); err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (h *Handler) Get(c echo.Context) error {
 }
 
 // List handles sales order list requests.
-func (h *Handler) List(c echo.Context) error {
+func (h *Handler) List(c *echo.Context) error {
 	if err := h.ready(); err != nil {
 		return err
 	}

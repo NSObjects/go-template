@@ -1,7 +1,7 @@
 package customerhttp
 
 import (
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/NSObjects/go-template/internal/modules/customer/usecase"
 	"github.com/NSObjects/go-template/internal/platform/apperr"
@@ -45,7 +45,7 @@ func (r updateCustomerRequest) hasChanges() bool {
 }
 
 // Create handles customer creation requests.
-func (h *Handler) Create(c echo.Context) error {
+func (h *Handler) Create(c *echo.Context) error {
 	if err := h.ready(); err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func (h *Handler) Create(c echo.Context) error {
 }
 
 // Get handles customer lookup requests.
-func (h *Handler) Get(c echo.Context) error {
+func (h *Handler) Get(c *echo.Context) error {
 	if err := h.ready(); err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (h *Handler) Get(c echo.Context) error {
 }
 
 // List handles customer list requests.
-func (h *Handler) List(c echo.Context) error {
+func (h *Handler) List(c *echo.Context) error {
 	if err := h.ready(); err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func (h *Handler) List(c echo.Context) error {
 }
 
 // Update handles customer partial update requests.
-func (h *Handler) Update(c echo.Context) error {
+func (h *Handler) Update(c *echo.Context) error {
 	if err := h.ready(); err != nil {
 		return err
 	}

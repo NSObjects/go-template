@@ -134,6 +134,16 @@ func joinDetail(detail string, cause error) string {
 	return fmt.Sprintf("%s: %s", detail, causeDetail)
 }
 
+// ParseRegistered returns the first registered application error definition in
+// err's unwrap chain.
+func ParseRegistered(err error) (Definition, bool) {
+	appErr, ok := Parse(err)
+	if !ok {
+		return Definition{}, false
+	}
+	return Lookup(appErr.Code())
+}
+
 // Parse returns the first application Error in err's unwrap chain.
 func Parse(err error) (*Error, bool) {
 	if appErr, ok := stderrors.AsType[*Error](err); ok {
@@ -145,6 +155,16 @@ func Parse(err error) (*Error, bool) {
 // WrapDatabase wraps database errors.
 func WrapDatabase(err error, operation string) error {
 	return wrapIfError(err, ErrDatabase, "database %s failed", operation)
+}
+
+// WrapRedis wraps Redis errors.
+func WrapRedis(err error, operation string) error {
+	return wrapIfError(err, ErrRedis, "redis %s failed", operation)
+}
+
+// WrapKafka wraps Kafka errors.
+func WrapKafka(err error, operation string) error {
+	return wrapIfError(err, ErrKafka, "kafka %s failed", operation)
 }
 
 // WrapExternal wraps external service errors.
@@ -192,6 +212,16 @@ func NewValidation(field, message string) error {
 	return newError(ErrValidation, message, fmt.Sprintf("validation failed for field %s: %s", field, message), nil)
 }
 
+// NewTokenInvalid creates an invalid-token error.
+func NewTokenInvalid() error {
+	return New(ErrTokenInvalid, "token is invalid")
+}
+
+// NewTokenExpired creates an expired-token error.
+func NewTokenExpired() error {
+	return New(ErrExpired, "token is expired")
+}
+
 // NewUnauthorized creates an unauthorized error.
 func NewUnauthorized() error {
 	return New(ErrUnauthorized, "unauthorized")
@@ -200,6 +230,11 @@ func NewUnauthorized() error {
 // NewForbidden creates a forbidden error.
 func NewForbidden() error {
 	return New(ErrForbidden, "forbidden")
+}
+
+// NewPermissionDenied creates a permission-denied error.
+func NewPermissionDenied(resource, action string) error {
+	return Newf(ErrPermissionDenied, "permission denied for %s on %s", action, resource)
 }
 
 // NewNotFound creates a not found error for resource.

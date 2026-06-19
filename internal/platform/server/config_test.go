@@ -19,10 +19,9 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, 120*time.Second, config.IdleTimeout)
 	assert.Equal(t, 10*time.Second, config.ShutdownTimeout)
 	assert.True(t, config.HideBanner)
-	assert.False(t, config.Debug)
 }
 
-func TestFromAppConfigDebugMode(t *testing.T) {
+func TestFromAppConfigUsesSystemPort(t *testing.T) {
 	result := FromAppConfig(configs.Config{
 		System: configs.SystemConfig{
 			Port:  ":9090",
@@ -33,7 +32,6 @@ func TestFromAppConfigDebugMode(t *testing.T) {
 	assertDefaultDurations(t, result)
 	assert.Equal(t, ":9090", result.Port)
 	assert.True(t, result.HideBanner)
-	assert.True(t, result.Debug)
 }
 
 func TestFromAppConfigOnlineMode(t *testing.T) {
@@ -47,7 +45,6 @@ func TestFromAppConfigOnlineMode(t *testing.T) {
 	assertDefaultDurations(t, result)
 	assert.Equal(t, ":9322", result.Port)
 	assert.True(t, result.HideBanner)
-	assert.False(t, result.Debug)
 }
 
 func TestFromAppConfigUsesDefaults(t *testing.T) {
@@ -56,7 +53,6 @@ func TestFromAppConfigUsesDefaults(t *testing.T) {
 	assert.Equal(t, configs.DefaultPort, result.Port)
 	assertDefaultDurations(t, result)
 	assert.True(t, result.HideBanner)
-	assert.False(t, result.Debug)
 }
 
 func TestServerConfigFields(t *testing.T) {
@@ -67,7 +63,6 @@ func TestServerConfigFields(t *testing.T) {
 		IdleTimeout:     60 * time.Second,
 		ShutdownTimeout: 5 * time.Second,
 		HideBanner:      false,
-		Debug:           true,
 	}
 
 	assert.Equal(t, ":3000", config.Port)
@@ -76,7 +71,6 @@ func TestServerConfigFields(t *testing.T) {
 	assert.Equal(t, 60*time.Second, config.IdleTimeout)
 	assert.Equal(t, 5*time.Second, config.ShutdownTimeout)
 	assert.False(t, config.HideBanner)
-	assert.True(t, config.Debug)
 }
 
 func assertDefaultDurations(t *testing.T, config *Config) {

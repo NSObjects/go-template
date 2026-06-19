@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/NSObjects/go-template/internal/platform/apperr"
 	"github.com/NSObjects/go-template/internal/platform/requestctx"
@@ -49,7 +49,7 @@ type ListResponse struct {
 }
 
 // OK renders a successful response envelope.
-func OK(c echo.Context, data interface{}) error {
+func OK(c *echo.Context, data interface{}) error {
 	return c.JSON(http.StatusOK, Response{
 		Code:      apperr.ErrSuccess,
 		Message:   "OK",
@@ -60,7 +60,7 @@ func OK(c echo.Context, data interface{}) error {
 }
 
 // Created renders a successful creation response envelope.
-func Created(c echo.Context, data interface{}) error {
+func Created(c *echo.Context, data interface{}) error {
 	return c.JSON(http.StatusCreated, Response{
 		Code:      apperr.ErrSuccess,
 		Message:   "OK",
@@ -71,7 +71,7 @@ func Created(c echo.Context, data interface{}) error {
 }
 
 // List renders a successful paginated list response envelope.
-func List(c echo.Context, data interface{}, page PageMeta) error {
+func List(c *echo.Context, data interface{}, page PageMeta) error {
 	return c.JSON(http.StatusOK, ListResponse{
 		Code:      apperr.ErrSuccess,
 		Message:   "OK",
@@ -102,11 +102,11 @@ func NewPageMeta(page, pageSize, total int) (PageMeta, error) {
 }
 
 // APIError renders a project error as a JSON HTTP response.
-func APIError(c echo.Context, err error) error {
+func APIError(c *echo.Context, err error) error {
 	if err == nil {
 		return errors.New("error cannot be nil")
 	}
-	if c.Response().Committed {
+	if response, unwrapErr := echo.UnwrapResponse(c.Response()); unwrapErr == nil && response.Committed {
 		return nil
 	}
 
@@ -144,7 +144,7 @@ func Status(kind apperr.Kind) int {
 }
 
 // RequestID returns the request ID used in HTTP error responses.
-func RequestID(c echo.Context) string {
+func RequestID(c *echo.Context) string {
 	if requestID := requestctx.GetRequestID(c.Request().Context()); requestID != "" {
 		setResponseRequestID(c, requestID)
 		return requestID
@@ -164,7 +164,7 @@ func RequestID(c echo.Context) string {
 	return requestID
 }
 
-func setResponseRequestID(c echo.Context, requestID string) {
+func setResponseRequestID(c *echo.Context, requestID string) {
 	c.Response().Header().Set("X-Request-ID", requestID)
 }
 

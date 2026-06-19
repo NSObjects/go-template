@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 func TestPathIDParsesPositiveID(t *testing.T) {
@@ -13,8 +13,7 @@ func TestPathIDParsesPositiveID(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/customers/12", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("id")
-	c.SetParamValues("12")
+	c.SetPathValues(echo.PathValues{{Name: "id", Value: "12"}})
 
 	id, err := PathID(c, "id", "customer")
 	if err != nil {

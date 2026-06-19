@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	customermemory "github.com/NSObjects/go-template/internal/modules/customer/adapters/memory"
 	customerhttp "github.com/NSObjects/go-template/internal/modules/customer/http"

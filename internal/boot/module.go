@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/samber/do/v2"
 
 	"github.com/NSObjects/go-template/internal/platform/configs"

@@ -12,8 +12,8 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -90,7 +90,7 @@ func TestRequestLoggerPreservesRenderedApplicationErrorStatus(t *testing.T) {
 	config := DefaultMiddlewareConfig()
 
 	assert.NoError(t, ApplyMiddlewares(e, config))
-	e.GET("/bad", func(_ echo.Context) error {
+	e.GET("/bad", func(_ *echo.Context) error {
 		return apperr.NewBadRequest("invalid payload")
 	})
 
@@ -106,7 +106,7 @@ func TestRequestLoggerPreservesRenderedApplicationErrorStatus(t *testing.T) {
 func TestRequestContextMiddlewareStoresMetadata(t *testing.T) {
 	e := echo.New()
 	e.Use(RequestContext())
-	e.GET("/ping", func(c echo.Context) error {
+	e.GET("/ping", func(c *echo.Context) error {
 		info, ok := requestctx.FromContext(c.Request().Context())
 		if !ok {
 			t.Fatal("request context metadata missing")
@@ -141,7 +141,7 @@ func TestRequestContextMiddlewareCleansUntrustedMetadata(t *testing.T) {
 
 	e := echo.New()
 	e.Use(RequestContext())
-	e.GET("/ping", func(c echo.Context) error {
+	e.GET("/ping", func(c *echo.Context) error {
 		info, ok := requestctx.FromContext(c.Request().Context())
 		if !ok {
 			t.Fatal("request context metadata missing")
@@ -246,7 +246,7 @@ func TestJWTStoresSubjectAsAuthenticatedUserID(t *testing.T) {
 	e := echo.New()
 	e.Use(RequestContext())
 	e.Use(jwtMiddleware)
-	e.GET("/me", func(c echo.Context) error {
+	e.GET("/me", func(c *echo.Context) error {
 		if got := requestctx.GetUserID(c.Request().Context()); got != "user-123" {
 			t.Fatalf("GetUserID() = %q, want user-123", got)
 		}
@@ -272,7 +272,7 @@ func TestJWTMissingTokenReturnsGenericUnauthorized(t *testing.T) {
 	e.HTTPErrorHandler = ErrorHandler
 	e.Use(RequestContext())
 	e.Use(jwtMiddleware)
-	e.GET("/me", func(c echo.Context) error {
+	e.GET("/me", func(c *echo.Context) error {
 		return c.NoContent(http.StatusNoContent)
 	})
 
@@ -291,7 +291,7 @@ func TestErrorRecovery(t *testing.T) {
 	e.HTTPErrorHandler = ErrorHandler
 
 	// 创建一个会panic的路由
-	e.GET("/panic", func(_ echo.Context) error {
+	e.GET("/panic", func(_ *echo.Context) error {
 		panic("test panic")
 	})
 
@@ -351,6 +351,13 @@ func TestErrorHandlerNormalizesEchoHTTPClientErrors(t *testing.T) {
 			wantMsg:    "Method not allowed",
 		},
 		{
+			name:       "echo status coder method not allowed keeps client status",
+			err:        echo.ErrMethodNotAllowed,
+			wantStatus: http.StatusMethodNotAllowed,
+			wantCode:   apperr.ErrMethodNotAllowed,
+			wantMsg:    "Method not allowed",
+		},
+		{
 			name:       "echo conflict keeps conflict status",
 			err:        echo.NewHTTPError(http.StatusConflict, "already exists"),
 			wantStatus: http.StatusConflict,
@@ -380,7 +387,7 @@ func TestErrorHandlerSkipsCommittedResponse(t *testing.T) {
 	c := e.NewContext(req, rec)
 	c.Response().WriteHeader(http.StatusAccepted)
 
-	ErrorHandler(errors.New("late error after response"), c)
+	ErrorHandler(c, errors.New("late error after response"))
 
 	assert.Equal(t, http.StatusAccepted, rec.Code)
 	assert.Empty(t, rec.Body.String())
@@ -467,7 +474,7 @@ func assertErrorHandlerNormalizes(
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
-	ErrorHandler(err, c)
+	ErrorHandler(c, err)
 
 	assert.Equal(t, wantStatus, rec.Code)
 	assertErrorPayload(t, rec, wantCode, wantMsg)

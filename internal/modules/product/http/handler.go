@@ -1,7 +1,7 @@
 package producthttp
 
 import (
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/NSObjects/go-template/internal/modules/product/usecase"
 	"github.com/NSObjects/go-template/internal/platform/apperr"
@@ -46,7 +46,7 @@ func (r updateProductRequest) hasChanges() bool {
 }
 
 // Create handles product creation requests.
-func (h *Handler) Create(c echo.Context) error {
+func (h *Handler) Create(c *echo.Context) error {
 	if err := h.ready(); err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (h *Handler) Create(c echo.Context) error {
 }
 
 // Get handles product lookup requests.
-func (h *Handler) Get(c echo.Context) error {
+func (h *Handler) Get(c *echo.Context) error {
 	if err := h.ready(); err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (h *Handler) Get(c echo.Context) error {
 }
 
 // List handles product list requests.
-func (h *Handler) List(c echo.Context) error {
+func (h *Handler) List(c *echo.Context) error {
 	if err := h.ready(); err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (h *Handler) List(c echo.Context) error {
 }
 
 // Update handles product partial update requests.
-func (h *Handler) Update(c echo.Context) error {
+func (h *Handler) Update(c *echo.Context) error {
 	if err := h.ready(); err != nil {
 		return err
 	}

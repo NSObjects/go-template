@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 	zlog "github.com/rs/zerolog/log"
 
 	"github.com/NSObjects/go-template/internal/platform/configs"
@@ -116,11 +116,6 @@ func New(cfg configs.Config, opts ...Option) (*Server, error) {
 func (s *Server) configureEcho() {
 	s.echo.Validator = &middlewares.Validator{Validator: validator.New()}
 	s.echo.HTTPErrorHandler = middlewares.ErrorHandler
-	s.echo.HideBanner = s.config.HideBanner
-	s.echo.Debug = s.config.Debug
-	s.echo.Server.ReadTimeout = s.config.ReadTimeout
-	s.echo.Server.WriteTimeout = s.config.WriteTimeout
-	s.echo.Server.IdleTimeout = s.config.IdleTimeout
 }
 
 func (s *Server) installMiddleware() error {
@@ -164,14 +159,14 @@ func corsMiddlewareConfig(cfg configs.CORSConfig) middleware.CORSConfig {
 }
 
 func (s *Server) registerSystemRoutes() {
-	s.api.GET("/health", func(c echo.Context) error {
+	s.api.GET("/health", func(c *echo.Context) error {
 		return c.JSON(http.StatusOK, healthResponse{
 			Status: "ok",
 			Time:   time.Now().Format(time.RFC3339),
 		})
 	})
 
-	s.api.GET("/info", func(c echo.Context) error {
+	s.api.GET("/info", func(c *echo.Context) error {
 		return c.JSON(http.StatusOK, infoResponse{
 			Name:    s.appConfig.App.Name,
 			Version: s.appConfig.App.Version,
@@ -179,7 +174,7 @@ func (s *Server) registerSystemRoutes() {
 		})
 	})
 
-	s.api.GET("/ready", func(c echo.Context) error {
+	s.api.GET("/ready", func(c *echo.Context) error {
 		response := readinessResponse{
 			Status: "ready",
 			Time:   time.Now().Format(time.RFC3339),
@@ -194,7 +189,7 @@ func (s *Server) registerSystemRoutes() {
 		return c.JSON(http.StatusOK, response)
 	})
 
-	s.api.GET("/capabilities", func(c echo.Context) error {
+	s.api.GET("/capabilities", func(c *echo.Context) error {
 		return c.JSON(http.StatusOK, capabilitiesResponse{
 			Capabilities: s.statuses(c.Request().Context()),
 			Time:         time.Now().Format(time.RFC3339),
@@ -218,52 +213,45 @@ func (s *Server) Run(ctx context.Context) error {
 		return errors.New("server run: nil context")
 	}
 
-	errCh := make(chan error, 1)
-	go s.serve(errCh)
-
-	select {
-	case err := <-errCh:
-		return err
-	case <-ctx.Done():
-	}
-
-	return s.shutdown(errCh)
-}
-
-func (s *Server) serve(errCh chan<- error) {
 	addr := s.config.Port
 	if addr == "" {
 		addr = defaultServerPort
 	}
 
 	zlog.Info().Str("addr", addr).Msg("starting server")
-	err := s.echo.Start(addr)
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		errCh <- err
-		return
-	}
-	errCh <- nil
-}
-
-func (s *Server) shutdown(errCh <-chan error) error {
-	zlog.Info().Msg("shutting down server")
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), s.config.ShutdownTimeout)
-	defer cancel()
-
-	if err := s.echo.Shutdown(shutdownCtx); err != nil {
-		return fmt.Errorf("shutdown server: %w", err)
-	}
-
-	select {
-	case err := <-errCh:
-		if err != nil {
-			return err
+	shutdownErrCh := make(chan error, 1)
+	startConfig := s.startConfig(addr)
+	startConfig.OnShutdownError = func(err error) {
+		select {
+		case shutdownErrCh <- err:
+		default:
 		}
-	case <-shutdownCtx.Done():
-		return fmt.Errorf("wait for server shutdown: %w", shutdownCtx.Err())
+	}
+
+	if err := startConfig.Start(ctx, s.echo); err != nil {
+		return err
+	}
+	select {
+	case err := <-shutdownErrCh:
+		return fmt.Errorf("shutdown server: %w", err)
+	default:
 	}
 
 	zlog.Info().Msg("server exited")
 	return nil
+}
+
+func (s *Server) startConfig(addr string) echo.StartConfig {
+	return echo.StartConfig{
+		Address:         addr,
+		HideBanner:      s.config.HideBanner,
+		HidePort:        true,
+		GracefulTimeout: s.config.ShutdownTimeout,
+		BeforeServeFunc: func(server *http.Server) error {
+			server.ReadTimeout = s.config.ReadTimeout
+			server.WriteTimeout = s.config.WriteTimeout
+			server.IdleTimeout = s.config.IdleTimeout
+			return nil
+		},
+	}
 }
